@@ -1,0 +1,29 @@
+# Dependencias
+node_modules/
+dist/
+build/
+
+# Variables de entorno
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Typescript
+*.tsbuildinfo
+
+# Vite
+frontend/.vite/
