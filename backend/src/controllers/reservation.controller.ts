@@ -22,34 +22,71 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
   try {
     const { vehiculo, fechaInicio, fechaFin, destino, motivo } = req.body;
 
-    // Verificar que el vehículo existe y está disponible
+    // ── Validación 1: Campos obligatorios ──────────────────────────────────
+    if (!vehiculo || !fechaInicio || !fechaFin || !destino || !motivo) {
+      res.status(400).json({ message: 'Todos los campos son obligatorios' });
+      return;
+    }
+
+    const inicio = new Date(fechaInicio);
+    const fin = new Date(fechaFin);
+
+    if (fin <= inicio) {
+      res.status(400).json({ message: 'La fecha de fin debe ser posterior a la de inicio' });
+      return;
+    }
+
+    // ── Validación 2: El vehículo existe ───────────────────────────────────
     const vehicle = await Vehicle.findById(vehiculo);
     if (!vehicle) {
       res.status(404).json({ message: 'Vehículo no encontrado' });
       return;
     }
 
-    // Verificar que no hay reservas que se solapen
-    const overlapping = await Reservation.findOne({
+    // ── Validación 3: El vehículo está operativo ───────────────────────────
+    if (vehicle.estado === 'mantenimiento' || vehicle.estado === 'fuera_de_servicio') {
+      res.status(409).json({
+        message: `El vehículo no está disponible para reservas (estado actual: ${vehicle.estado})`,
+      });
+      return;
+    }
+
+    // ── Validación 4: El vehículo no tiene reservas solapadas ──────────────
+    const vehiculoSolapado = await Reservation.findOne({
       vehiculo,
       estado: { $in: ['pendiente', 'aprobada', 'en_curso'] },
-      $or: [
-        { fechaInicio: { $lt: new Date(fechaFin) }, fechaFin: { $gt: new Date(fechaInicio) } },
-      ],
+      fechaInicio: { $lt: fin },
+      fechaFin: { $gt: inicio },
     });
 
-    if (overlapping) {
+    if (vehiculoSolapado) {
       res.status(409).json({
         message: 'El vehículo ya tiene una reserva en ese rango de fechas',
       });
       return;
     }
 
+    // ── Validación 5: El usuario no tiene otro vehículo reservado en esas fechas ──
+    const usuarioSolapado = await Reservation.findOne({
+      usuario: req.userId,
+      estado: { $in: ['pendiente', 'aprobada', 'en_curso'] },
+      fechaInicio: { $lt: fin },
+      fechaFin: { $gt: inicio },
+    });
+
+    if (usuarioSolapado) {
+      res.status(409).json({
+        message: 'Ya tienes una reserva activa en ese rango de fechas. No puedes reservar más de un vehículo a la vez.',
+      });
+      return;
+    }
+
+    // ── Crear la reserva ───────────────────────────────────────────────────
     const reservation = await Reservation.create({
       usuario: req.userId,
       vehiculo,
-      fechaInicio,
-      fechaFin,
+      fechaInicio: inicio,
+      fechaFin: fin,
       destino,
       motivo,
     });
@@ -64,6 +101,8 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
     res.status(500).json({ message: 'Error al crear reserva', error });
   }
 };
+
+
 
 // Actualizar estado de una reserva (admin)
 export const updateReservationStatus = async (req: AuthRequest, res: Response): Promise<void> => {
