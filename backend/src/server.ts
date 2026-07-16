@@ -5,6 +5,7 @@ import connectDB from './config/db.js';
 import authRoutes from './routes/auth.routes.js';
 import vehicleRoutes from './routes/vehicle.routes.js';
 import reservationRoutes from './routes/reservation.routes.js';
+import dashboardRoutes from './routes/dashboard.routes.js';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -29,6 +30,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/reservations', reservationRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Iniciar servidor
 const startServer = async () => {
