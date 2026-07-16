@@ -2,88 +2,102 @@
 
 Sistema prototipo para gestionar la reserva de **4 vehículos** de empresa por parte de **100 usuarios autorizados**.
 
-## Tech Stack
+## 🛠️ Tech Stack
 
-| Capa | Tecnología |
-|------|-----------|
-| Frontend | React 19 + TypeScript + Vite |
-| Backend | Node.js + Express + TypeScript |
-| Base de datos | MongoDB Atlas + Mongoose |
-| Autenticación | JWT (JSON Web Tokens) |
+| Capa | Tecnología | Detalles |
+|------|-----------|-----------|
+| **Frontend** | React 19 + TypeScript + Vite | React Router DOM para navegación, Axios para peticiones HTTP con interceptores JWT. |
+| **Backend** | Node.js + Express + TypeScript | Rutas protegidas, controladores CRUD para Vehículos, Reservas y Usuarios. |
+| **Base de datos** | MongoDB Atlas + Mongoose | Modelos estrictos, validación de fechas (evita reservas dobles), conexión directa (Non-SRV). |
+| **Autenticación** | JWT (JSON Web Tokens) | Contraseñas encriptadas con `bcryptjs`, middleware de protección por roles (Admin/User). |
 
-## 📋 Requisitos Previos
+## 👥 Equipo de Desarrollo (Práctica Profesional)
 
-- [Node.js](https://nodejs.org/) v20 LTS o superior
-- [Git](https://git-scm.com/)
-- Cuenta en [MongoDB Atlas](https://www.mongodb.com/atlas) (tier gratuito M0)
-- [MongoDB Compass](https://www.mongodb.com/products/compass) (opcional, para inspeccionar la BD)
+Este proyecto sigue una división de responsabilidades estricta:
+- **Joaquín (Backend)**: Lógica de negocio, API REST, Base de Datos, Autenticación y validaciones.
+- **Gustavo (Frontend)**: Interfaz de usuario, consumo de API, gestión de estados y navegación.
 
-## 🚀 Instalación
+> 📝 **Nota:** Revisar el archivo `plan_de_trabajo.md` (o el PDF adjunto) para ver las reglas exactas de los commits y el uso de ramas de Git.
+
+---
+
+## 🚀 Instalación y Configuración Local
 
 ### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/TU_USUARIO/PrototipoPractica.git
+git clone https://github.com/ximolpz123/PrototipoPractica.git
 cd PrototipoPractica
 ```
 
-### 2. Instalar dependencias
+### 2. Instalar todas las dependencias
 
 ```bash
-# Instalar todo (raíz + frontend + backend)
+# Instalar dependencias raíz (para ejecutar ambos proyectos a la vez)
 npm install
+
+# Instalar dependencias del Backend y Frontend
 cd backend && npm install && cd ..
 cd frontend && npm install && cd ..
 ```
 
 ### 3. Configurar variables de entorno
 
+Copia el archivo `.env.example` en la carpeta `backend` y renómbralo a `.env`:
 ```bash
-# Copiar el archivo de ejemplo
 cp backend/.env.example backend/.env
 ```
 
-Editar `backend/.env` con tu connection string de MongoDB Atlas:
+Edita `backend/.env` con la URL directa de MongoDB (formato 2.2.12 sin SRV para evitar bloqueos de red) y asegúrate de poner la contraseña real:
 
-```
-MONGODB_URI=mongodb+srv://<usuario>:<password>@<cluster>.mongodb.net/reserva-vehiculos
-JWT_SECRET=tu_secreto_super_seguro
+```env
+MONGODB_URI="mongodb://usuario:PASSWORD@ac-98xn2br-shard-00-00.zwhrp0v.mongodb.net:27017,ac-98xn2br-shard-00-01.zwhrp0v.mongodb.net:27017,ac-98xn2br-shard-00-02.zwhrp0v.mongodb.net:27017/reserva-vehiculos?ssl=true&replicaSet=atlas-spro0z-shard-0&authSource=admin&appName=Cluster0"
+JWT_SECRET=prototipo_practica_jwt_secret_2026
 PORT=5000
 ```
 
-### 4. Cargar datos de prueba (seed)
+### 4. Cargar datos de prueba (Seed)
+
+Solo debes correr esto una vez para poblar tu base de datos con los autos y usuarios de prueba.
 
 ```bash
 cd backend
 npx tsx src/seed.ts
 ```
+*(Si es exitoso, verás en consola que se crearon 5 usuarios, 4 vehículos y 3 reservas).*
 
-### 5. Ejecutar en desarrollo
+### 5. Ejecutar el proyecto (Frontend + Backend juntos)
 
 ```bash
-# Desde la raíz del proyecto (corre front y back simultáneamente)
+# Vuelve a la raíz del proyecto y ejecuta:
 npm run dev
 ```
 
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:5000
-- **Health check**: http://localhost:5000/api/health
+Esto levantará automáticamente:
+- **Frontend Vite**: `http://localhost:5173`
+- **Backend API**: `http://localhost:5000`
+
+---
+
+## 🔑 Usuarios de Prueba Creados por el Seed
+
+Puedes usar estos usuarios para iniciar sesión cuando el Frontend esté listo:
+
+| Rol | Correo | Contraseña |
+|-----|--------|------------|
+| **Administrador** | `admin@empresa.com` | `password123` |
+| **Usuario** | `maria.garcia@empresa.com` | `password123` |
+| **Usuario** | `juan.lopez@empresa.com` | `password123` |
+
+---
 
 ## 📁 Estructura del Proyecto
 
 ```
 PrototipoPractica/
-├── frontend/          # React + TypeScript (Vite)
-├── backend/           # Node.js + Express + TypeScript
+├── frontend/          # Interfaz visual (Gustavo)
+├── backend/           # Lógica y API (Joaquín)
+├── plan_de_trabajo.md # Reglas de equipo y Git
 ├── package.json       # Scripts raíz (concurrently)
-└── README.md
+└── README.md          # Este archivo
 ```
-
-## 👥 Equipo
-
-- **Desarrollador 1**: Cascarón del proyecto, modelos y backend
-- **Desarrollador 2**: (por definir)
-
-## 📄 Licencia
-
-Proyecto académico / prototipo interno.
