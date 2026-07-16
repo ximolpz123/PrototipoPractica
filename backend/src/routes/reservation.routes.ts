@@ -4,6 +4,7 @@ import {
   createReservation,
   updateReservationStatus,
   cancelReservation,
+  completeReservation,
 } from '../controllers/reservation.controller.js';
 import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
 
@@ -20,5 +21,9 @@ router.patch('/:id/status', authMiddleware, adminMiddleware, updateReservationSt
 
 // PATCH /api/reservations/:id/cancel (protegido - dueño o admin)
 router.patch('/:id/cancel', authMiddleware, cancelReservation);
+
+// PATCH /api/reservations/:id/complete (protegido - dueño o admin)
+// Body: { kmRetorno: number, observaciones?: string }
+router.patch('/:id/complete', authMiddleware, completeReservation);
 
 export default router;

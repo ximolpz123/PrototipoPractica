@@ -107,8 +107,90 @@ export const cancelReservation = async (req: AuthRequest, res: Response): Promis
     reservation.estado = 'cancelada';
     await reservation.save();
 
+    // Actualizar el estado del vehículo a 'disponible'
+    await Vehicle.findByIdAndUpdate(reservation.vehiculo, { estado: 'disponible' });
+
     res.json({ message: 'Reserva cancelada exitosamente', reservation });
   } catch (error) {
     res.status(500).json({ message: 'Error al cancelar reserva', error });
   }
 };
+
+// Completar una reserva y registrar kilometraje de retorno
+export const completeReservation = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { kmRetorno, observaciones } = req.body;
+
+    // Validar que kmRetorno es un número positivo
+    if (typeof kmRetorno !== 'number' || kmRetorno < 0) {
+      res.status(400).json({ message: 'El kmRetorno debe ser un número positivo' });
+      return;
+    }
+
+    // Buscar la reserva
+    const reservation = await Reservation.findById(req.params.id);
+    if (!reservation) {
+      res.status(404).json({ message: 'Reserva no encontrada' });
+      return;
+    }
+
+    // Solo el admin o el dueño de la reserva pueden completarla
+    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin') {
+      res.status(403).json({ message: 'No tienes permiso para completar esta reserva' });
+      return;
+    }
+
+    // Solo se puede completar si está aprobada o en_curso
+    if (!['aprobada', 'en_curso'].includes(reservation.estado)) {
+      res.status(400).json({
+        message: `No se puede completar una reserva en estado "${reservation.estado}"`,
+      });
+      return;
+    }
+
+    // Validar que kmRetorno > kmSalida (si se registró kmSalida)
+    if (reservation.kmSalida && kmRetorno < reservation.kmSalida) {
+      res.status(400).json({
+        message: `El kmRetorno (${kmRetorno}) no puede ser menor al kmSalida (${reservation.kmSalida})`,
+      });
+      return;
+    }
+
+    // Calcular kilómetros recorridos en este viaje
+    const kmRecorridos = reservation.kmSalida ? kmRetorno - reservation.kmSalida : 0;
+
+    // Actualizar la reserva
+    reservation.kmRetorno = kmRetorno;
+    reservation.estado = 'completada';
+    if (observaciones) reservation.observaciones = observaciones;
+    await reservation.save();
+
+    // Actualizar el kilometraje total del vehículo y ponerlo como disponible
+    const vehiculoActualizado = await Vehicle.findByIdAndUpdate(
+      reservation.vehiculo,
+      {
+        $inc: { kilometraje: kmRecorridos }, // Suma los km recorridos al total
+        estado: 'disponible',
+      },
+      { new: true }
+    );
+
+    const populated = await reservation.populate([
+      { path: 'usuario', select: 'nombre apellido email' },
+      { path: 'vehiculo', select: 'placa marca modelo kilometraje' },
+    ]);
+
+    res.json({
+      message: 'Reserva completada exitosamente',
+      reservation: populated,
+      kmRecorridos,
+      vehiculo: {
+        placa: vehiculoActualizado?.placa,
+        nuevaLectura: vehiculoActualizado?.kilometraje,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al completar la reserva', error });
+  }
+};
+
