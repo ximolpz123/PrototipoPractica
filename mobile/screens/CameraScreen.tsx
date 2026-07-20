@@ -1,7 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { COLORS } from '../constants';
+import { COLORS, API_URL } from '../constants';
+import axios from 'axios';
+import { authService } from '../services/auth.service';
 
 export default function CameraScreen({ route, navigation }: any) {
   const { reservaId, tipo } = route.params; // 'salida' o 'retorno'
@@ -53,7 +55,6 @@ export default function CameraScreen({ route, navigation }: any) {
 
     setUploading(true);
     try {
-      // Usaremos FormData para subir las imágenes como multipart/form-data
       const formData = new FormData();
       formData.append('tipo', tipo);
       
@@ -69,15 +70,22 @@ export default function CameraScreen({ route, navigation }: any) {
         } as any);
       });
 
-      // Llama a la API (Asumimos que el token ya está en axios por el interceptor del AuthContext/Service si lo implementamos)
-      // Por brevedad, te mostraré aquí cómo se debe llamar:
-      // await axios.post(`${API_URL}/reservations/${reservaId}/upload`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      // Obtener token para la petición
+      const token = await authService.getToken();
 
-      Alert.alert('Éxito', 'Las fotos han sido subidas');
+      // Realizar la petición real al backend
+      await axios.post(`${API_URL}/reservations/${reservaId}/upload`, formData, {
+        headers: { 
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      Alert.alert('Éxito', 'Las fotos han sido subidas correctamente a Cloudinary y guardadas en la base de datos.');
       navigation.goBack();
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'No se pudieron subir las fotos');
+    } catch (error: any) {
+      console.error(error.response?.data || error);
+      Alert.alert('Error', 'No se pudieron subir las fotos. Verifica la consola.');
     } finally {
       setUploading(false);
     }

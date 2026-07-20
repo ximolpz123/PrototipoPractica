@@ -20,7 +20,7 @@ export default function HomeScreen({ route, navigation }: any) {
         
         <TouchableOpacity 
           style={styles.actionBtn} 
-          onPress={() => navigation.navigate('Camera', { reservaId: 'TEST_ID', tipo: 'salida' })}
+          onPress={() => navigation.navigate('Camera', { reservaId: '6a5e8c12faf82a430d99924b', tipo: 'salida' })}
         >
           <Text style={styles.actionBtnText}>Tomar Evidencia (Salida)</Text>
         </TouchableOpacity>
