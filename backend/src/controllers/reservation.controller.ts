@@ -233,3 +233,50 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
   }
 };
 
+// Subir fotos de evidencia para una reserva
+export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { tipo } = req.body; // 'salida' o 'retorno'
+    const files = req.files as Express.Multer.File[];
+
+    if (!files || files.length === 0) {
+      res.status(400).json({ message: 'No se encontraron imágenes' });
+      return;
+    }
+
+    if (!['salida', 'retorno'].includes(tipo)) {
+      res.status(400).json({ message: 'El tipo debe ser "salida" o "retorno"' });
+      return;
+    }
+
+    const reservation = await Reservation.findById(req.params.id);
+    if (!reservation) {
+      res.status(404).json({ message: 'Reserva no encontrada' });
+      return;
+    }
+
+    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin') {
+      res.status(403).json({ message: 'No tienes permiso para modificar esta reserva' });
+      return;
+    }
+
+    const photoUrls = files.map((file) => file.path); // Cloudinary devuelve la URL en path
+
+    if (tipo === 'salida') {
+      reservation.fotosSalida = [...(reservation.fotosSalida || []), ...photoUrls];
+    } else {
+      reservation.fotosRetorno = [...(reservation.fotosRetorno || []), ...photoUrls];
+    }
+
+    await reservation.save();
+
+    res.json({
+      message: `Fotos de ${tipo} subidas exitosamente`,
+      urls: photoUrls,
+      reservation,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al subir fotos', error });
+  }
+};
+

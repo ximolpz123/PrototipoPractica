@@ -10,6 +10,8 @@ export interface IReservation extends Document {
   estado: 'pendiente' | 'aprobada' | 'en_curso' | 'completada' | 'cancelada';
   kmSalida?: number;
   kmRetorno?: number;
+  fotosSalida?: string[];
+  fotosRetorno?: string[];
   observaciones?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -58,6 +60,8 @@ const reservationSchema = new Schema<IReservation>(
     },
     kmSalida: { type: Number, min: 0 },
     kmRetorno: { type: Number, min: 0 },
+    fotosSalida: [{ type: String }],
+    fotosRetorno: [{ type: String }],
     observaciones: { type: String, trim: true },
   },
   { timestamps: true }

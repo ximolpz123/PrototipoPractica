@@ -7,6 +7,7 @@ import {
   completeReservation,
 } from '../controllers/reservation.controller.js';
 import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
+import { upload } from '../config/cloudinary.js';
 
 const router = Router();
 
@@ -25,5 +26,15 @@ router.patch('/:id/cancel', authMiddleware, cancelReservation);
 // PATCH /api/reservations/:id/complete (protegido - dueño o admin)
 // Body: { kmRetorno: number, observaciones?: string }
 router.patch('/:id/complete', authMiddleware, completeReservation);
+
+// POST /api/reservations/:id/upload
+// Sube hasta 4 fotos y las asocia a la reserva (tipo: 'salida' o 'retorno')
+import { uploadPhotos } from '../controllers/reservation.controller.js';
+router.post(
+  '/:id/upload',
+  authMiddleware,
+  upload.array('fotos', 4),
+  uploadPhotos
+);
 
 export default router;

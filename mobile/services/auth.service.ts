@@ -28,4 +28,9 @@ export const authService = {
     const token = await AsyncStorage.getItem('token');
     return !!token;
   },
+
+  // Obtener el token guardado
+  getToken: async (): Promise<string | null> => {
+    return await AsyncStorage.getItem('token');
+  },
 };

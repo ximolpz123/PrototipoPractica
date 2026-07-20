@@ -10,9 +10,17 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { authService } from './services/auth.service';
 import type { IUser } from './types';
 import { COLORS } from './constants';
+
+// Screens
+import HomeScreen from './screens/HomeScreen';
+import CameraScreen from './screens/CameraScreen';
+
+const Stack = createNativeStackNavigator();
 
 export default function App() {
   const [user, setUser] = useState<IUser | null>(null);
@@ -66,26 +74,24 @@ export default function App() {
     );
   }
 
-  // Pantalla de inicio (si ya está logueado)
+  // Si el usuario está logueado, usar Navigation
   if (user) {
     return (
-      <View style={styles.homeContainer}>
-        <Text style={styles.welcomeTitle}>¡Bienvenido! 👋</Text>
-        <Text style={styles.welcomeName}>{user.nombre} {user.apellido}</Text>
-        <Text style={styles.welcomeRole}>Rol: {user.rol}</Text>
-        <Text style={styles.welcomeDept}>Departamento: {user.departamento}</Text>
-
-        <View style={styles.placeholder}>
-          <Text style={styles.placeholderText}>📱 App en construcción</Text>
-          <Text style={styles.placeholderSub}>
-            El resto de las pantallas (Dashboard, Vehículos, Reservas) estarán aquí pronto.
-          </Text>
-        </View>
-
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Cerrar Sesión</Text>
-        </TouchableOpacity>
-      </View>
+      <NavigationContainer>
+        <Stack.Navigator>
+          <Stack.Screen 
+            name="Home" 
+            component={HomeScreen} 
+            initialParams={{ user, handleLogout }} 
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen 
+            name="Camera" 
+            component={CameraScreen} 
+            options={{ title: 'Tomar Evidencia' }}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
     );
   }
 
@@ -207,65 +213,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 12,
     color: COLORS.textMuted,
-  },
-  homeContainer: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    padding: 24,
-    paddingTop: 60,
-  },
-  welcomeTitle: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 4,
-  },
-  welcomeName: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: COLORS.primary,
-    marginBottom: 4,
-  },
-  welcomeRole: {
-    fontSize: 14,
-    color: COLORS.textMuted,
-    marginBottom: 2,
-    textTransform: 'capitalize',
-  },
-  welcomeDept: {
-    fontSize: 14,
-    color: COLORS.textMuted,
-    marginBottom: 24,
-  },
-  placeholder: {
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  placeholderText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 8,
-  },
-  placeholderSub: {
-    fontSize: 13,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  logoutBtn: {
-    borderWidth: 1,
-    borderColor: COLORS.danger,
-    borderRadius: 8,
-    padding: 14,
-    alignItems: 'center',
-  },
-  logoutText: {
-    color: COLORS.danger,
-    fontSize: 15,
-    fontWeight: '600',
   },
 });

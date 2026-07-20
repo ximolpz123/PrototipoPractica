@@ -4,14 +4,17 @@
 export const API_URL = 'http://10.66.96.176:5000/api';
 
 export const COLORS = {
-  primary: '#2563EB',
-  primaryDark: '#1D4ED8',
-  success: '#16A34A',
-  danger: '#DC2626',
-  warning: '#D97706',
-  background: '#F1F5F9',
-  white: '#FFFFFF',
-  text: '#1E293B',
-  textMuted: '#64748B',
-  border: '#E2E8F0',
+  primary: '#3D9FD3',       // Azul principal
+  secondary: '#5C99CC',     // Azul secundario
+  primaryDark: '#478EC6',   // Azul oscuro
+  background: '#F1F5F9',    // Mantenemos un fondo ligeramente gris para contraste
+  white: '#FFFFFF',         // Blanco
+  grayLight: '#D6D7D9',     // Gris claro
+  grayMedium: '#B5B8BE',    // Gris medio
+  grayDark: '#8E939A',      // Gris oscuro
+  text: '#1E293B',          // Texto principal oscuro
+  textMuted: '#8E939A',     // Texto secundario usando el gris oscuro
+  border: '#D6D7D9',        // Bordes usando el gris claro
+  success: '#16A34A',       // Verde de éxito (mantenido de la base)
+  danger: '#DC2626',        // Rojo de error (mantenido de la base)
 };
