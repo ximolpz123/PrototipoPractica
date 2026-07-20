@@ -1,7 +1,18 @@
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
+  --text: #000000;
+  --text-h: #000000;
+  --bg: linear-gradient(to right,
+      #3D9FD3 0%, #3D9FD3 5.9%,
+      #FFFFFF 5.9%, #FFFFFF 6.4%,
+      #3D9FD3 6.4%, #3D9FD3 12.1%,
+      #FFFFFF 12.1%, #FFFFFF 12.6%,
+      #3D9FD3 12.6%, #3D9FD3 18.5%,
+      #FFFFFF 18.5%, #FFFFFF 81.5%,
+      #B5B8BE 81.5%, #B5B8BE 87.4%,
+      #FFFFFF 87.4%, #FFFFFF 87.9%,
+      #B5B8BE 87.9%, #B5B8BE 93.6%,
+      #FFFFFF 93.6%, #FFFFFF 94.1%,
+      #B5B8BE 94.1%, #B5B8BE 100%);
   --border: #e5e4e7;
   --code-bg: #f4f3ec;
   --accent: #aa3bff;
@@ -32,9 +43,20 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
+    --text: #000000;
+    --text-h: #000000;
+    --bg: linear-gradient(to right,
+        #3D9FD3 0%, #3D9FD3 5.9%,
+        #FFFFFF 5.9%, #FFFFFF 6.4%,
+        #3D9FD3 6.4%, #3D9FD3 12.1%,
+        #FFFFFF 12.1%, #FFFFFF 12.6%,
+        #3D9FD3 12.6%, #3D9FD3 18.5%,
+        #FFFFFF 18.5%, #FFFFFF 81.5%,
+        #B5B8BE 81.5%, #B5B8BE 87.4%,
+        #FFFFFF 87.4%, #FFFFFF 87.9%,
+        #B5B8BE 87.9%, #B5B8BE 93.6%,
+        #FFFFFF 93.6%, #FFFFFF 94.1%,
+        #B5B8BE 94.1%, #B5B8BE 100%);
     --border: #2e303a;
     --code-bg: #1f2028;
     --accent: #c084fc;
@@ -51,11 +73,8 @@
 }
 
 #root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
+  width: 100%;
   text-align: center;
-  border-inline: 1px solid var(--border);
   min-height: 100svh;
   display: flex;
   flex-direction: column;
@@ -77,20 +96,24 @@ h1 {
   font-size: 56px;
   letter-spacing: -1.68px;
   margin: 32px 0;
+
   @media (max-width: 1024px) {
     font-size: 36px;
     margin: 20px 0;
   }
 }
+
 h2 {
   font-size: 24px;
   line-height: 118%;
   letter-spacing: -0.24px;
   margin: 0 0 8px;
+
   @media (max-width: 1024px) {
     font-size: 20px;
   }
 }
+
 p {
   margin: 0;
 }
@@ -108,4 +131,132 @@ code {
   line-height: 135%;
   padding: 4px 8px;
   background: var(--code-bg);
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-grow: 1;
+  padding: 20px;
+}
+
+.btn {
+  display: inline-block;
+  padding: 12px 32px;
+  margin-top: 8vh;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 18px;
+  color: #000000;
+  border: 2px solid #000000;
+  border-radius: 8px;
+  background: linear-gradient(to right, #3D9FD3, #FFFFFF, #B5B8BE);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 18.5%;
+  background: linear-gradient(to right,
+      #3D9FD3 0%, #3D9FD3 31.9%,
+      #FFFFFF 31.9%, #FFFFFF 34.6%,
+      #3D9FD3 34.6%, #3D9FD3 65.4%,
+      #FFFFFF 65.4%, #FFFFFF 68.1%,
+      #3D9FD3 68.1%, #3D9FD3 100%);
+  border-top-right-radius: 100% 15vh;
+  z-index: -1;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 18.5%;
+  background: linear-gradient(to right,
+      #B5B8BE 0%, #B5B8BE 31.9%,
+      #FFFFFF 31.9%, #FFFFFF 34.6%,
+      #B5B8BE 34.6%, #B5B8BE 65.4%,
+      #FFFFFF 65.4%, #FFFFFF 68.1%,
+      #B5B8BE 68.1%, #B5B8BE 100%);
+  border-bottom-left-radius: 100% 15vh;
+  z-index: -1;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 400px;
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  text-align: left;
+}
+
+.login-form .btn {
+  margin-top: 0;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.form-group input {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus {
+  border-color: #3D9FD3;
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-img {
+  height: 120px;
+  /* Ajusta este valor si necesitas que sea más grande o pequeño */
+  width: auto;
+}
+
+.logo-text {
+  font-size: 32px;
+  font-weight: bold;
+  color: var(--text-h);
 }
