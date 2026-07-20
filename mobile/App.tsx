@@ -13,6 +13,7 @@ import {
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { authService } from './services/auth.service';
+import './services/location.service'; // Import location service for global TaskManager registration
 import type { IUser } from './types';
 import { COLORS } from './constants';
 
