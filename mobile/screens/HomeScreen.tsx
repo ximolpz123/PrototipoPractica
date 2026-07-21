@@ -1,9 +1,26 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { COLORS } from '../constants';
+import { locationService } from '../services/location.service';
 
 export default function HomeScreen({ route, navigation }: any) {
   const { user, handleLogout } = route.params;
+
+  const handleStartTrip = async () => {
+    const started = await locationService.startTracking();
+    if (started) {
+      Alert.alert('Éxito', 'Rastreo GPS en segundo plano activado.');
+      navigation.navigate('Camera', { reservaId: '6a5e8c12faf82a430d99924b', tipo: 'salida' });
+    } else {
+      Alert.alert('Error', 'Necesitas dar permisos de GPS siempre (Todo el tiempo) para esta función.');
+    }
+  };
+
+  const handleEndTrip = async () => {
+    await locationService.stopTracking();
+    Alert.alert('Éxito', 'Rastreo detenido.');
+    navigation.navigate('Camera', { reservaId: '6a5e8c12faf82a430d99924b', tipo: 'retorno' });
+  };
 
   return (
     <View style={styles.homeContainer}>
@@ -13,16 +30,17 @@ export default function HomeScreen({ route, navigation }: any) {
       <Text style={styles.welcomeDept}>Departamento: {user.departamento}</Text>
 
       <View style={styles.placeholder}>
-        <Text style={styles.placeholderText}>🚘 Tus Reservas Activas</Text>
+        <Text style={styles.placeholderText}>🚘 Reserva Activa (Demo)</Text>
         <Text style={styles.placeholderSub}>
-          Aquí se listarán las reservas. Por ahora puedes probar la cámara de evidencia.
+          Reserva de un SUV Nissan. Usa los botones para simular el inicio y fin del viaje.
         </Text>
         
-        <TouchableOpacity 
-          style={styles.actionBtn} 
-          onPress={() => navigation.navigate('Camera', { reservaId: '6a5e8c12faf82a430d99924b', tipo: 'salida' })}
-        >
-          <Text style={styles.actionBtnText}>Tomar Evidencia (Salida)</Text>
+        <TouchableOpacity style={[styles.actionBtn, { marginBottom: 10 }]} onPress={handleStartTrip}>
+          <Text style={styles.actionBtnText}>Iniciar Viaje (Activa GPS)</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.success }]} onPress={handleEndTrip}>
+          <Text style={styles.actionBtnText}>Completar Viaje (Apaga GPS)</Text>
         </TouchableOpacity>
       </View>
 
