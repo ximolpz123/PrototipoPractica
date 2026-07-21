@@ -5,11 +5,14 @@ import { locationService } from '../services/location.service';
 
 export default function HomeScreen({ route, navigation }: any) {
   const { user } = route.params;
+  
+  // mock states: 'pending', 'active', 'completed'
+  const [tripState, setTripState] = React.useState('pending');
 
   const handleStartTrip = async () => {
     const started = await locationService.startTracking();
     if (started) {
-      Alert.alert('Éxito', 'Rastreo GPS en segundo plano activado.');
+      setTripState('active');
       navigation.navigate('Camera', { reservaId: '6a5e8c12faf82a430d99924b', tipo: 'salida' });
     } else {
       Alert.alert('Error', 'Necesitas dar permisos de GPS siempre (Todo el tiempo) para esta función.');
@@ -18,8 +21,12 @@ export default function HomeScreen({ route, navigation }: any) {
 
   const handleEndTrip = async () => {
     await locationService.stopTracking();
-    Alert.alert('Éxito', 'Rastreo detenido.');
+    setTripState('completed');
     navigation.navigate('Camera', { reservaId: '6a5e8c12faf82a430d99924b', tipo: 'retorno' });
+  };
+
+  const handleResetDemo = () => {
+    setTripState('pending');
   };
 
   return (
@@ -30,18 +37,31 @@ export default function HomeScreen({ route, navigation }: any) {
       <Text style={styles.welcomeDept}>Departamento: {user.departamento}</Text>
 
       <View style={styles.placeholder}>
-        <Text style={styles.placeholderText}>🚘 Reserva Activa (Demo)</Text>
+        <Text style={styles.placeholderText}>🚘 Próxima Reserva (Demo)</Text>
         <Text style={styles.placeholderSub}>
-          Reserva de un SUV Nissan. Usa los botones para simular el inicio y fin del viaje.
+          Reserva de un SUV Nissan. {tripState === 'active' ? 'El viaje está en curso y el GPS está activo.' : tripState === 'completed' ? 'El viaje ha finalizado.' : 'Usa el botón para iniciar el viaje.'}
         </Text>
         
-        <TouchableOpacity style={[styles.actionBtn, { marginBottom: 10 }]} onPress={handleStartTrip}>
-          <Text style={styles.actionBtnText}>Iniciar Viaje (Activa GPS)</Text>
-        </TouchableOpacity>
+        {tripState === 'pending' && (
+          <TouchableOpacity style={[styles.actionBtn, { marginBottom: 10 }]} onPress={handleStartTrip}>
+            <Text style={styles.actionBtnText}>Iniciar Viaje (Activa GPS)</Text>
+          </TouchableOpacity>
+        )}
 
-        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.success }]} onPress={handleEndTrip}>
-          <Text style={styles.actionBtnText}>Completar Viaje (Apaga GPS)</Text>
-        </TouchableOpacity>
+        {tripState === 'active' && (
+          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.error || '#FF3B30' }]} onPress={handleEndTrip}>
+            <Text style={styles.actionBtnText}>Completar Viaje (Apaga GPS)</Text>
+          </TouchableOpacity>
+        )}
+
+        {tripState === 'completed' && (
+          <View style={{ alignItems: 'center' }}>
+            <Text style={{ color: COLORS.success || '#4CD964', fontWeight: 'bold', marginBottom: 15 }}>✅ Viaje Registrado Exitosamente</Text>
+            <TouchableOpacity onPress={handleResetDemo} style={{ padding: 10, borderWidth: 1, borderColor: COLORS.border, borderRadius: 5 }}>
+              <Text style={{ color: COLORS.textMuted }}>Reiniciar Demo</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </View>
   );
