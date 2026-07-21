@@ -25,6 +25,7 @@ import CameraScreen from './screens/CameraScreen';
 import MisReservasScreen from './screens/MisReservasScreen';
 import FlotaScreen from './screens/FlotaScreen';
 import PerfilScreen from './screens/PerfilScreen';
+import CreateReservationScreen from './screens/CreateReservationScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -144,6 +145,11 @@ export default function App() {
             name="Camera" 
             component={CameraScreen} 
             options={{ title: 'Tomar Evidencia' }}
+          />
+          <Stack.Screen 
+            name="CreateReservation" 
+            component={CreateReservationScreen} 
+            options={{ title: 'Crear Reserva' }}
           />
         </Stack.Navigator>
       </NavigationContainer>

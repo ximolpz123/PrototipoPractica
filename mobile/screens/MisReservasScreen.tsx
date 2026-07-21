@@ -8,7 +8,7 @@ const RESERVATIONS = [
   { id: '3', vehiculo: 'Auto Café', fecha: '15 Jul, 2026', hora: '15:00 - 17:00', estado: 'Cancelada' },
 ];
 
-export default function MisReservasScreen() {
+export default function MisReservasScreen({ navigation }: any) {
   const renderItem = ({ item }: any) => {
     let statusColor = COLORS.textMuted;
     if (item.estado === 'Activa') statusColor = COLORS.success || '#4CD964';
@@ -35,7 +35,7 @@ export default function MisReservasScreen() {
           <Text style={styles.title}>Mis Reservas</Text>
           <Text style={styles.subtitle}>Tu historial de viajes</Text>
         </View>
-        <TouchableOpacity style={styles.newBtn}>
+        <TouchableOpacity style={styles.newBtn} onPress={() => navigation.navigate('CreateReservation')}>
           <Text style={styles.newBtnText}>+ Nueva</Text>
         </TouchableOpacity>
       </View>
