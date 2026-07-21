@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
 import { authService } from './services/auth.service';
 import './services/location.service'; // Import location service for global TaskManager registration
 import type { IUser } from './types';
@@ -20,8 +22,60 @@ import { COLORS } from './constants';
 // Screens
 import HomeScreen from './screens/HomeScreen';
 import CameraScreen from './screens/CameraScreen';
+import MisReservasScreen from './screens/MisReservasScreen';
+import FlotaScreen from './screens/FlotaScreen';
+import PerfilScreen from './screens/PerfilScreen';
 
 const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
+
+function MainTabNavigator({ route }: any) {
+  const { user, handleLogout } = route.params;
+
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName: keyof typeof Ionicons.glyphMap = 'home';
+
+          if (route.name === 'Inicio') {
+            iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'Reservas') {
+            iconName = focused ? 'calendar' : 'calendar-outline';
+          } else if (route.name === 'Flota') {
+            iconName = focused ? 'car' : 'car-outline';
+          } else if (route.name === 'Perfil') {
+            iconName = focused ? 'person' : 'person-outline';
+          }
+
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.textMuted,
+        headerShown: true,
+      })}
+    >
+      <Tab.Screen 
+        name="Inicio" 
+        component={HomeScreen} 
+        initialParams={{ user }} 
+      />
+      <Tab.Screen 
+        name="Reservas" 
+        component={MisReservasScreen} 
+      />
+      <Tab.Screen 
+        name="Flota" 
+        component={FlotaScreen} 
+      />
+      <Tab.Screen 
+        name="Perfil" 
+        component={PerfilScreen} 
+        initialParams={{ user, handleLogout }} 
+      />
+    </Tab.Navigator>
+  );
+}
 
 export default function App() {
   const [user, setUser] = useState<IUser | null>(null);
@@ -81,8 +135,8 @@ export default function App() {
       <NavigationContainer>
         <Stack.Navigator>
           <Stack.Screen 
-            name="Home" 
-            component={HomeScreen} 
+            name="MainTabs" 
+            component={MainTabNavigator} 
             initialParams={{ user, handleLogout }} 
             options={{ headerShown: false }}
           />

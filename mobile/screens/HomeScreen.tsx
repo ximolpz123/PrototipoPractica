@@ -4,7 +4,7 @@ import { COLORS } from '../constants';
 import { locationService } from '../services/location.service';
 
 export default function HomeScreen({ route, navigation }: any) {
-  const { user, handleLogout } = route.params;
+  const { user } = route.params;
 
   const handleStartTrip = async () => {
     const started = await locationService.startTracking();
@@ -43,10 +43,6 @@ export default function HomeScreen({ route, navigation }: any) {
           <Text style={styles.actionBtnText}>Completar Viaje (Apaga GPS)</Text>
         </TouchableOpacity>
       </View>
-
-      <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-        <Text style={styles.logoutText}>Cerrar Sesión</Text>
-      </TouchableOpacity>
     </View>
   );
 }
