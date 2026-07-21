@@ -6,7 +6,7 @@ import {
   cancelReservation,
   completeReservation,
 } from '../controllers/reservation.controller.js';
-import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
+import { authMiddleware, adminMiddleware, licenciaMiddleware } from '../middleware/auth.js';
 import { upload } from '../config/cloudinary.js';
 
 const router = Router();
@@ -14,8 +14,8 @@ const router = Router();
 // GET /api/reservations (protegido - admin ve todas, usuario las suyas)
 router.get('/', authMiddleware, getReservations);
 
-// POST /api/reservations (protegido)
-router.post('/', authMiddleware, createReservation);
+// POST /api/reservations (protegido, bloqueado si la licencia no está vigente)
+router.post('/', authMiddleware, licenciaMiddleware, createReservation);
 
 // PATCH /api/reservations/:id/status (solo admin)
 router.patch('/:id/status', authMiddleware, adminMiddleware, updateReservationStatus);

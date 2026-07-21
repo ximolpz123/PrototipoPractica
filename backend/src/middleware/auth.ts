@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
 
 export interface AuthRequest extends Request {
   userId?: string;
@@ -34,4 +35,52 @@ export const adminMiddleware = (req: AuthRequest, res: Response, next: NextFunct
     return;
   }
   next();
+};
+
+// Middleware RN-01: bloquea si la licencia está vencida o no está al día
+export const licenciaMiddleware = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const user = await User.findById(req.userId).select('licenciaAlDia fechaVencimientoLicencia activo');
+
+    if (!user) {
+      res.status(404).json({ message: 'Usuario no encontrado.' });
+      return;
+    }
+
+    if (!user.activo) {
+      res.status(403).json({ message: 'Tu cuenta está desactivada. Contacta a RRHH.' });
+      return;
+    }
+
+    // Verificar bandera manual de RRHH
+    if (!user.licenciaAlDia) {
+      res.status(403).json({
+        message: 'No puedes realizar reservas. Tu licencia de conducir no está al día. Contacta a RRHH.',
+        codigo: 'LICENCIA_NO_VIGENTE',
+      });
+      return;
+    }
+
+    // Verificar vencimiento automático por fecha
+    if (user.fechaVencimientoLicencia) {
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      const vencimiento = new Date(user.fechaVencimientoLicencia);
+      vencimiento.setHours(0, 0, 0, 0);
+
+      if (vencimiento < hoy) {
+        // Actualizar automáticamente la bandera si ya venció
+        await User.findByIdAndUpdate(req.userId, { licenciaAlDia: false });
+        res.status(403).json({
+          message: `Tu licencia de conducir venció el ${user.fechaVencimientoLicencia.toLocaleDateString('es-CL')}. No puedes realizar reservas.`,
+          codigo: 'LICENCIA_VENCIDA',
+        });
+        return;
+      }
+    }
+
+    next();
+  } catch (error) {
+    res.status(500).json({ message: 'Error al verificar licencia.' });
+  }
 };
