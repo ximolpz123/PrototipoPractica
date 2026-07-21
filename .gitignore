@@ -27,3 +27,7 @@ Thumbs.db
 
 # Vite
 frontend/.vite/
+
+# Archivos locales ignorados
+especificacion_requerimientos_bitnets_avanzada.docx
+plan_accion_bitnets.md
