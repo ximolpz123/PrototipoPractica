@@ -37,42 +37,6 @@ const seedData = async () => {
         rol: 'admin',
         activo: true,
       },
-      {
-        nombre: 'María',
-        apellido: 'García',
-        email: 'maria.garcia@empresa.com',
-        password: hashedPassword,
-        departamento: 'Ventas',
-        rol: 'usuario',
-        activo: true,
-      },
-      {
-        nombre: 'Juan',
-        apellido: 'López',
-        email: 'juan.lopez@empresa.com',
-        password: hashedPassword,
-        departamento: 'Operaciones',
-        rol: 'usuario',
-        activo: true,
-      },
-      {
-        nombre: 'Ana',
-        apellido: 'Rodríguez',
-        email: 'ana.rodriguez@empresa.com',
-        password: hashedPassword,
-        departamento: 'Gerencia',
-        rol: 'usuario',
-        activo: true,
-      },
-      {
-        nombre: 'Pedro',
-        apellido: 'Fernández',
-        email: 'pedro.fernandez@empresa.com',
-        password: hashedPassword,
-        departamento: 'Finanzas',
-        rol: 'usuario',
-        activo: true,
-      },
     ]);
 
     console.log(`👥 ${users.length} usuarios creados`);
@@ -128,37 +92,9 @@ const seedData = async () => {
     console.log(`🚗 ${vehicles.length} vehículos creados`);
 
     // --- Crear algunas reservas de ejemplo ---
-    const reservations = await Reservation.insertMany([
-      {
-        usuario: users[1]._id, // María
-        vehiculo: vehicles[0]._id, // Toyota Corolla
-        fechaInicio: new Date('2026-07-20T08:00:00'),
-        fechaFin: new Date('2026-07-20T18:00:00'),
-        destino: 'Oficina Central - Sucursal Norte',
-        motivo: 'Visita a cliente para presentación de propuesta',
-        estado: 'aprobada',
-      },
-      {
-        usuario: users[2]._id, // Juan
-        vehiculo: vehicles[1]._id, // Hyundai Tucson
-        fechaInicio: new Date('2026-07-22T07:00:00'),
-        fechaFin: new Date('2026-07-23T19:00:00'),
-        destino: 'Planta de producción - Zona Industrial',
-        motivo: 'Supervisión de inventario y logística',
-        estado: 'pendiente',
-      },
-      {
-        usuario: users[3]._id, // Ana
-        vehiculo: vehicles[2]._id, // Toyota Hilux
-        fechaInicio: new Date('2026-07-25T06:00:00'),
-        fechaFin: new Date('2026-07-25T20:00:00'),
-        destino: 'Evento corporativo - Hotel Marriott',
-        motivo: 'Reunión trimestral con directivos regionales',
-        estado: 'pendiente',
-      },
-    ]);
-
-    console.log(`📅 ${reservations.length} reservas creadas`);
+    // (Omitidas temporalmente porque solo existe el usuario Admin)
+    
+    console.log(`📅 0 reservas creadas`);
 
     // --- Resumen ---
     console.log('\n========================================');
@@ -166,10 +102,6 @@ const seedData = async () => {
     console.log('========================================');
     console.log('\n📋 Credenciales de prueba:');
     console.log('   Admin:   admin@empresa.com / password123');
-    console.log('   Usuario: maria.garcia@empresa.com / password123');
-    console.log('   Usuario: juan.lopez@empresa.com / password123');
-    console.log('   Usuario: ana.rodriguez@empresa.com / password123');
-    console.log('   Usuario: pedro.fernandez@empresa.com / password123');
     console.log('========================================\n');
 
     await mongoose.connection.close();
