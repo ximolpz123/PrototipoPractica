@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import Reservation from '../models/Reservation.js';
 import Vehicle from '../models/Vehicle.js';
+import Audit from '../models/Audit.js';
 import { AuthRequest } from '../middleware/auth.js';
 
 // Obtener todas las reservas (admin ve todas, usuario solo las suyas)
@@ -81,7 +82,7 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
       return;
     }
 
-    // ── Crear la reserva ───────────────────────────────────────────────────
+    // ── Crear la reserva (Estado: Aprobada) ──────────────────────────────
     const reservation = await Reservation.create({
       usuario: req.userId,
       vehiculo,
@@ -89,6 +90,16 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
       fechaFin: fin,
       destino,
       motivo,
+      estado: 'aprobada'
+    });
+
+    // ── Registro de Auditoría (Trazabilidad Completa) ────────────────────
+    await Audit.create({
+      usuario: req.userId,
+      accion: 'NUEVA_RESERVA',
+      entidad: 'Reservation',
+      entidadId: reservation._id,
+      detalles: `Reserva aprobada desde ${inicio.toISOString()} hasta ${fin.toISOString()}`
     });
 
     const populated = await reservation.populate([
