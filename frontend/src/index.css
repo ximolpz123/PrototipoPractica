@@ -151,7 +151,7 @@ code {
 .btn {
   display: inline-block;
   padding: 12px 32px;
-  margin-top: 8vh;
+  margin-top: 6vh;
   text-decoration: none;
   font-weight: 600;
   font-size: 18px;
@@ -161,6 +161,11 @@ code {
   background: linear-gradient(to right, #3D9FD3, #FFFFFF, #B5B8BE);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   cursor: pointer;
+}
+
+.btn.btn-back {
+  background: red;
+  color: black;
 }
 
 .btn:hover {
@@ -250,7 +255,7 @@ body::after {
 }
 
 .logo-img {
-  height: 120px;
+  height: 150px;
   /* Ajusta este valor si necesitas que sea más grande o pequeño */
   width: auto;
 }
@@ -260,3 +265,390 @@ body::after {
   font-weight: bold;
   color: var(--text-h);
 }
+
+/* ═══════════════════════════════════════════
+   PANEL DE USUARIO (Vehicles page)
+═══════════════════════════════════════════ */
+
+.user-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-grow: 1;
+  padding: 32px 20px 48px;
+  gap: 28px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ── Bienvenida ── */
+.welcome-header {
+  background: white;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 18px 40px;
+  width: 100%;
+  max-width: 860px;
+  box-sizing: border-box;
+}
+
+.welcome-text {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-h);
+  letter-spacing: -0.5px;
+}
+
+/* ── Tabs ── */
+.panel-tabs {
+  display: flex;
+  gap: 16px;
+}
+
+.tab-btn {
+  padding: 12px 28px;
+  font-size: 16px;
+  font-weight: 600;
+  border: 2px solid #000;
+  border-radius: 10px;
+  cursor: pointer;
+  background: white;
+  color: #000;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+}
+
+.tab-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
+.tab-btn.active {
+  background: linear-gradient(to right, #3D9FD3, #FFFFFF, #B5B8BE);
+  border-color: #000;
+}
+
+/* ── Grid de vehículos ── */
+.vehicles-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  width: 100%;
+  max-width: 860px;
+}
+
+@media (max-width: 640px) {
+  .vehicles-grid {
+    grid-template-columns: 1fr;
+  }
+  .panel-tabs {
+    flex-direction: column;
+  }
+}
+
+/* ── Tarjeta de vehículo ── */
+.vehicle-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.vehicle-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+}
+
+.vehicle-card-img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  background: #f3f4f6;
+}
+
+.vehicle-card-body {
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+
+.vehicle-card-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-h);
+}
+
+.vehicle-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  color: #444;
+}
+
+/* ── Badge de estado ── */
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+  width: fit-content;
+}
+
+/* ── Botón pequeño ── */
+.btn-sm {
+  display: inline-block;
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #000;
+  border: 2px solid #000;
+  border-radius: 8px;
+  background: linear-gradient(to right, #3D9FD3, #FFFFFF, #B5B8BE);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  width: fit-content;
+}
+
+.btn-sm:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* ── Modal de imagen ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.modal-img {
+  max-width: 90vw;
+  max-height: 85vh;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+  object-fit: contain;
+  animation: scaleIn 0.2s ease;
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.85); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+/* ── Panel de reservaciones ── */
+.reservations-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 860px;
+  align-items: flex-start;
+}
+
+.btn-create {
+  padding: 12px 28px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #000;
+  border: 2px solid #000;
+  border-radius: 10px;
+  background: linear-gradient(to right, #3D9FD3, #FFFFFF, #B5B8BE);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-create:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+}
+
+.res-status {
+  font-size: 16px;
+  color: #555;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  width: 100%;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.res-error {
+  color: #dc2626;
+}
+
+.reservations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+/* ── Tarjeta de reservación ── */
+.reservation-card {
+  background: white;
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 18px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.2s;
+}
+
+.reservation-card:hover {
+  transform: translateY(-2px);
+}
+
+.reservation-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.res-vehicle-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+.reservation-card-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  font-size: 14px;
+  color: #555;
+}
+
+/* ═══════════════════════════════════════════
+   USER PROFILE MENU
+═══════════════════════════════════════════ */
+
+.profile-menu-container {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 1000;
+}
+
+.profile-menu-button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s;
+}
+
+.profile-menu-button:hover {
+  transform: scale(1.05);
+}
+
+.profile-btn-img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid white;
+}
+
+.profile-menu-panel {
+  position: absolute;
+  top: 60px;
+  right: 0;
+  background: white;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 24px;
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  animation: fadeIn 0.2s ease;
+}
+
+.profile-panel-photo-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.profile-panel-img {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #3D9FD3;
+}
+
+.profile-photo-upload-label {
+  font-size: 14px;
+  color: #3D9FD3;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.profile-photo-upload-label:hover {
+  text-decoration: underline;
+}
+
+.profile-panel-info {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.profile-panel-name,
+.profile-panel-license {
+  font-size: 14px;
+  margin: 0;
+  color: var(--text-h);
+}
+
+.license-status {
+  font-weight: bold;
+  color: #22c55e;
+}
+
+.btn-logout {
+  width: 100%;
+  padding: 10px;
+  font-size: 14px;
+  margin-top: 10px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  background: linear-gradient(to right, #ef4444, #dc2626);
+}
+
+.btn-logout:hover {
+  background: linear-gradient(to right, #dc2626, #b91c1c);
+  color: white;
+}
