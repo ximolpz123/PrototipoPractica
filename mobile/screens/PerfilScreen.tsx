@@ -42,8 +42,8 @@ export default function PerfilScreen({ route }: any) {
       {/* LICENSE STATUS SECTION */}
       <View style={[styles.licenseCard, isLicenciaValida ? styles.licenseValid : styles.licenseInvalid]}>
         <View style={styles.licenseHeader}>
-          <Ionicons name="card" size={24} color={isLicenciaValida ? COLORS.success || '#28a745' : COLORS.error || '#dc3545'} />
-          <Text style={[styles.licenseTitle, { color: isLicenciaValida ? COLORS.success || '#28a745' : COLORS.error || '#dc3545' }]}>
+          <Ionicons name="card" size={24} color={isLicenciaValida ? COLORS.success : COLORS.danger} />
+          <Text style={[styles.licenseTitle, { color: isLicenciaValida ? COLORS.success : COLORS.danger }]}>
             Estado de Licencia
           </Text>
         </View>
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.success || '#28a745',
   },
   licenseInvalid: {
-    borderColor: COLORS.error || '#dc3545',
+    borderColor: COLORS.danger,
   },
   licenseHeader: {
     flexDirection: 'row',
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
   logoutBtn: {
     flexDirection: 'row',
     marginTop: 15,
-    backgroundColor: COLORS.error || '#FF3B30',
+    backgroundColor: COLORS.danger,
     padding: 15,
     borderRadius: 10,
     width: '100%',
