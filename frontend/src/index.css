@@ -651,4 +651,159 @@ body::after {
 .btn-logout:hover {
   background: linear-gradient(to right, #dc2626, #b91c1c);
   color: white;
-}
+}
+
+/* ═══════════════════════════════════════════
+   FORMULARIO CREAR RESERVACIÓN
+═══════════════════════════════════════════ */
+
+.reserv-form-panel {
+  background: white;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 2rem 2.5rem;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.reserv-form-row {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.reserv-label {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #111;
+  min-width: 220px;
+  flex-shrink: 0;
+}
+
+.reserv-input {
+  flex: 1;
+  padding: 0.55rem 0.9rem;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 1rem;
+  color: #000;
+  outline: none;
+  transition: border-color 0.2s;
+  background: #f9fafb;
+  min-width: 0;
+}
+
+.reserv-input:focus {
+  border-color: #175fbd;
+  background: white;
+}
+
+.reserv-select {
+  flex: 1;
+  width: 100%;
+  padding: 0.55rem 0.9rem;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 1rem;
+  color: #000;
+  outline: none;
+  background: #f9fafb;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.reserv-select:focus {
+  border-color: #175fbd;
+  background: white;
+}
+
+.reserv-select-error {
+  border-color: #ef4444 !important;
+  background: #fef2f2 !important;
+  color: #dc2626;
+}
+
+.reserv-field-error {
+  color: #dc2626;
+  font-size: 0.9rem;
+  margin: 0.25rem 0 0;
+}
+
+.reserv-textarea {
+  flex: 1;
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+  background: #f9fafb;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.reserv-textarea:focus {
+  border-color: #175fbd;
+  background: white;
+}
+
+.reserv-divider {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 0;
+}
+
+.reserv-form-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+/* ═══════════════════════════════════════════
+   TABLA DE ADMINISTRADOR
+═══════════════════════════════════════════ */
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  font-size: 0.95rem;
+}
+
+.admin-table th {
+  background: linear-gradient(to right, #3D9FD3, #B5B8BE);
+  color: #000;
+  font-weight: 700;
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.admin-table td {
+  padding: 10px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  color: #111;
+  vertical-align: middle;
+}
+
+.admin-table tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table tr:hover td {
+  background: #f9fafb;
+}
+
+
