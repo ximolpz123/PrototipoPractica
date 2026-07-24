@@ -9,6 +9,8 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ImageBackground,
+  Image,
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -158,48 +160,59 @@ export default function App() {
 
   // Pantalla de Login
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <ImageBackground 
+      source={require('./assets/login-bg.png')} 
+      style={styles.backgroundImage}
+      resizeMode="cover"
     >
-      <View style={styles.loginCard}>
-        <Text style={styles.title}>🚗 Reserva de Vehículos</Text>
-        <Text style={styles.subtitle}>Inicia sesión para continuar</Text>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View style={styles.loginCardNew}>
+          <View style={styles.loginHeader}>
+            <View style={styles.logoPlaceholder}>
+              <Text style={styles.logoText}>BF</Text>
+            </View>
+            <Text style={styles.titleNew}>Bitnets Flota</Text>
+            <Text style={styles.subtitleNew}>Ingrese sus credenciales</Text>
+          </View>
+          
+          <View style={styles.loginForm}>
+            <TextInput
+              style={styles.inputNew}
+              placeholder="Email (Ej: admin@empresa.com)"
+              placeholderTextColor={COLORS.textMuted}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor={COLORS.textMuted}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
+            <TextInput
+              style={styles.inputNew}
+              placeholder="Contraseña"
+              placeholderTextColor={COLORS.textMuted}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Contraseña"
-          placeholderTextColor={COLORS.textMuted}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-
-        <TouchableOpacity
-          style={[styles.loginBtn, loading && styles.loginBtnDisabled]}
-          onPress={handleLogin}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color={COLORS.white} />
-          ) : (
-            <Text style={styles.loginBtnText}>Ingresar</Text>
-          )}
-        </TouchableOpacity>
-
-        <Text style={styles.hint}>Prueba: admin@empresa.com / password123</Text>
-      </View>
-    </KeyboardAvoidingView>
+            <TouchableOpacity
+              style={[styles.loginBtnNew, loading && styles.loginBtnDisabled]}
+              onPress={handleLogin}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color={COLORS.white} />
+              ) : (
+                <Text style={styles.loginBtnTextNew}>INGRESE</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </ImageBackground>
   );
 }
 
@@ -264,15 +277,84 @@ const styles = StyleSheet.create({
   loginBtnDisabled: {
     opacity: 0.6,
   },
-  loginBtnText: {
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  overlay: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 20,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  loginCardNew: {
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+    elevation: 8,
+    overflow: 'hidden',
+  },
+  loginHeader: {
+    backgroundColor: '#5578ff',
+    padding: 30,
+    alignItems: 'center',
+  },
+  logoPlaceholder: {
+    width: 60,
+    height: 60,
+    backgroundColor: 'white',
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  logoText: {
+    color: '#5578ff',
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+  titleNew: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 4,
+  },
+  subtitleNew: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
+  },
+  loginForm: {
+    padding: 24,
+  },
+  inputNew: {
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    padding: 14,
+    fontSize: 15,
+    color: COLORS.text,
+    marginBottom: 14,
+    backgroundColor: '#f8fafc',
+  },
+  loginBtnNew: {
+    backgroundColor: '#5578ff',
+    borderRadius: 8,
+    padding: 14,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  loginBtnTextNew: {
     color: COLORS.white,
     fontSize: 16,
-    fontWeight: '600',
-  },
-  hint: {
-    marginTop: 16,
-    textAlign: 'center',
-    fontSize: 12,
-    color: COLORS.textMuted,
+    fontWeight: 'bold',
   },
 });
