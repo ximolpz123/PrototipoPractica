@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   loginHeader: {
-    backgroundColor: '#5578ff',
+    backgroundColor: COLORS.primary,
     padding: 30,
     alignItems: 'center',
   },
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   logoText: {
-    color: '#5578ff',
+    color: COLORS.primary,
     fontSize: 22,
     fontWeight: 'bold',
   },
@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   loginBtnNew: {
-    backgroundColor: '#5578ff',
+    backgroundColor: COLORS.primary,
     borderRadius: 8,
     padding: 14,
     alignItems: 'center',
