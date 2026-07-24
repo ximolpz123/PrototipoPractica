@@ -20,7 +20,7 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
         const token = await authService.getToken();
         // Por ahora, asumimos que '6a5e8c12faf82a430d99924b' es la reserva activa para la demo
         // En una app real, el ID de la reserva activa debe guardarse en AsyncStorage o pasar al task
-        const reservaId = '6a5e8c12faf82a430d99924b';
+        const reservaId = '6a637f9a6ff2df59918f198a';
         
         await axios.post(
           `${API_URL}/tracking/${reservaId}`,

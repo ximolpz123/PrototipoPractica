@@ -13,7 +13,7 @@ export default function HomeScreen({ route, navigation }: any) {
     const started = await locationService.startTracking();
     if (started) {
       setTripState('active');
-      navigation.navigate('Camera', { reservaId: '6a5e8c12faf82a430d99924b', tipo: 'salida' });
+      navigation.navigate('Camera', { reservaId: '6a637f9a6ff2df59918f198a', tipo: 'salida' });
     } else {
       Alert.alert('Error', 'Necesitas dar permisos de GPS siempre (Todo el tiempo) para esta función.');
     }
@@ -22,7 +22,7 @@ export default function HomeScreen({ route, navigation }: any) {
   const handleEndTrip = async () => {
     await locationService.stopTracking();
     setTripState('completed');
-    navigation.navigate('Camera', { reservaId: '6a5e8c12faf82a430d99924b', tipo: 'retorno' });
+    navigation.navigate('Camera', { reservaId: '6a637f9a6ff2df59918f198a', tipo: 'retorno' });
   };
 
   const handleResetDemo = () => {
