@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import loginBg from '../assets/images/login-bg.png';
 
 function Login() {
   const navigate = useNavigate();
@@ -24,9 +23,11 @@ function Login() {
       const data = await response.json();
 
       if (response.ok) {
+        // Guardar token en localStorage (opcional, pero útil para futuras requests)
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         
+        // Redirigir según el rol
         if (data.user.rol === 'admin') {
           navigate('/dashboard');
         } else {
@@ -41,51 +42,35 @@ function Login() {
   };
 
   return (
-    <div className="login-wrapper" style={{ backgroundImage: `url(${loginBg})` }}>
-      <div className="login-card">
-        <div className="login-header">
-          <div className="logo-placeholder">
-            <span className="logo-text">BF</span>
-          </div>
-          <h2>Bitnets Flota</h2>
-          <p>Ingrese sus credenciales</p>
+    <div className="page">
+      <h1>Iniciar Sesión</h1>
+      <form className="login-form" onSubmit={handleSubmit}>
+        {error && <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
+        <div className="form-group">
+          <label htmlFor="email">Escriba su Email</label>
+          <input 
+            type="email" 
+            id="email" 
+            name="email" 
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
         </div>
-        
-        <form className="login-form-new" onSubmit={handleSubmit}>
-          {error && <div className="error-message">{error}</div>}
-          
-          <div className="form-group-new">
-            <input 
-              type="email" 
-              id="email" 
-              name="email" 
-              placeholder="Email (Ej: admin@empresa.com)"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          
-          <div className="form-group-new">
-            <input 
-              type="password" 
-              id="password" 
-              name="password" 
-              placeholder="Contraseña"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          
-          <div className="remember-me">
-            <input type="checkbox" id="remember" />
-            <label htmlFor="remember">Recuérdame</label>
-          </div>
-          
-          <button type="submit" className="btn-login">INGRESE</button>
-        </form>
-      </div>
+        <div className="form-group">
+          <label htmlFor="password">Contraseña</label>
+          <input 
+            type="password" 
+            id="password" 
+            name="password" 
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+        <button type="submit" className="btn">Iniciar Sesión</button>
+        <button type="button" className="btn btn-back" onClick={() => navigate('/')}>Volver atrás</button>
+      </form>
     </div>
   );
 }
