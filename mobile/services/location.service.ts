@@ -1,12 +1,15 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../constants';
 import { authService } from './auth.service';
 
 const LOCATION_TASK_NAME = 'background-location-task';
+export const ACTIVE_RESERVA_KEY = 'active_reserva_id';
 
 // Define el task en segundo plano
+// IMPORTANTE: Esto debe definirse en el módulo raíz, fuera de cualquier componente
 TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
   if (error) {
     console.error('Error en location task', error);
@@ -18,20 +21,24 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
     if (location) {
       try {
         const token = await authService.getToken();
-        // Por ahora, asumimos que '6a5e8c12faf82a430d99924b' es la reserva activa para la demo
-        // En una app real, el ID de la reserva activa debe guardarse en AsyncStorage o pasar al task
-        const reservaId = '6a637f9a6ff2df59918f198a';
-        
+        // Leer el ID de la reserva activa desde AsyncStorage (no hardcodeado)
+        const reservaId = await AsyncStorage.getItem(ACTIVE_RESERVA_KEY);
+
+        if (!reservaId) {
+          console.warn('📍 GPS activo pero sin reserva activa registrada, saltando envío.');
+          return;
+        }
+
         await axios.post(
           `${API_URL}/tracking/${reservaId}`,
           {
             latitud: location.coords.latitude,
             longitud: location.coords.longitude,
-            velocidad: location.coords.speed
+            velocidad: location.coords.speed ?? 0,
           },
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        console.log('📍 Ubicación en segundo plano enviada al servidor');
+        console.log(`📍 Ubicación enviada [${location.coords.latitude.toFixed(5)}, ${location.coords.longitude.toFixed(5)}]`);
       } catch (err) {
         console.error('Error enviando ubicación:', err);
       }
@@ -40,39 +47,75 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
 });
 
 export const locationService = {
-  startTracking: async () => {
+  /**
+   * Inicia el rastreo GPS en segundo plano.
+   * @param reservaId ID de la reserva activa para asociar el tracking
+   */
+  startTracking: async (reservaId: string): Promise<boolean> => {
+    // Guardar el ID de reserva para que el task de segundo plano lo pueda leer
+    await AsyncStorage.setItem(ACTIVE_RESERVA_KEY, reservaId);
+
     const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
     if (foregroundStatus !== 'granted') {
       console.log('Permiso de ubicación en primer plano denegado');
+      await AsyncStorage.removeItem(ACTIVE_RESERVA_KEY);
       return false;
     }
 
     const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
     if (backgroundStatus !== 'granted') {
       console.log('Permiso de ubicación en segundo plano denegado');
+      await AsyncStorage.removeItem(ACTIVE_RESERVA_KEY);
       return false;
     }
 
+    // Detener cualquier rastreo previo antes de iniciar uno nuevo
+    const alreadyRunning = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+    if (alreadyRunning) {
+      await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+    }
+
     await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
-      accuracy: Location.Accuracy.Balanced,
-      timeInterval: 5 * 60 * 1000, // Cada 5 minutos (300000ms)
-      distanceInterval: 100, // o cada 100 metros
-      showsBackgroundLocationIndicator: true,
+      accuracy: Location.Accuracy.Balanced, // Balanceado: buen equilibrio entre precisión y batería
+      timeInterval: 3 * 60 * 1000,          // Cada 3 minutos (180,000 ms)
+      distanceInterval: 150,                 // O cada 150 metros (lo que ocurra primero)
+      showsBackgroundLocationIndicator: true, // Ícono en iOS para avisar al usuario
       foregroundService: {
-        notificationTitle: 'Rastreo Activo',
-        notificationBody: 'Tu ubicación está siendo monitoreada por la empresa.',
+        // Notificación persistente en Android (obligatoria para background)
+        notificationTitle: '📍 Rastreo Activo — Bitnets Flota',
+        notificationBody: 'Tu posición se actualiza cada 3 minutos.',
         notificationColor: '#3D9FD3',
       },
+      pausesUpdatesAutomatically: false,     // No pausar automáticamente
     });
-    console.log('▶️ Rastreo GPS iniciado');
+
+    console.log('▶️ Rastreo GPS iniciado (intervalo: 3 minutos)');
     return true;
   },
 
-  stopTracking: async () => {
+  /**
+   * Detiene el rastreo GPS y limpia la reserva activa.
+   */
+  stopTracking: async (): Promise<void> => {
     const isRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
     if (isRegistered) {
       await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
       console.log('⏹️ Rastreo GPS detenido');
     }
+    await AsyncStorage.removeItem(ACTIVE_RESERVA_KEY);
+  },
+
+  /**
+   * Verifica si el rastreo GPS está activo actualmente.
+   */
+  isTracking: async (): Promise<boolean> => {
+    return await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+  },
+
+  /**
+   * Obtiene la reserva ID activa (la que está siendo rastreada).
+   */
+  getActiveReservaId: async (): Promise<string | null> => {
+    return await AsyncStorage.getItem(ACTIVE_RESERVA_KEY);
   },
 };
