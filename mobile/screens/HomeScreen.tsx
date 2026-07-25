@@ -1,143 +1,294 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../constants';
 import { locationService } from '../services/location.service';
+import { reservationService, IReservation } from '../services/reservation.service';
 
 export default function HomeScreen({ route, navigation }: any) {
   const { user } = route.params;
-  
-  // mock states: 'pending', 'active', 'completed'
-  const [tripState, setTripState] = React.useState('pending');
+
+  const [activeReserva, setActiveReserva] = useState<IReservation | null>(null);
+  const [upcomingReserva, setUpcomingReserva] = useState<IReservation | null>(null);
+  const [isTracking, setIsTracking] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const loadReservas = async () => {
+    try {
+      setLoading(true);
+      const all = await reservationService.getMyReservations();
+
+      // Buscar reserva en_curso (viaje activo)
+      const enCurso = all.find((r) => r.estado === 'en_curso') ?? null;
+      setActiveReserva(enCurso);
+
+      // Si no hay una en curso, buscar la próxima aprobada
+      if (!enCurso) {
+        const now = new Date();
+        const proxima = all
+          .filter((r) => r.estado === 'aprobada' && new Date(r.fechaInicio) >= now)
+          .sort((a, b) => new Date(a.fechaInicio).getTime() - new Date(b.fechaInicio).getTime())[0] ?? null;
+        setUpcomingReserva(proxima);
+      } else {
+        setUpcomingReserva(null);
+      }
+
+      // Sincronizar estado del GPS
+      const tracking = await locationService.isTracking();
+      setIsTracking(tracking);
+    } catch (err) {
+      console.error('Error cargando reservas:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Recargar al volver a la pantalla
+  useFocusEffect(
+    useCallback(() => {
+      loadReservas();
+    }, [])
+  );
 
   const handleStartTrip = async () => {
-    const started = await locationService.startTracking();
+    const reserva = activeReserva ?? upcomingReserva;
+    if (!reserva) {
+      Alert.alert('Sin reserva', 'No tienes una reserva aprobada para iniciar.');
+      return;
+    }
+
+    const started = await locationService.startTracking(reserva._id);
     if (started) {
-      setTripState('active');
-      navigation.navigate('Camera', { reservaId: '6a5e8c12faf82a430d99924b', tipo: 'salida' });
+      setIsTracking(true);
+      navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'salida' });
     } else {
-      Alert.alert('Error', 'Necesitas dar permisos de GPS siempre (Todo el tiempo) para esta función.');
+      Alert.alert(
+        'Permiso requerido',
+        'Necesitas dar permiso de ubicación "Todo el tiempo" (Always) para que el GPS funcione en segundo plano.\n\nVe a Ajustes > Aplicaciones > Expo Go > Permisos > Ubicación > Siempre.'
+      );
     }
   };
 
   const handleEndTrip = async () => {
-    await locationService.stopTracking();
-    setTripState('completed');
-    navigation.navigate('Camera', { reservaId: '6a5e8c12faf82a430d99924b', tipo: 'retorno' });
+    const reserva = activeReserva;
+    if (!reserva) return;
+
+    Alert.alert(
+      'Finalizar Viaje',
+      '¿Estás seguro que quieres terminar el viaje y apagar el GPS?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Finalizar',
+          style: 'destructive',
+          onPress: async () => {
+            await locationService.stopTracking();
+            setIsTracking(false);
+            navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'retorno' });
+          },
+        },
+      ]
+    );
   };
 
-  const handleResetDemo = () => {
-    setTripState('pending');
-  };
+  const vehiculoNombre = (r: IReservation) =>
+    r.vehiculo ? `${r.vehiculo.marca} ${r.vehiculo.modelo}` : 'Vehículo';
+
+  const formatFecha = (f: string) =>
+    new Date(f).toLocaleDateString('es-CL', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.homeContainer}>
+    <View style={styles.container}>
+      {/* Bienvenida */}
       <Text style={styles.welcomeTitle}>¡Bienvenido! 👋</Text>
       <Text style={styles.welcomeName}>{user.nombre} {user.apellido}</Text>
       <Text style={styles.welcomeRole}>Rol: {user.rol}</Text>
       <Text style={styles.welcomeDept}>Departamento: {user.departamento}</Text>
 
-      <View style={styles.placeholder}>
-        <Text style={styles.placeholderText}>🚘 Próxima Reserva (Demo)</Text>
-        <Text style={styles.placeholderSub}>
-          Reserva de un SUV Nissan. {tripState === 'active' ? 'El viaje está en curso y el GPS está activo.' : tripState === 'completed' ? 'El viaje ha finalizado.' : 'Usa el botón para iniciar el viaje.'}
-        </Text>
-        
-        {tripState === 'pending' && (
-          <TouchableOpacity style={[styles.actionBtn, { marginBottom: 10 }]} onPress={handleStartTrip}>
-            <Text style={styles.actionBtnText}>Iniciar Viaje (Activa GPS)</Text>
-          </TouchableOpacity>
-        )}
-
-        {tripState === 'active' && (
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: COLORS.error || '#FF3B30' }]} onPress={handleEndTrip}>
-            <Text style={styles.actionBtnText}>Completar Viaje (Apaga GPS)</Text>
-          </TouchableOpacity>
-        )}
-
-        {tripState === 'completed' && (
-          <View style={{ alignItems: 'center' }}>
-            <Text style={{ color: COLORS.success || '#4CD964', fontWeight: 'bold', marginBottom: 15 }}>✅ Viaje Registrado Exitosamente</Text>
-            <TouchableOpacity onPress={handleResetDemo} style={{ padding: 10, borderWidth: 1, borderColor: COLORS.border, borderRadius: 5 }}>
-              <Text style={{ color: COLORS.textMuted }}>Reiniciar Demo</Text>
-            </TouchableOpacity>
+      {/* Tarjeta de Viaje Activo */}
+      {activeReserva ? (
+        <View style={[styles.card, styles.cardActive]}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardLabel}>🚗 VIAJE EN CURSO</Text>
+            {isTracking && (
+              <View style={styles.gpsIndicator}>
+                <Text style={styles.gpsIndicatorText}>📡 GPS Activo</Text>
+              </View>
+            )}
           </View>
-        )}
-      </View>
+          <Text style={styles.cardVehicle}>{vehiculoNombre(activeReserva)}</Text>
+          <Text style={styles.cardInfo}>📍 {activeReserva.destino}</Text>
+          <Text style={styles.cardInfo}>⏱ Hasta: {formatFecha(activeReserva.fechaFin)}</Text>
+
+          {!isTracking && (
+            <TouchableOpacity style={styles.btnPrimary} onPress={handleStartTrip}>
+              <Text style={styles.btnText}>▶ Reanudar GPS</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity style={styles.btnDanger} onPress={handleEndTrip}>
+            <Text style={styles.btnText}>⏹ Finalizar Viaje</Text>
+          </TouchableOpacity>
+        </View>
+      ) : upcomingReserva ? (
+        <View style={styles.card}>
+          <Text style={styles.cardLabel}>📅 PRÓXIMA RESERVA</Text>
+          <Text style={styles.cardVehicle}>{vehiculoNombre(upcomingReserva)}</Text>
+          <Text style={styles.cardInfo}>📍 {upcomingReserva.destino}</Text>
+          <Text style={styles.cardInfo}>🕐 Inicio: {formatFecha(upcomingReserva.fechaInicio)}</Text>
+          <Text style={styles.cardInfo}>📝 {upcomingReserva.motivo}</Text>
+
+          <TouchableOpacity style={styles.btnPrimary} onPress={handleStartTrip}>
+            <Text style={styles.btnText}>▶ Iniciar Viaje y Activar GPS</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.card}>
+          <Text style={styles.cardLabel}>📋 SIN RESERVAS PRÓXIMAS</Text>
+          <Text style={styles.cardSub}>No tienes viajes programados. Puedes crear una nueva reserva desde la pestaña "Reservas".</Text>
+          <TouchableOpacity style={styles.btnPrimary} onPress={() => navigation.navigate('CreateReservation')}>
+            <Text style={styles.btnText}>+ Crear Reserva</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Indicador GPS en segundo plano */}
+      {isTracking && (
+        <View style={styles.gpsStatusBar}>
+          <Text style={styles.gpsStatusText}>📡 GPS enviando posición cada 3 min • segundo plano activo</Text>
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  homeContainer: {
+  container: {
     flex: 1,
     backgroundColor: COLORS.background,
-    padding: 24,
-    paddingTop: 60,
+    padding: 20,
+    paddingTop: 24,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
   },
   welcomeTitle: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: 'bold',
     color: COLORS.text,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   welcomeName: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
     color: COLORS.primary,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   welcomeRole: {
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.textMuted,
-    marginBottom: 2,
     textTransform: 'capitalize',
   },
   welcomeDept: {
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.textMuted,
-    marginBottom: 24,
+    marginBottom: 20,
   },
-  placeholder: {
+  card: {
     backgroundColor: COLORS.white,
-    borderRadius: 12,
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: 24,
+    borderRadius: 14,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  placeholderText: {
-    fontSize: 18,
-    fontWeight: '600',
+  cardActive: {
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.success,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  cardLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: COLORS.textMuted,
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  cardVehicle: {
+    fontSize: 20,
+    fontWeight: 'bold',
     color: COLORS.text,
     marginBottom: 8,
   },
-  placeholderSub: {
-    fontSize: 13,
+  cardInfo: {
+    fontSize: 14,
     color: COLORS.textMuted,
-    textAlign: 'center',
+    marginBottom: 4,
+  },
+  cardSub: {
+    fontSize: 14,
+    color: COLORS.textMuted,
     lineHeight: 20,
-    marginBottom: 20,
+    marginBottom: 16,
   },
-  actionBtn: {
+  gpsIndicator: {
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  gpsIndicatorText: {
+    fontSize: 11,
+    color: COLORS.success,
+    fontWeight: '700',
+  },
+  btnPrimary: {
     backgroundColor: COLORS.primary,
-    padding: 14,
-    borderRadius: 8,
-    width: '100%',
+    borderRadius: 9,
+    padding: 13,
     alignItems: 'center',
+    marginTop: 12,
   },
-  actionBtnText: {
+  btnDanger: {
+    backgroundColor: COLORS.danger,
+    borderRadius: 9,
+    padding: 13,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  btnText: {
     color: COLORS.white,
     fontWeight: 'bold',
+    fontSize: 15,
   },
-  logoutBtn: {
-    borderWidth: 1,
-    borderColor: COLORS.danger,
+  gpsStatusBar: {
+    backgroundColor: '#E8F5E9',
     borderRadius: 8,
-    padding: 14,
+    padding: 10,
     alignItems: 'center',
   },
-  logoutText: {
-    color: COLORS.danger,
-    fontSize: 15,
+  gpsStatusText: {
+    fontSize: 12,
+    color: COLORS.success,
     fontWeight: '600',
   },
 });
