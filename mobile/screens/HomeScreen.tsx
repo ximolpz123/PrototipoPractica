@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, TextInput, Modal } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../constants';
 import { locationService } from '../services/location.service';
@@ -12,6 +12,10 @@ export default function HomeScreen({ route, navigation }: any) {
   const [upcomingReserva, setUpcomingReserva] = useState<IReservation | null>(null);
   const [isTracking, setIsTracking] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Estado para el modal de kilometraje de retorno
+  const [showKmModal, setShowKmModal] = useState(false);
+  const [kmRetornoInput, setKmRetornoInput] = useState('');
+  const [completingTrip, setCompletingTrip] = useState(false);
 
   const loadReservas = async () => {
     try {
@@ -80,26 +84,47 @@ export default function HomeScreen({ route, navigation }: any) {
     }
   };
 
-  const handleEndTrip = async () => {
+  const handleEndTrip = () => {
+    // Abrir modal para ingresar kmRetorno
+    setKmRetornoInput('');
+    setShowKmModal(true);
+  };
+
+  const handleConfirmEndTrip = async () => {
     const reserva = activeReserva;
     if (!reserva) return;
 
-    Alert.alert(
-      'Finalizar Viaje',
-      '¿Estás seguro que quieres terminar el viaje y apagar el GPS?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Finalizar',
-          style: 'destructive',
-          onPress: async () => {
-            await locationService.stopTracking();
-            setIsTracking(false);
-            navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'retorno' });
-          },
-        },
-      ]
-    );
+    const km = parseInt(kmRetornoInput, 10);
+    if (isNaN(km) || km < 0) {
+      Alert.alert('Kilometraje inválido', 'Ingresa un número válido de kilómetros.');
+      return;
+    }
+    if (reserva.kmSalida !== undefined && km < reserva.kmSalida) {
+      Alert.alert(
+        'Kilometraje inválido',
+        `El odómetro de retorno (${km} km) no puede ser menor al de salida (${reserva.kmSalida} km).`
+      );
+      return;
+    }
+
+    try {
+      setCompletingTrip(true);
+      // 1. Completar la reserva en el backend (guarda kmRetorno y actualiza km del vehículo)
+      await reservationService.completeReservation(reserva._id, km);
+      // 2. Detener GPS
+      await locationService.stopTracking();
+      setIsTracking(false);
+      setShowKmModal(false);
+      // 3. Navegar a la cámara para fotos de retorno
+      navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'retorno' });
+      // 4. Recargar la pantalla
+      loadReservas();
+    } catch (err: any) {
+      const msg = err.response?.data?.message ?? 'Error al finalizar el viaje.';
+      Alert.alert('Error', msg);
+    } finally {
+      setCompletingTrip(false);
+    }
   };
 
   const vehiculoNombre = (r: IReservation) =>
@@ -177,6 +202,56 @@ export default function HomeScreen({ route, navigation }: any) {
           <Text style={styles.gpsStatusText}>📡 GPS enviando posición cada 3 min • segundo plano activo</Text>
         </View>
       )}
+
+      {/* Modal: Ingresar km de retorno al finalizar viaje */}
+      <Modal visible={showKmModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>🛞 Odómetro de Retorno</Text>
+            <Text style={styles.modalSubtitle}>
+              Ingresa los kilómetros que marca el vehículo en este momento.
+            </Text>
+            {activeReserva?.kmSalida !== undefined && (
+              <Text style={styles.modalHint}>
+                📤 Al salir: {activeReserva.kmSalida.toLocaleString()} km
+              </Text>
+            )}
+            <TextInput
+              style={styles.kmInput}
+              value={kmRetornoInput}
+              onChangeText={setKmRetornoInput}
+              placeholder="Ej: 12450"
+              placeholderTextColor={COLORS.textMuted}
+              keyboardType="numeric"
+              autoFocus
+            />
+            {kmRetornoInput && activeReserva?.kmSalida !== undefined && (
+              <Text style={styles.kmCalculated}>
+                📏 Km recorridos: {Math.max(0, parseInt(kmRetornoInput || '0', 10) - activeReserva.kmSalida).toLocaleString()} km
+              </Text>
+            )}
+            <View style={styles.modalBtns}>
+              <TouchableOpacity
+                style={styles.modalBtnCancel}
+                onPress={() => setShowKmModal(false)}
+                disabled={completingTrip}
+              >
+                <Text style={styles.modalBtnCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtnConfirm, completingTrip && { opacity: 0.6 }]}
+                onPress={handleConfirmEndTrip}
+                disabled={completingTrip}
+              >
+                {completingTrip
+                  ? <ActivityIndicator color={COLORS.white} />
+                  : <Text style={styles.modalBtnConfirmText}>Finalizar Viaje</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -301,5 +376,90 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.success,
     fontWeight: '600',
+  },
+  // Modal de km retorno
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    paddingBottom: 36,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 6,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+    marginBottom: 10,
+    lineHeight: 20,
+  },
+  modalHint: {
+    fontSize: 13,
+    color: COLORS.primary,
+    fontWeight: '600',
+    marginBottom: 12,
+    backgroundColor: '#EBF5FB',
+    padding: 8,
+    borderRadius: 6,
+  },
+  kmInput: {
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    borderRadius: 10,
+    padding: 14,
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  kmCalculated: {
+    fontSize: 14,
+    color: COLORS.success,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 16,
+    backgroundColor: '#E8F5E9',
+    padding: 8,
+    borderRadius: 6,
+  },
+  modalBtns: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  modalBtnCancel: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    padding: 14,
+    alignItems: 'center',
+  },
+  modalBtnCancelText: {
+    color: COLORS.textMuted,
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  modalBtnConfirm: {
+    flex: 2,
+    backgroundColor: COLORS.danger,
+    borderRadius: 10,
+    padding: 14,
+    alignItems: 'center',
+  },
+  modalBtnConfirmText: {
+    color: COLORS.white,
+    fontWeight: 'bold',
+    fontSize: 15,
   },
 });

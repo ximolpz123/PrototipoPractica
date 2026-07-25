@@ -51,6 +51,11 @@ export const reservationService = {
     return response.data.reservation;
   },
 
+  completeReservation: async (id: string, kmRetorno: number, observaciones?: string): Promise<IReservation> => {
+    const response = await api.patch(`/reservations/${id}/complete`, { kmRetorno, observaciones });
+    return response.data.reservation;
+  },
+
   cancel: async (id: string): Promise<void> => {
     await api.patch(`/reservations/${id}/cancel`);
   },

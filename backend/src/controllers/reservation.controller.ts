@@ -136,13 +136,18 @@ export const startReservation = async (req: AuthRequest, res: Response): Promise
       return;
     }
 
+    // Obtener el kilometraje actual del vehículo para registrarlo como kmSalida
+    const vehicle = await Vehicle.findById(reservation.vehiculo);
+    const kmSalida = vehicle?.kilometraje ?? 0;
+
     reservation.estado = 'en_curso';
+    reservation.kmSalida = kmSalida; // ← Registrar odómetro al salir
     await reservation.save();
 
     // Marcar el vehículo como reservado
     await Vehicle.findByIdAndUpdate(reservation.vehiculo, { estado: 'reservado' });
 
-    res.json({ message: 'Viaje iniciado exitosamente', reservation });
+    res.json({ message: 'Viaje iniciado exitosamente', reservation, kmSalida });
   } catch (error) {
     res.status(500).json({ message: 'Error al iniciar el viaje', error });
   }
