@@ -46,7 +46,12 @@ export const reservationService = {
     return response.data;
   },
 
+  startReservation: async (id: string): Promise<IReservation> => {
+    const response = await api.patch(`/reservations/${id}/start`);
+    return response.data.reservation;
+  },
+
   cancel: async (id: string): Promise<void> => {
-    await api.put(`/reservations/${id}/cancel`);
+    await api.patch(`/reservations/${id}/cancel`);
   },
 };

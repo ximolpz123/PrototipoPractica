@@ -57,15 +57,26 @@ export default function HomeScreen({ route, navigation }: any) {
       return;
     }
 
-    const started = await locationService.startTracking(reserva._id);
-    if (started) {
-      setIsTracking(true);
-      navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'salida' });
-    } else {
-      Alert.alert(
-        'Permiso requerido',
-        'Necesitas dar permiso de ubicación "Todo el tiempo" (Always) para que el GPS funcione en segundo plano.\n\nVe a Ajustes > Aplicaciones > Expo Go > Permisos > Ubicación > Siempre.'
-      );
+    try {
+      // 1. Cambiar la reserva a 'en_curso' en el backend ANTES de activar el GPS
+      if (reserva.estado === 'aprobada') {
+        await reservationService.startReservation(reserva._id);
+      }
+
+      // 2. Activar el GPS en segundo plano con el ID de la reserva activa
+      const started = await locationService.startTracking(reserva._id);
+      if (started) {
+        setIsTracking(true);
+        navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'salida' });
+      } else {
+        Alert.alert(
+          'Permiso requerido',
+          'Necesitas dar permiso de ubicación "Todo el tiempo" (Always) para que el GPS funcione en segundo plano.\n\nVe a Ajustes > Aplicaciones > Expo Go > Permisos > Ubicación > Siempre.'
+        );
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message ?? 'Error al iniciar el viaje.';
+      Alert.alert('Error', msg);
     }
   };
 

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   getReservations,
   createReservation,
+  startReservation,
   updateReservationStatus,
   cancelReservation,
   completeReservation,
@@ -16,6 +17,9 @@ router.get('/', authMiddleware, getReservations);
 
 // POST /api/reservations (protegido, bloqueado si la licencia no está vigente)
 router.post('/', authMiddleware, licenciaMiddleware, createReservation);
+
+// PATCH /api/reservations/:id/start (el conductor inicia el viaje → cambia a 'en_curso')
+router.patch('/:id/start', authMiddleware, startReservation);
 
 // PATCH /api/reservations/:id/status (solo admin)
 router.patch('/:id/status', authMiddleware, adminMiddleware, updateReservationStatus);
