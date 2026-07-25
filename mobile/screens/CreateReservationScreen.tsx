@@ -1,155 +1,215 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View, Text, StyleSheet, TouchableOpacity, TextInput,
+  Alert, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
+} from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS } from '../constants';
+import { vehicleService, IVehicle } from '../services/vehicle.service';
+import { reservationService } from '../services/reservation.service';
 
-const VEHICLES = [
-  { id: '1', nombre: 'Camioneta Roja (AB-CD-12)' },
-  { id: '2', nombre: 'Camioneta Blanca (EF-GH-34)' },
-  { id: '3', nombre: 'Camioneta Azul (IJ-KL-56)' },
-  { id: '4', nombre: 'Auto Café (MN-OP-78)' },
-];
+const TIPO_ICON: Record<string, string> = {
+  pickup: '🛻', sedan: '🚗', suv: '🚙', van: '🚐',
+};
 
 export default function CreateReservationScreen({ navigation }: any) {
-  const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
-  
-  // Fechas y horas reales
+  const [vehicles, setVehicles] = useState<IVehicle[]>([]);
+  const [loadingVehicles, setLoadingVehicles] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [selectedVehicle, setSelectedVehicle] = useState<IVehicle | null>(null);
   const [date, setDate] = useState(new Date());
   const [startTime, setStartTime] = useState(new Date());
-  const [endTime, setEndTime] = useState(new Date(new Date().getTime() + 4 * 60 * 60 * 1000)); // 4 horas después
+  const [endTime, setEndTime] = useState(new Date(Date.now() + 4 * 60 * 60 * 1000));
+  const [destino, setDestino] = useState('');
   const [motive, setMotive] = useState('');
 
-  // Controladores de los modales de fecha/hora
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
-  const handleConfirm = () => {
+  useEffect(() => {
+    loadAvailableVehicles();
+  }, []);
+
+  const loadAvailableVehicles = async () => {
+    try {
+      setLoadingVehicles(true);
+      const all = await vehicleService.getAll();
+      // Mostrar solo los disponibles
+      setVehicles(all.filter((v) => v.estado === 'disponible'));
+    } catch (err) {
+      Alert.alert('Error', 'No se pudo cargar la lista de vehículos.');
+    } finally {
+      setLoadingVehicles(false);
+    }
+  };
+
+  const buildDateTime = (day: Date, time: Date) => {
+    const result = new Date(day);
+    result.setHours(time.getHours(), time.getMinutes(), 0, 0);
+    return result;
+  };
+
+  const handleConfirm = async () => {
     if (!selectedVehicle) {
-      Alert.alert('Error', 'Debes seleccionar un vehículo');
+      Alert.alert('Falta vehículo', 'Debes seleccionar un vehículo.');
       return;
     }
-    if (!motive) {
-      Alert.alert('Error', 'Debes ingresar un motivo para el viaje');
+    if (!destino.trim()) {
+      Alert.alert('Falta destino', 'Debes ingresar el destino del viaje.');
       return;
     }
-    if (startTime >= endTime) {
-      Alert.alert('Error', 'La hora de fin debe ser mayor a la hora de inicio');
+    if (!motive.trim()) {
+      Alert.alert('Falta motivo', 'Debes ingresar el motivo del viaje.');
       return;
     }
-    
-    Alert.alert('Éxito', 'Reserva creada correctamente (Simulado)', [
-      { text: 'OK', onPress: () => navigation.goBack() }
-    ]);
+
+    const fechaInicio = buildDateTime(date, startTime);
+    const fechaFin = buildDateTime(date, endTime);
+
+    if (fechaFin <= fechaInicio) {
+      Alert.alert('Horario inválido', 'La hora de fin debe ser posterior a la de inicio.');
+      return;
+    }
+    if (fechaInicio < new Date()) {
+      Alert.alert('Fecha inválida', 'La fecha de inicio no puede ser en el pasado.');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      await reservationService.create({
+        vehiculo: selectedVehicle._id,
+        fechaInicio: fechaInicio.toISOString(),
+        fechaFin: fechaFin.toISOString(),
+        destino: destino.trim(),
+        motivo: motive.trim(),
+      });
+      Alert.alert('✅ Reserva Enviada', 'Tu solicitud fue enviada y está pendiente de aprobación.', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+    } catch (err: any) {
+      const msg = err.response?.data?.message ?? 'No se pudo crear la reserva. Intenta de nuevo.';
+      Alert.alert('Error', msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const formatDate = (d: Date) => {
-    return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
-  };
+  const formatDate = (d: Date) =>
+    d.toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
 
-  const formatTime = (d: Date) => {
-    return d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-  };
+  const formatTime = (d: Date) =>
+    d.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <KeyboardAvoidingView 
-      style={{ flex: 1 }} 
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Nueva Reserva</Text>
         <Text style={styles.subtitle}>Completa los datos de tu viaje</Text>
 
+        {/* 1. Vehículo */}
         <Text style={styles.label}>1. Selecciona un Vehículo</Text>
-        <View style={styles.vehicleList}>
-          {VEHICLES.map((v) => (
-            <TouchableOpacity 
-              key={v.id} 
-              style={[
-                styles.vehicleOption, 
-                selectedVehicle === v.id && styles.vehicleOptionSelected
-              ]}
-              onPress={() => setSelectedVehicle(v.id)}
-            >
-              <Text style={[
-                styles.vehicleOptionText,
-                selectedVehicle === v.id && styles.vehicleOptionTextSelected
-              ]}>
-                {v.nombre}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {loadingVehicles ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator color={COLORS.primary} />
+            <Text style={styles.loadingText}>Cargando vehículos disponibles...</Text>
+          </View>
+        ) : vehicles.length === 0 ? (
+          <View style={styles.emptyVehicles}>
+            <Text style={styles.emptyVehiclesText}>😔 No hay vehículos disponibles en este momento.</Text>
+          </View>
+        ) : (
+          <View style={styles.vehicleList}>
+            {vehicles.map((v) => {
+              const isSelected = selectedVehicle?._id === v._id;
+              const icon = TIPO_ICON[v.tipo] ?? '🚗';
+              return (
+                <TouchableOpacity
+                  key={v._id}
+                  style={[styles.vehicleOption, isSelected && styles.vehicleOptionSelected]}
+                  onPress={() => setSelectedVehicle(v)}
+                >
+                  <Text style={styles.vehicleIcon}>{icon}</Text>
+                  <View style={styles.vehicleInfo}>
+                    <Text style={[styles.vehicleOptionText, isSelected && styles.vehicleOptionTextSelected]}>
+                      {v.marca} {v.modelo} {v.anio}
+                    </Text>
+                    <Text style={styles.vehicleSubText}>
+                      {v.color}  •  🪪 {v.placa}  •  🛞 {v.kilometraje.toLocaleString()} km
+                    </Text>
+                  </View>
+                  {isSelected && <Text style={styles.checkmark}>✓</Text>}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
 
+        {/* 2. Fecha y Hora */}
         <Text style={styles.label}>2. Fecha y Hora</Text>
-        
-        {/* Selector de Fecha */}
+
         <TouchableOpacity style={styles.datePickerBtn} onPress={() => setShowDatePicker(true)}>
           <Text style={styles.datePickerLabel}>Día del viaje</Text>
           <Text style={styles.datePickerValue}>📅 {formatDate(date)}</Text>
         </TouchableOpacity>
 
         <View style={styles.timeRow}>
-          {/* Selector Hora Inicio */}
           <TouchableOpacity style={[styles.datePickerBtn, { flex: 1, marginRight: 8 }]} onPress={() => setShowStartTimePicker(true)}>
             <Text style={styles.datePickerLabel}>Hora Inicio</Text>
             <Text style={styles.datePickerValue}>🕒 {formatTime(startTime)}</Text>
           </TouchableOpacity>
-
-          {/* Selector Hora Fin */}
           <TouchableOpacity style={[styles.datePickerBtn, { flex: 1, marginLeft: 8 }]} onPress={() => setShowEndTimePicker(true)}>
             <Text style={styles.datePickerLabel}>Hora Fin</Text>
-            <Text style={styles.datePickerValue}>🕒 {formatTime(endTime)}</Text>
+            <Text style={styles.datePickerValue}>🕔 {formatTime(endTime)}</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Componentes nativos de DateTimePicker */}
         {showDatePicker && (
-          <DateTimePicker
-            value={date}
-            mode="date"
-            display="default"
-            onChange={(event, selectedDate) => {
-              setShowDatePicker(false);
-              if (selectedDate) setDate(selectedDate);
-            }}
-          />
+          <DateTimePicker value={date} mode="date" display="default"
+            onChange={(_, d) => { setShowDatePicker(false); if (d) setDate(d); }} />
         )}
         {showStartTimePicker && (
-          <DateTimePicker
-            value={startTime}
-            mode="time"
-            display="default"
-            onChange={(event, selectedTime) => {
-              setShowStartTimePicker(false);
-              if (selectedTime) setStartTime(selectedTime);
-            }}
-          />
+          <DateTimePicker value={startTime} mode="time" display="default"
+            onChange={(_, t) => { setShowStartTimePicker(false); if (t) setStartTime(t); }} />
         )}
         {showEndTimePicker && (
-          <DateTimePicker
-            value={endTime}
-            mode="time"
-            display="default"
-            onChange={(event, selectedTime) => {
-              setShowEndTimePicker(false);
-              if (selectedTime) setEndTime(selectedTime);
-            }}
-          />
+          <DateTimePicker value={endTime} mode="time" display="default"
+            onChange={(_, t) => { setShowEndTimePicker(false); if (t) setEndTime(t); }} />
         )}
 
-        <Text style={styles.label}>3. Motivo del Viaje</Text>
+        {/* 3. Destino */}
+        <Text style={styles.label}>3. Destino</Text>
+        <TextInput
+          style={styles.input}
+          value={destino}
+          onChangeText={setDestino}
+          placeholder="Ej: Planta Bitnets, Santiago Centro..."
+          placeholderTextColor={COLORS.textMuted}
+        />
+
+        {/* 4. Motivo */}
+        <Text style={styles.label}>4. Motivo del Viaje</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={motive}
           onChangeText={setMotive}
-          placeholder="Ej: Visita a cliente en terreno..."
+          placeholder="Ej: Visita a cliente en terreno, traslado de equipos..."
+          placeholderTextColor={COLORS.textMuted}
           multiline
           numberOfLines={3}
         />
 
-        <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
-          <Text style={styles.confirmBtnText}>Confirmar Reserva</Text>
+        <TouchableOpacity
+          style={[styles.confirmBtn, (submitting || loadingVehicles) && styles.confirmBtnDisabled]}
+          onPress={handleConfirm}
+          disabled={submitting || loadingVehicles}
+        >
+          {submitting
+            ? <ActivityIndicator color={COLORS.white} />
+            : <Text style={styles.confirmBtnText}>Confirmar Reserva</Text>
+          }
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -157,101 +217,44 @@ export default function CreateReservationScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: COLORS.textMuted,
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 10,
-    marginTop: 10,
-  },
-  vehicleList: {
-    marginBottom: 10,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+  scrollContent: { padding: 20, paddingBottom: 50 },
+  title: { fontSize: 26, fontWeight: 'bold', color: COLORS.text, marginBottom: 4 },
+  subtitle: { fontSize: 15, color: COLORS.textMuted, marginBottom: 24 },
+  label: { fontSize: 16, fontWeight: '700', color: COLORS.text, marginBottom: 10, marginTop: 8 },
+  loadingContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 16, backgroundColor: COLORS.white, borderRadius: 8, marginBottom: 12 },
+  loadingText: { color: COLORS.textMuted, fontSize: 14 },
+  emptyVehicles: { backgroundColor: COLORS.white, borderRadius: 8, padding: 16, alignItems: 'center', marginBottom: 12 },
+  emptyVehiclesText: { color: COLORS.textMuted, fontSize: 14, textAlign: 'center' },
+  vehicleList: { marginBottom: 8 },
   vehicleOption: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 8,
-    padding: 14,
-    marginBottom: 10,
-    backgroundColor: COLORS.white,
+    borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 10,
+    padding: 14, marginBottom: 10, backgroundColor: COLORS.white,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
   },
-  vehicleOptionSelected: {
-    borderColor: COLORS.primary,
-    backgroundColor: '#E1F5FE',
-  },
-  vehicleOptionText: {
-    fontSize: 15,
-    color: COLORS.text,
-  },
-  vehicleOptionTextSelected: {
-    color: COLORS.primary,
-    fontWeight: 'bold',
-  },
+  vehicleOptionSelected: { borderColor: COLORS.primary, backgroundColor: '#EBF5FB' },
+  vehicleIcon: { fontSize: 24 },
+  vehicleInfo: { flex: 1 },
+  vehicleOptionText: { fontSize: 15, color: COLORS.text, fontWeight: '600' },
+  vehicleOptionTextSelected: { color: COLORS.primary },
+  vehicleSubText: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  checkmark: { color: COLORS.primary, fontSize: 18, fontWeight: 'bold' },
   input: {
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 8,
-    padding: 14,
-    fontSize: 15,
-    marginBottom: 16,
-    color: COLORS.text,
+    backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: 8, padding: 14, fontSize: 15, marginBottom: 10, color: COLORS.text,
   },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  confirmBtn: {
-    backgroundColor: COLORS.primary,
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  confirmBtnText: {
-    color: COLORS.white,
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
+  textArea: { height: 80, textAlignVertical: 'top' },
   datePickerBtn: {
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 8,
-    padding: 14,
-    marginBottom: 16,
+    backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: 8, padding: 14, marginBottom: 12,
   },
-  datePickerLabel: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-    marginBottom: 4,
+  datePickerLabel: { fontSize: 12, color: COLORS.textMuted, marginBottom: 4 },
+  datePickerValue: { fontSize: 15, color: COLORS.text, fontWeight: '500' },
+  timeRow: { flexDirection: 'row' },
+  confirmBtn: {
+    backgroundColor: COLORS.primary, padding: 16, borderRadius: 10,
+    alignItems: 'center', marginTop: 20,
   },
-  datePickerValue: {
-    fontSize: 16,
-    color: COLORS.text,
-    fontWeight: '500',
-  },
-  timeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
+  confirmBtnDisabled: { opacity: 0.6 },
+  confirmBtnText: { color: COLORS.white, fontWeight: 'bold', fontSize: 16 },
 });
