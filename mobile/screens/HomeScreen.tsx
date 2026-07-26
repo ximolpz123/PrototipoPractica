@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, TextInput, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, TextInput, Modal, ScrollView, RefreshControl } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../constants';
 import { locationService } from '../services/location.service';
@@ -12,14 +12,15 @@ export default function HomeScreen({ route, navigation }: any) {
   const [upcomingReserva, setUpcomingReserva] = useState<IReservation | null>(null);
   const [isTracking, setIsTracking] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   // Estado para el modal de kilometraje de retorno
   const [showKmModal, setShowKmModal] = useState(false);
   const [kmRetornoInput, setKmRetornoInput] = useState('');
   const [completingTrip, setCompletingTrip] = useState(false);
 
-  const loadReservas = async () => {
+  const loadReservas = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (!isRefresh) setLoading(true);
       const all = await reservationService.getMyReservations();
 
       // Buscar reserva en_curso (viaje activo)
@@ -44,8 +45,14 @@ export default function HomeScreen({ route, navigation }: any) {
       console.error('Error cargando reservas:', err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadReservas(true);
+  }, []);
 
   // Recargar al volver a la pantalla
   useFocusEffect(
@@ -142,7 +149,13 @@ export default function HomeScreen({ route, navigation }: any) {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView 
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+      }
+    >
       {/* Bienvenida */}
       <Text style={styles.welcomeTitle}>¡Bienvenido! 👋</Text>
       <Text style={styles.welcomeName}>{user.nombre} {user.apellido}</Text>
@@ -252,7 +265,7 @@ export default function HomeScreen({ route, navigation }: any) {
           </View>
         </View>
       </Modal>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -260,8 +273,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  scrollContent: {
     padding: 20,
     paddingTop: 24,
+    paddingBottom: 40,
   },
   centered: {
     flex: 1,

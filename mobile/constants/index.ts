@@ -17,4 +17,6 @@ export const COLORS = {
   border: '#D6D7D9',        // Bordes usando el gris claro
   success: '#16A34A',       // Verde de éxito (mantenido de la base)
   danger: '#DC2626',        // Rojo de error (mantenido de la base)
+  warning: '#F59E0B',       // Naranja/Amarillo para estados pendientes
+  info: '#0284C7',          // Azul informativo para estados neutrales
 };

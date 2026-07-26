@@ -5,12 +5,13 @@ import { COLORS } from '../constants';
 import { reservationService, IReservation } from '../services/reservation.service';
 
 const ESTADO_MAP: Record<string, { label: string; color: string }> = {
-  pendiente: { label: 'Pendiente', color: '#F57F17' },
+  pendiente: { label: 'Pendiente', color: COLORS.warning },
   aprobada: { label: 'Aprobada', color: COLORS.primary },
-  en_curso: { label: 'En Curso', color: '#2E7D32' },
+  en_curso: { label: 'En Curso', color: COLORS.success },
   completada: { label: 'Completada', color: COLORS.textMuted },
   cancelada: { label: 'Cancelada', color: COLORS.danger },
 };
+
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
