@@ -115,6 +115,44 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
 
 
 
+// Iniciar un viaje: cambia estado de 'aprobada' a 'en_curso' (el conductor lo hace al salir)
+export const startReservation = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const reservation = await Reservation.findById(req.params.id);
+
+    if (!reservation) {
+      res.status(404).json({ message: 'Reserva no encontrada' });
+      return;
+    }
+
+    // Solo el dueño o un admin puede iniciar
+    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin') {
+      res.status(403).json({ message: 'No tienes permiso para iniciar esta reserva' });
+      return;
+    }
+
+    if (reservation.estado !== 'aprobada') {
+      res.status(400).json({ message: `No se puede iniciar: la reserva está en estado '${reservation.estado}'` });
+      return;
+    }
+
+    // Obtener el kilometraje actual del vehículo para registrarlo como kmSalida
+    const vehicle = await Vehicle.findById(reservation.vehiculo);
+    const kmSalida = vehicle?.kilometraje ?? 0;
+
+    reservation.estado = 'en_curso';
+    reservation.kmSalida = kmSalida; // ← Registrar odómetro al salir
+    await reservation.save();
+
+    // Marcar el vehículo como reservado
+    await Vehicle.findByIdAndUpdate(reservation.vehiculo, { estado: 'reservado' });
+
+    res.json({ message: 'Viaje iniciado exitosamente', reservation, kmSalida });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al iniciar el viaje', error });
+  }
+};
+
 // Actualizar estado de una reserva (admin)
 export const updateReservationStatus = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
