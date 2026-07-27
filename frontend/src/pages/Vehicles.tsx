@@ -1,9 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { IUser, IReservation, IVehicle } from '../types';
 
-import UserProfileMenu from '../components/UserProfileMenu';
 import camionetaBlancaImg from '../assets/camioneta-blanca.png'; // Fallback
+import autoCafeImg from '../assets/auto-cafe.png';
+import camionetaAzulImg from '../assets/camioneta-azul.png';
+import camionetaRojaImg from '../assets/camioneta-roja.png';
+import nissanVersaNegroImg from '../assets/nissan versa negro.png';
+import toyotaHiluxBlancoImg from '../assets/toyota hilux srv blanco.png';
+import toyotaHiluxPlataImg from '../assets/toyota hilux srv plata.png';
+import vwAmarokBlancoImg from '../assets/volkswagen amarok blanco.png';
+import vwAmarokGrisImg from '../assets/volkswagen amarok gris.png';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const ESTADO_LABELS: Record<string, string> = {
@@ -18,6 +25,37 @@ const ESTADO_COLORS: Record<string, string> = {
   reservado: '#f59e0b',
   mantenimiento: '#3b82f6',
   fuera_de_servicio: '#ef4444',
+};
+
+// ─── Helper: Asignar imagen respectiva según vehículo ────────────────────────
+const getVehicleImage = (v: IVehicle): string => {
+  if (v.imagenUrl) return v.imagenUrl;
+
+  const marca = v.marca?.toLowerCase() || '';
+  const modelo = v.modelo?.toLowerCase() || '';
+  const color = v.color?.toLowerCase() || '';
+
+  if (marca.includes('nissan') && modelo.includes('versa')) return nissanVersaNegroImg;
+  if (marca.includes('toyota') && modelo.includes('hilux')) {
+    if (color.includes('plata') || color.includes('gris')) return toyotaHiluxPlataImg;
+    return toyotaHiluxBlancoImg; // Fallback para hilux
+  }
+  if (marca.includes('volkswagen') && modelo.includes('amarok')) {
+    if (color.includes('gris') || color.includes('plata')) return vwAmarokGrisImg;
+    return vwAmarokBlancoImg; // Fallback para amarok
+  }
+
+  // Fallbacks genéricos
+  if (v.tipo === 'pickup') {
+    if (color.includes('azul')) return camionetaAzulImg;
+    if (color.includes('roj')) return camionetaRojaImg;
+    return camionetaBlancaImg;
+  }
+  if (v.tipo === 'sedan') {
+    if (color.includes('cafe') || color.includes('café') || color.includes('marr')) return autoCafeImg;
+  }
+
+  return camionetaBlancaImg;
 };
 
 // ─── Componente ───────────────────────────────────────────────────────────────
@@ -38,6 +76,26 @@ function Vehicles() {
   // Leer usuario del localStorage
   const storedUser = localStorage.getItem('user');
   const user: IUser | null = storedUser ? JSON.parse(storedUser) : null;
+
+  const defaultProfileImg = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+  const profileImgKey = user ? `profile_img_${user.id}` : 'profile_img_default';
+  const [profileImg, setProfileImg] = useState<string>(
+    localStorage.getItem(profileImgKey) || defaultProfileImg
+  );
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        setProfileImg(result);
+        localStorage.setItem(profileImgKey, result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Cargar vehículos al montar
   useEffect(() => {
@@ -97,39 +155,67 @@ function Vehicles() {
   };
 
   return (
-    <div className="user-panel">
-      <UserProfileMenu />
-      {/* ── Bienvenida ── */}
-      <div className="welcome-header">
-        <span className="welcome-text">
-          ¡Bienvenido! {user?.nombre ?? ''} {user?.apellido ?? ''} 😊
-        </span>
-      </div>
+    <div className="dashboard-layout">
+      
+      {/* ══════════ SIDEBAR AZUL ══════════ */}
+      <aside className="dashboard-sidebar">
+        
+        {/* Perfil */}
+        <div className="sidebar-profile">
+          <div className="sidebar-photo-upload" onClick={() => fileInputRef.current?.click()} title="Cambiar foto">
+            <img src={profileImg} alt="Perfil" className="sidebar-profile-img" />
+            <div className="sidebar-photo-overlay">📷</div>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            style={{ display: 'none' }}
+          />
+          <span className="sidebar-profile-name">
+            {user?.nombre ?? ''} {user?.apellido ?? ''}
+          </span>
+          <span className="sidebar-profile-role">
+            {user?.rol === 'admin' ? 'Administrador' : 'Conductor'}
+          </span>
+        </div>
 
-      {/* ── Tabs ── */}
-      <div className="panel-tabs">
-        <button
-          id="tab-catalogo"
-          className={`tab-btn${activeTab === 'catalogo' ? ' active' : ''}`}
-          onClick={() => setActiveTab('catalogo')}
-        >
-          🚗 Catálogo de Vehículos
+        {/* Navegación en orden */}
+        <div className="sidebar-nav">
+          <button className={`sidebar-btn${activeTab === 'catalogo' ? ' active' : ''}`} onClick={() => setActiveTab('catalogo')}>
+            <span className="btn-icon">🚗</span> Ver Vehículos
+          </button>
+          <button className={`sidebar-btn${activeTab === 'reservaciones' ? ' active' : ''}`} onClick={() => setActiveTab('reservaciones')}>
+            <span className="btn-icon">📋</span> Mis Reservaciones
+          </button>
+        </div>
+
+        {/* Logout bottom */}
+        <button className="sidebar-btn sidebar-logout" onClick={() => {
+          localStorage.removeItem('token');
+          navigate('/login');
+        }}>
+          <span className="btn-icon">🚪</span> Cerrar Sesión
         </button>
-        <button
-          id="tab-reservaciones"
-          className={`tab-btn${activeTab === 'reservaciones' ? ' active' : ''}`}
-          onClick={() => setActiveTab('reservaciones')}
-        >
-          📋 Mis Reservaciones
-        </button>
-      </div>
+      </aside>
+
+      {/* ══════════ MAIN CONTENT ══════════ */}
+      <main className="dashboard-content">
+        
+        {/* ── Bienvenida ── */}
+        <div className="welcome-header" style={{ maxWidth: '100%' }}>
+          <span className="welcome-text">
+            ¡Bienvenido! {user?.nombre ?? ''} {user?.apellido ?? ''}
+          </span>
+        </div>
 
       {/* ── Panel: Catálogo ── */}
       {activeTab === 'catalogo' && (
         <div className="vehicles-grid">
           {loadingVehicles && <p style={{ textAlign: 'center', width: '100%' }}>Cargando vehículos...</p>}
           {!loadingVehicles && vehiclesList.map((v) => {
-            const imgUrl = v.imagenUrl || camionetaBlancaImg;
+            const imgUrl = getVehicleImage(v);
             return (
               <div key={v._id} className="vehicle-card">
                 <img
@@ -200,9 +286,9 @@ function Vehicles() {
                     style={{
                       backgroundColor:
                         r.estado === 'aprobada' ? '#22c55e' :
-                        r.estado === 'pendiente' ? '#f59e0b' :
-                        r.estado === 'en_curso' ? '#3b82f6' :
-                        r.estado === 'completada' ? '#8b5cf6' : '#ef4444',
+                          r.estado === 'pendiente' ? '#f59e0b' :
+                            r.estado === 'en_curso' ? '#3b82f6' :
+                              r.estado === 'completada' ? '#8b5cf6' : '#ef4444',
                     }}
                   >
                     {r.estado.charAt(0).toUpperCase() + r.estado.slice(1).replace('_', ' ')}
@@ -335,6 +421,7 @@ function Vehicles() {
           </div>
         </div>
       )}
+      </main>
     </div>
   );
 }
