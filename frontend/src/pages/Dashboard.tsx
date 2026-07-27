@@ -1,20 +1,9 @@
 import { useState, useEffect } from 'react';
 import UserProfileMenu from '../components/UserProfileMenu';
-import type { IUser, IReservation } from '../types';
+import type { IUser, IReservation, IVehicle } from '../types';
+import camionetaBlancaImg from '../assets/camioneta-blanca.png'; // Fallback imagen
 
-import autoCafeImg from '../assets/auto-cafe.png';
-import camionetaRojaImg from '../assets/camioneta-roja.png';
-import camionetaAzulImg from '../assets/camioneta-azul.png';
-import camionetaBlancaImg from '../assets/camioneta-blanca.png';
-
-// ─── Datos fijos vehículos ────────────────────────────────────────────────────
-const VEHICLES_DATA = [
-  { id: '1', nombre: 'Auto Café',        imagen: autoCafeImg,        placa: 'ABC-1234', marca: 'Toyota',    modelo: 'Corolla',   anio: 2020, color: 'Café',   tipo: 'Sedán',   estado: 'disponible',       km: 32000 },
-  { id: '2', nombre: 'Camioneta Roja',   imagen: camionetaRojaImg,   placa: 'DEF-5678', marca: 'Ford',      modelo: 'Ranger',    anio: 2021, color: 'Rojo',   tipo: 'Pickup',  estado: 'reservado',        km: 18500 },
-  { id: '3', nombre: 'Camioneta Azul',   imagen: camionetaAzulImg,   placa: 'GHI-9012', marca: 'Chevrolet', modelo: 'Silverado', anio: 2019, color: 'Azul',   tipo: 'Pickup',  estado: 'mantenimiento',    km: 55200 },
-  { id: '4', nombre: 'Camioneta Blanca', imagen: camionetaBlancaImg, placa: 'JKL-3456', marca: 'Nissan',    modelo: 'Frontier',  anio: 2022, color: 'Blanco', tipo: 'Pickup',  estado: 'fuera_de_servicio', km: 8900 },
-];
-
+// ─── Helpers de colores/etiquetas ────────────────────────────────────────────
 const ESTADO_VEHICLE_COLORS: Record<string, string> = {
   disponible: '#22c55e',
   reservado: '#f59e0b',
@@ -27,7 +16,6 @@ const ESTADO_VEHICLE_LABELS: Record<string, string> = {
   mantenimiento: 'Mantenimiento',
   fuera_de_servicio: 'Fuera de Servicio',
 };
-
 const ESTADO_RES_COLORS: Record<string, string> = {
   aprobada: '#22c55e',
   pendiente: '#f59e0b',
@@ -38,20 +26,25 @@ const ESTADO_RES_COLORS: Record<string, string> = {
 
 type DashTab = 'usuarios' | 'reservaciones' | 'vehiculos';
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-const getVehicleName = (vehiculo: IReservation['vehiculo']) => {
-  if (typeof vehiculo === 'object' && vehiculo !== null) {
-    const found = VEHICLES_DATA.find(v => v.marca === (vehiculo as { marca: string }).marca && v.modelo === (vehiculo as { modelo: string }).modelo);
-    return found ? found.nombre : `${(vehiculo as { marca: string; modelo: string }).marca} ${(vehiculo as { marca: string; modelo: string }).modelo}`;
-  }
-  const found = VEHICLES_DATA.find(v => v.id === vehiculo);
-  return found ? found.nombre : `Vehículo #${vehiculo}`;
+// ─── Formulario vacío de vehículo ────────────────────────────────────────────
+const EMPTY_VEHICLE_FORM = {
+  placa: '',
+  marca: '',
+  modelo: '',
+  anio: new Date().getFullYear(),
+  color: '',
+  tipo: 'pickup' as IVehicle['tipo'],
+  estado: 'disponible' as IVehicle['estado'],
+  kilometraje: 0,
+  ultimoMantenimiento: '',
+  imagenUrl: '',
 };
 
 // ─── Componente principal ────────────────────────────────────────────────────
 function Dashboard() {
   const storedUser = localStorage.getItem('user');
   const user: IUser | null = storedUser ? JSON.parse(storedUser) : null;
+  const token = localStorage.getItem('token');
 
   const [activeTab, setActiveTab] = useState<DashTab>('usuarios');
 
@@ -59,7 +52,6 @@ function Dashboard() {
   const [users, setUsers] = useState<IUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [errorUsers, setErrorUsers] = useState('');
-  // CRUD modal
   const [editUser, setEditUser] = useState<IUser | null>(null);
   const [editForm, setEditForm] = useState({ nombre: '', apellido: '', email: '', departamento: '', rol: 'usuario' as 'usuario' | 'admin', activo: true });
   const [showDeleteUserConfirm, setShowDeleteUserConfirm] = useState<string | null>(null);
@@ -73,14 +65,23 @@ function Dashboard() {
   const [selectedReservation, setSelectedReservation] = useState<IReservation | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
 
-  const token = localStorage.getItem('token');
+  // ── Estado Vehículos ──
+  const [vehicles, setVehicles] = useState<IVehicle[]>([]);
+  const [loadingVehicles, setLoadingVehicles] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState<IVehicle | null>(null);
+  const [showDeleteVehicleConfirm, setShowDeleteVehicleConfirm] = useState<string | null>(null);
+  const [showCreateVehicle, setShowCreateVehicle] = useState(false);
+  const [showEditVehicle, setShowEditVehicle] = useState<IVehicle | null>(null);
+  const [vehicleForm, setVehicleForm] = useState(EMPTY_VEHICLE_FORM);
 
-  // ── Cargar datos ──
+  // ── Cargar datos al cambiar tab ──
   useEffect(() => {
     if (activeTab === 'usuarios') fetchUsers();
     if (activeTab === 'reservaciones') fetchReservations();
+    if (activeTab === 'vehiculos') fetchVehicles();
   }, [activeTab]);
 
+  // ────────── FETCH FUNCTIONS ──────────
   const fetchUsers = async () => {
     setLoadingUsers(true); setErrorUsers('');
     try {
@@ -101,7 +102,17 @@ function Dashboard() {
     finally { setLoadingRes(false); }
   };
 
-  // ── CRUD Usuarios ──
+  const fetchVehicles = async () => {
+    setLoadingVehicles(true);
+    try {
+      const res = await fetch('http://localhost:5000/api/vehicles', { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      setVehicles(Array.isArray(data) ? data : []);
+    } catch { console.error('Error cargando vehículos'); }
+    finally { setLoadingVehicles(false); }
+  };
+
+  // ────────── CRUD USUARIOS ──────────
   const openEdit = (u: IUser) => {
     setEditUser(u);
     setEditForm({ nombre: u.nombre, apellido: u.apellido, email: u.email, departamento: u.departamento, rol: u.rol, activo: u.activo });
@@ -122,10 +133,7 @@ function Dashboard() {
 
   const deleteUser = async (id: string) => {
     try {
-      await fetch(`http://localhost:5000/api/users/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await fetch(`http://localhost:5000/api/users/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
       setShowDeleteUserConfirm(null);
       fetchUsers();
     } catch { alert('Error al eliminar usuario'); }
@@ -145,6 +153,63 @@ function Dashboard() {
     } catch { alert('Error al crear usuario'); }
   };
 
+  // ────────── CRUD VEHÍCULOS ──────────
+  const createVehicle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const body = { ...vehicleForm, ultimoMantenimiento: vehicleForm.ultimoMantenimiento || undefined };
+      await fetch('http://localhost:5000/api/vehicles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      });
+      setShowCreateVehicle(false);
+      setVehicleForm(EMPTY_VEHICLE_FORM);
+      fetchVehicles();
+    } catch { alert('Error al crear vehículo'); }
+  };
+
+  const openEditVehicle = (v: IVehicle) => {
+    setShowEditVehicle(v);
+    setSelectedVehicle(null);
+    setVehicleForm({
+      placa: v.placa,
+      marca: v.marca,
+      modelo: v.modelo,
+      anio: v.anio,
+      color: v.color,
+      tipo: v.tipo,
+      estado: v.estado,
+      kilometraje: v.kilometraje,
+      ultimoMantenimiento: v.ultimoMantenimiento ? new Date(v.ultimoMantenimiento).toISOString().slice(0, 16) : '',
+      imagenUrl: v.imagenUrl ?? '',
+    });
+  };
+
+  const saveEditVehicle = async () => {
+    if (!showEditVehicle) return;
+    try {
+      const body = { ...vehicleForm, ultimoMantenimiento: vehicleForm.ultimoMantenimiento || undefined };
+      await fetch(`http://localhost:5000/api/vehicles/${showEditVehicle._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      });
+      setShowEditVehicle(null);
+      setVehicleForm(EMPTY_VEHICLE_FORM);
+      fetchVehicles();
+    } catch { alert('Error al actualizar vehículo'); }
+  };
+
+  const deleteVehicle = async (id: string) => {
+    try {
+      await fetch(`http://localhost:5000/api/vehicles/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      setShowDeleteVehicleConfirm(null);
+      setSelectedVehicle(null);
+      fetchVehicles();
+    } catch { alert('Error al eliminar vehículo'); }
+  };
+
   // ── Aprobar Reservación ──
   const approveReservation = async (id: string) => {
     setApprovingId(id);
@@ -155,12 +220,79 @@ function Dashboard() {
         body: JSON.stringify({ estado: 'aprobada' }),
       });
       await fetchReservations();
-      // Actualizar también el modal si está abierto
       setSelectedReservation(prev => prev && prev._id === id ? { ...prev, estado: 'aprobada' } : prev);
     } catch { alert('Error al aprobar reservación'); }
     finally { setApprovingId(null); }
   };
 
+  // ────────── Helper nombre vehículo en reservaciones ──────────
+  const getVehicleName = (vehiculo: IReservation['vehiculo']) => {
+    if (typeof vehiculo === 'object' && vehiculo !== null) {
+      return `${(vehiculo as IVehicle).marca} ${(vehiculo as IVehicle).modelo}`;
+    }
+    const found = vehicles.find(v => v._id === vehiculo);
+    return found ? `${found.marca} ${found.modelo}` : `Vehículo #${vehiculo}`;
+  };
+
+  // ────────── Helper: form vehículo compartido ──────────
+  const VehicleFormFields = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      {([
+        ['placa', 'Placa'], ['marca', 'Marca'], ['modelo', 'Modelo'],
+        ['color', 'Color'], ['imagenUrl', 'URL de Imagen'],
+      ] as [keyof typeof vehicleForm, string][]).map(([field, label]) => (
+        <div key={field}>
+          <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>{label}:</label>
+          <input
+            className="reserv-input"
+            style={{ width: '100%', boxSizing: 'border-box' }}
+            value={String(vehicleForm[field])}
+            onChange={e => setVehicleForm(f => ({ ...f, [field]: e.target.value }))}
+            required={field !== 'imagenUrl'}
+          />
+        </div>
+      ))}
+      <div style={{ display: 'flex', gap: '1rem' }}>
+        <div style={{ flex: 1 }}>
+          <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Año:</label>
+          <input className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} type="number"
+            value={vehicleForm.anio} onChange={e => setVehicleForm(f => ({ ...f, anio: Number(e.target.value) }))} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Kilometraje:</label>
+          <input className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} type="number"
+            value={vehicleForm.kilometraje} onChange={e => setVehicleForm(f => ({ ...f, kilometraje: Number(e.target.value) }))} />
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: '1rem' }}>
+        <div style={{ flex: 1 }}>
+          <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Tipo:</label>
+          <select className="reserv-select" value={vehicleForm.tipo} onChange={e => setVehicleForm(f => ({ ...f, tipo: e.target.value as IVehicle['tipo'] }))}>
+            <option value="sedan">Sedán</option>
+            <option value="suv">SUV</option>
+            <option value="pickup">Pickup</option>
+            <option value="van">Van</option>
+          </select>
+        </div>
+        <div style={{ flex: 1 }}>
+          <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Estado:</label>
+          <select className="reserv-select" value={vehicleForm.estado} onChange={e => setVehicleForm(f => ({ ...f, estado: e.target.value as IVehicle['estado'] }))}>
+            <option value="disponible">Disponible</option>
+            <option value="reservado">Reservado</option>
+            <option value="mantenimiento">Mantenimiento</option>
+            <option value="fuera_de_servicio">Fuera de Servicio</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Último Mantenimiento:</label>
+        <input className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} type="datetime-local"
+          value={vehicleForm.ultimoMantenimiento} onChange={e => setVehicleForm(f => ({ ...f, ultimoMantenimiento: e.target.value }))} />
+      </div>
+    </div>
+  );
+
+  // ──────────────────── RENDER ────────────────────
   return (
     <div className="user-panel" style={{ position: 'relative' }}>
       <UserProfileMenu />
@@ -172,7 +304,7 @@ function Dashboard() {
         </span>
       </div>
 
-      {/* ── Título Dashboard ── */}
+      {/* ── Título ── */}
       <h2 style={{ textAlign: 'center', fontSize: '1.6rem', fontWeight: '700', color: '#000', marginBottom: '1rem' }}>
         Dashboard
       </h2>
@@ -252,31 +384,195 @@ function Dashboard() {
 
       {/* ══════════ TAB: VEHÍCULOS ══════════ */}
       {activeTab === 'vehiculos' && (
-        <div className="vehicles-grid">
-          {VEHICLES_DATA.map(v => (
-            <div key={v.id} className="vehicle-card">
-              <img src={v.imagen} alt={v.nombre} className="vehicle-card-img" />
-              <div className="vehicle-card-body">
-                <h2 className="vehicle-card-title">{v.nombre}</h2>
-                <div className="vehicle-card-info">
-                  <span><strong>Patente:</strong> {v.placa}</span>
-                  <span><strong>Marca:</strong>   {v.marca}</span>
-                  <span><strong>Modelo:</strong>  {v.modelo}</span>
-                  <span><strong>Año:</strong>     {v.anio}</span>
-                  <span><strong>Color:</strong>   {v.color}</span>
-                  <span><strong>Tipo:</strong>    {v.tipo}</span>
-                  <span><strong>Km:</strong>      {v.km.toLocaleString('es-CL')}</span>
+        <div>
+          {/* Botón Agregar */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+            <button className="btn btn-create" onClick={() => { setVehicleForm(EMPTY_VEHICLE_FORM); setShowCreateVehicle(true); }}>
+              ➕ Agregar Vehículo
+            </button>
+          </div>
+
+          {loadingVehicles && <p className="res-status">Cargando vehículos…</p>}
+          {!loadingVehicles && vehicles.length === 0 && <p className="res-status">No hay vehículos registrados.</p>}
+
+          <div className="vehicles-grid">
+            {vehicles.map(v => {
+              const imgUrl = v.imagenUrl || camionetaBlancaImg;
+              return (
+                <div key={v._id} className="vehicle-card">
+                  <img src={imgUrl} alt={`${v.marca} ${v.modelo}`} className="vehicle-card-img" />
+                  <div className="vehicle-card-body">
+                    <h2 className="vehicle-card-title">{v.marca} {v.modelo}</h2>
+                    <div className="vehicle-card-info">
+                      <span><strong>Patente:</strong> {v.placa}</span>
+                      <span><strong>Año:</strong> {v.anio}</span>
+                      <span><strong>Color:</strong> {v.color}</span>
+                      <span><strong>Km:</strong> {v.kilometraje.toLocaleString('es-CL')}</span>
+                      {v.ultimoMantenimiento && (
+                        <span style={{ fontSize: '0.85rem', marginTop: '4px', display: 'block' }}>
+                          <strong>Último Mant.:</strong><br />
+                          {new Date(v.ultimoMantenimiento).toLocaleString('es-CL')}
+                        </span>
+                      )}
+                    </div>
+                    <span className="status-badge" style={{ backgroundColor: ESTADO_VEHICLE_COLORS[v.estado] }}>
+                      {ESTADO_VEHICLE_LABELS[v.estado]}
+                    </span>
+                    <button
+                      id={`ver-vehiculo-admin-${v._id}`}
+                      className="btn btn-sm"
+                      style={{ marginTop: '10px', width: '100%' }}
+                      onClick={() => setSelectedVehicle(v)}
+                    >
+                      🔍 Ver Vehículo
+                    </button>
+                  </div>
                 </div>
-                <span className="status-badge" style={{ backgroundColor: ESTADO_VEHICLE_COLORS[v.estado] }}>
-                  {ESTADO_VEHICLE_LABELS[v.estado]}
-                </span>
-              </div>
-            </div>
-          ))}
+              );
+            })}
+          </div>
         </div>
       )}
 
-      {/* ══════════ MODAL: DETALLE RESERVACIÓN (Admin) ══════════ */}
+      {/* ══════════ MODAL: DETALLE VEHÍCULO (Admin) ══════════ */}
+      {selectedVehicle && (
+        <div className="modal-overlay" onClick={() => { setSelectedVehicle(null); setShowDeleteVehicleConfirm(null); }}>
+          <div
+            className="modal-content"
+            style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '12px', maxWidth: '700px', width: '95%', color: '#000', position: 'relative' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Botón cerrar */}
+            <button
+              onClick={() => { setSelectedVehicle(null); setShowDeleteVehicleConfirm(null); }}
+              style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+            >X</button>
+
+            <h2 style={{ marginTop: 0, marginBottom: '1.5rem', textAlign: 'center' }}>
+              🚗 {selectedVehicle.marca} {selectedVehicle.modelo}
+            </h2>
+
+            {/* Layout imagen + datos */}
+            <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+              {/* Imagen */}
+              <div style={{ flex: '0 0 auto' }}>
+                <img
+                  src={selectedVehicle.imagenUrl || camionetaBlancaImg}
+                  alt={`${selectedVehicle.marca} ${selectedVehicle.modelo}`}
+                  style={{ width: '260px', height: '180px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #e5e7eb' }}
+                />
+              </div>
+
+              {/* Datos */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.55rem', fontSize: '1.05rem', minWidth: '180px' }}>
+                <p style={{ margin: 0 }}><strong>Patente:</strong> {selectedVehicle.placa}</p>
+                <p style={{ margin: 0 }}><strong>Marca:</strong> {selectedVehicle.marca}</p>
+                <p style={{ margin: 0 }}><strong>Modelo:</strong> {selectedVehicle.modelo}</p>
+                <p style={{ margin: 0 }}><strong>Año:</strong> {selectedVehicle.anio}</p>
+                <p style={{ margin: 0 }}><strong>Color:</strong> {selectedVehicle.color}</p>
+                <p style={{ margin: 0 }}><strong>Tipo:</strong> {selectedVehicle.tipo}</p>
+                <p style={{ margin: 0 }}><strong>Kilometraje:</strong> {selectedVehicle.kilometraje.toLocaleString('es-CL')} km</p>
+                <p style={{ margin: 0 }}>
+                  <strong>Estado:</strong>{' '}
+                  <span className="status-badge" style={{ backgroundColor: ESTADO_VEHICLE_COLORS[selectedVehicle.estado] }}>
+                    {ESTADO_VEHICLE_LABELS[selectedVehicle.estado]}
+                  </span>
+                </p>
+                {selectedVehicle.ultimoMantenimiento && (
+                  <p style={{ margin: 0 }}>
+                    <strong>Último Mantenimiento:</strong><br />
+                    {new Date(selectedVehicle.ultimoMantenimiento).toLocaleString('es-CL')}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Botones CRUD */}
+            {showDeleteVehicleConfirm === selectedVehicle._id ? (
+              <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '1.25rem', textAlign: 'center' }}>
+                <p style={{ fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '1rem', color: '#000' }}>
+                  ¿Desea eliminar este Vehículo?
+                </p>
+                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                  <button
+                    className="btn"
+                    style={{ backgroundColor: 'red', color: 'black', padding: '0.5rem 2rem' }}
+                    onClick={() => deleteVehicle(selectedVehicle._id)}
+                  >
+                    Sí
+                  </button>
+                  <button
+                    className="btn"
+                    style={{ backgroundColor: '#175fbd', color: 'black', padding: '0.5rem 2rem' }}
+                    onClick={() => setShowDeleteVehicleConfirm(null)}
+                  >
+                    No
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', borderTop: '1px solid #e5e7eb', paddingTop: '1.25rem', flexWrap: 'wrap' }}>
+                <button
+                  className="btn"
+                  style={{ backgroundColor: '#175fbd', color: 'black', padding: '0.6rem 1.8rem' }}
+                  onClick={() => openEditVehicle(selectedVehicle)}
+                >
+                  ✏️ Editar Vehículo
+                </button>
+                <button
+                  className="btn"
+                  style={{ backgroundColor: 'red', color: 'black', padding: '0.6rem 1.8rem' }}
+                  onClick={() => setShowDeleteVehicleConfirm(selectedVehicle._id)}
+                >
+                  🗑️ Eliminar Vehículo
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ══════════ MODAL: CREAR VEHÍCULO ══════════ */}
+      {showCreateVehicle && (
+        <div className="modal-overlay" onClick={() => setShowCreateVehicle(false)}>
+          <div
+            className="modal-content"
+            style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '520px', width: '95%', color: '#000', textAlign: 'left', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button onClick={() => setShowCreateVehicle(false)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
+            <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}>➕ Agregar Vehículo</h2>
+            <form onSubmit={createVehicle}>
+              <VehicleFormFields />
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'center' }}>
+                <button type="submit" className="btn" style={{ backgroundColor: '#175fbd', color: 'black' }}>💾 Crear</button>
+                <button type="button" className="btn" style={{ backgroundColor: '#e5e7eb', color: 'black' }} onClick={() => setShowCreateVehicle(false)}>Cancelar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════ MODAL: EDITAR VEHÍCULO ══════════ */}
+      {showEditVehicle && (
+        <div className="modal-overlay" onClick={() => setShowEditVehicle(null)}>
+          <div
+            className="modal-content"
+            style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '520px', width: '95%', color: '#000', textAlign: 'left', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button onClick={() => setShowEditVehicle(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
+            <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}>✏️ Editar Vehículo</h2>
+            <VehicleFormFields />
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'center' }}>
+              <button className="btn" style={{ backgroundColor: '#175fbd', color: 'black' }} onClick={saveEditVehicle}>💾 Guardar</button>
+              <button className="btn" style={{ backgroundColor: '#e5e7eb', color: 'black' }} onClick={() => setShowEditVehicle(null)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════ MODAL: DETALLE RESERVACIÓN ══════════ */}
       {selectedReservation && (
         <div className="modal-overlay" onClick={() => setSelectedReservation(null)}>
           <div
@@ -284,12 +580,7 @@ function Dashboard() {
             style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '520px', width: '90%', color: '#000', textAlign: 'center', position: 'relative' }}
             onClick={e => e.stopPropagation()}
           >
-            {/* Botón cerrar circular */}
-            <button
-              onClick={() => setSelectedReservation(null)}
-              style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-            >X</button>
-
+            <button onClick={() => setSelectedReservation(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1.5rem' }}>Detalles de Reservación</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem', textAlign: 'left', fontSize: '1.05rem' }}>
               <p style={{ margin: 0 }}><strong>Vehículo:</strong> {getVehicleName(selectedReservation.vehiculo)}</p>
@@ -304,7 +595,6 @@ function Dashboard() {
               {selectedReservation.destino && <p style={{ margin: 0 }}><strong>Destino:</strong> {selectedReservation.destino}</p>}
               {selectedReservation.motivo  && <p style={{ margin: 0 }}><strong>Motivo:</strong>  {selectedReservation.motivo}</p>}
             </div>
-
             {selectedReservation.estado === 'pendiente' ? (
               <button
                 className="btn"
@@ -326,26 +616,14 @@ function Dashboard() {
       {/* ══════════ MODAL: EDITAR USUARIO ══════════ */}
       {editUser && (
         <div className="modal-overlay" onClick={() => setEditUser(null)}>
-          <div
-            className="modal-content"
-            style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '480px', width: '90%', color: '#000', textAlign: 'left', position: 'relative' }}
-            onClick={e => e.stopPropagation()}
-          >
-            <button
-              onClick={() => setEditUser(null)}
-              style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-            >X</button>
+          <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '480px', width: '90%', color: '#000', textAlign: 'left', position: 'relative' }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setEditUser(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}>Editar Usuario</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {(['nombre','apellido','email','departamento'] as const).map(field => (
                 <div key={field}>
                   <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem', textTransform: 'capitalize' }}>{field}:</label>
-                  <input
-                    className="reserv-input"
-                    style={{ width: '100%', boxSizing: 'border-box' }}
-                    value={editForm[field]}
-                    onChange={e => setEditForm(f => ({ ...f, [field]: e.target.value }))}
-                  />
+                  <input className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} value={editForm[field]} onChange={e => setEditForm(f => ({ ...f, [field]: e.target.value }))} />
                 </div>
               ))}
               <div>
@@ -371,15 +649,8 @@ function Dashboard() {
       {/* ══════════ MODAL: CONFIRMAR ELIMINAR USUARIO ══════════ */}
       {showDeleteUserConfirm && (
         <div className="modal-overlay" onClick={() => setShowDeleteUserConfirm(null)}>
-          <div
-            className="modal-content"
-            style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '400px', width: '90%', color: '#000', textAlign: 'center', position: 'relative' }}
-            onClick={e => e.stopPropagation()}
-          >
-            <button
-              onClick={() => setShowDeleteUserConfirm(null)}
-              style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-            >X</button>
+          <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '400px', width: '90%', color: '#000', textAlign: 'center', position: 'relative' }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowDeleteUserConfirm(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0 }}>¿Eliminar usuario?</h2>
             <p style={{ color: '#555', marginBottom: '1.5rem' }}>Esta acción no se puede deshacer.</p>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
@@ -393,28 +664,14 @@ function Dashboard() {
       {/* ══════════ MODAL: CREAR USUARIO ══════════ */}
       {showCreateUser && (
         <div className="modal-overlay" onClick={() => setShowCreateUser(false)}>
-          <div
-            className="modal-content"
-            style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '480px', width: '90%', color: '#000', textAlign: 'left', position: 'relative' }}
-            onClick={e => e.stopPropagation()}
-          >
-            <button
-              onClick={() => setShowCreateUser(false)}
-              style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-            >X</button>
+          <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '480px', width: '90%', color: '#000', textAlign: 'left', position: 'relative' }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowCreateUser(false)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}>Agregar Usuario</h2>
             <form onSubmit={createUser} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {([['nombre','Nombre'],['apellido','Apellido'],['email','Email'],['password','Contraseña'],['departamento','Departamento']] as [keyof typeof createForm, string][]).map(([field, label]) => (
                 <div key={field}>
                   <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>{label}:</label>
-                  <input
-                    className="reserv-input"
-                    style={{ width: '100%', boxSizing: 'border-box' }}
-                    type={field === 'password' ? 'password' : 'text'}
-                    value={createForm[field]}
-                    onChange={e => setCreateForm(f => ({ ...f, [field]: e.target.value }))}
-                    required={field !== 'departamento'}
-                  />
+                  <input className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} type={field === 'password' ? 'password' : 'text'} value={createForm[field]} onChange={e => setCreateForm(f => ({ ...f, [field]: e.target.value }))} required={field !== 'departamento'} />
                 </div>
               ))}
               <div>

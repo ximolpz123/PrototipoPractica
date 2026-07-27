@@ -64,6 +64,10 @@ export const updateVehicle = async (req: Request, res: Response): Promise<void> 
   }
 };
 
+// Eliminar vehículo (admin)
+export const deleteVehicle = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const vehicle = await Vehicle.findByIdAndDelete(req.params.id);
 // Poner vehículo en mantenimiento (admin)
 export const setVehicleMaintenance = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -77,6 +81,9 @@ export const setVehicleMaintenance = async (req: AuthRequest, res: Response): Pr
       res.status(404).json({ message: 'Vehículo no encontrado' });
       return;
     }
+    res.json({ message: 'Vehículo eliminado correctamente' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al eliminar vehículo', error });
 
     // Registro de Auditoría
     await Audit.create({

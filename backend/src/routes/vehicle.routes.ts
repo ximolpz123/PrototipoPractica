@@ -5,6 +5,7 @@ import {
   getAvailableVehicles,
   createVehicle,
   updateVehicle,
+  deleteVehicle,
   setVehicleMaintenance,
 } from '../controllers/vehicle.controller.js';
 import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
@@ -26,6 +27,8 @@ router.post('/', authMiddleware, adminMiddleware, createVehicle);
 // PUT /api/vehicles/:id (solo admin)
 router.put('/:id', authMiddleware, adminMiddleware, updateVehicle);
 
+// DELETE /api/vehicles/:id (solo admin)
+router.delete('/:id', authMiddleware, adminMiddleware, deleteVehicle);
 // PATCH /api/vehicles/:id/mantenimiento (solo admin)
 router.patch('/:id/mantenimiento', authMiddleware, adminMiddleware, setVehicleMaintenance);
 
