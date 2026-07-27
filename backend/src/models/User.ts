@@ -8,6 +8,8 @@ export interface IUser extends Document {
   departamento: string;
   rol: 'usuario' | 'admin';
   activo: boolean;
+  licenciaAlDia: boolean;
+  fechaVencimientoLicencia?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -50,6 +52,14 @@ const userSchema = new Schema<IUser>(
     activo: {
       type: Boolean,
       default: true,
+    },
+    licenciaAlDia: {
+      type: Boolean,
+      default: true, // Por defecto se asume al día, RRHH puede cambiarlo
+    },
+    fechaVencimientoLicencia: {
+      type: Date,
+      default: null,
     },
   },
   { timestamps: true }

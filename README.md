@@ -1,23 +1,23 @@
-# 🚗 PrototipoPractica — Sistema de Reserva de Vehículos
+# 🚗 PrototipoPractica — Sistema de Reserva de Vehículos (Bitnets)
 
-Sistema prototipo para gestionar la reserva de **4 vehículos** de empresa por parte de **100 usuarios autorizados**.
+Sistema prototipo para gestionar la reserva de la flota de vehículos de la empresa, integrando una plataforma web de administración y una aplicación móvil para los conductores.
 
 ## 🛠️ Tech Stack
 
 | Capa | Tecnología | Detalles |
 |------|-----------|-----------|
-| **Frontend** | React 19 + TypeScript + Vite | React Router DOM para navegación, Axios para peticiones HTTP con interceptores JWT. |
-| **Backend** | Node.js + Express + TypeScript | Rutas protegidas, controladores CRUD para Vehículos, Reservas y Usuarios. |
-| **Base de datos** | MongoDB Atlas + Mongoose | Modelos estrictos, validación de fechas (evita reservas dobles), conexión directa (Non-SRV). |
-| **Autenticación** | JWT (JSON Web Tokens) | Contraseñas encriptadas con `bcryptjs`, middleware de protección por roles (Admin/User). |
+| **Backend** | Node.js + Express + TypeScript | Rutas protegidas, controladores para Vehículos, Reservas y Usuarios. Lógica anti-conflictos, estadísticas y auditoría. |
+| **App Móvil** | React Native + Expo (TypeScript) | Aplicación para usuarios/conductores. Flujos de reserva, subida de evidencia a Cloudinary, tracking GPS y validación de licencias. |
+| **Frontend Web** | React 19 + TypeScript + Vite | Plataforma administrativa para gestionar la flota, ver reportes y auditar reservas. |
+| **Base de datos** | MongoDB Atlas + Mongoose | Modelos estrictos, colección de auditoría y conexión en la nube. |
+| **Autenticación** | JWT (JSON Web Tokens) | Contraseñas encriptadas con `bcryptjs`, protección por roles (Admin/User). |
+| **Almacenamiento** | Cloudinary | Guardado en la nube de fotografías de evidencia (estado del auto antes y después del viaje). |
 
-## 👥 Equipo de Desarrollo (Práctica Profesional)
+## 👥 Equipo de Desarrollo
 
 Este proyecto sigue una división de responsabilidades estricta:
-- **Joaquín (Backend)**: Lógica de negocio, API REST, Base de Datos, Autenticación y validaciones.
-- **Gustavo (Frontend)**: Interfaz de usuario, consumo de API, gestión de estados y navegación.
-
-> 📝 **Nota:** Revisar el archivo `plan_de_trabajo.md` (o el PDF adjunto) para ver las reglas exactas de los commits y el uso de ramas de Git.
+- **Joaquín (Backend y Móvil)**: Lógica de negocio, API REST, Base de Datos, Autenticación, validaciones de choque de fechas, app móvil completa e integración de cámara/GPS.
+- **Gustavo (Frontend Web)**: Interfaz de usuario administrativa, consumo de API, gestión de estados y navegación en la web.
 
 ---
 
@@ -33,61 +33,55 @@ cd PrototipoPractica
 ### 2. Instalar todas las dependencias
 
 ```bash
-# Instalar dependencias raíz (para ejecutar ambos proyectos a la vez)
+# Instalar dependencias raíz (para levantar backend y frontend web a la vez)
 npm install
 
-# Instalar dependencias del Backend y Frontend
+# Instalar dependencias individuales
 cd backend && npm install && cd ..
 cd frontend && npm install && cd ..
+cd mobile && npm install && cd ..
 ```
 
 ### 3. Configurar variables de entorno
 
-Copia el archivo `.env.example` en la carpeta `backend` y renómbralo a `.env`:
-```bash
-cp backend/.env.example backend/.env
-```
+**Backend:** Copia `.env.example` a `.env` en la carpeta `backend` y configura la cadena de MongoDB Atlas, el puerto (5000), tu JWT Secret y las llaves de tu cuenta de Cloudinary.
 
-Edita `backend/.env` con la URL directa de MongoDB (formato 2.2.12 sin SRV para evitar bloqueos de red) y asegúrate de poner la contraseña real:
-
-```env
-MONGODB_URI="mongodb://usuario:PASSWORD@ac-98xn2br-shard-00-00.zwhrp0v.mongodb.net:27017,ac-98xn2br-shard-00-01.zwhrp0v.mongodb.net:27017,ac-98xn2br-shard-00-02.zwhrp0v.mongodb.net:27017/reserva-vehiculos?ssl=true&replicaSet=atlas-spro0z-shard-0&authSource=admin&appName=Cluster0"
-JWT_SECRET=prototipo_practica_jwt_secret_2026
-PORT=5000
-```
+**App Móvil:** Modifica el archivo `mobile/constants/index.ts` y asegúrate de que la variable `API_URL` apunte a la **IP IPv4 de tu computadora actual** para poder probarla en el celular físico.
 
 ### 4. Cargar datos de prueba (Seed)
 
-Solo debes correr esto una vez para poblar tu base de datos con los autos y usuarios de prueba.
+Para poblar la base de datos con los autos y el administrador:
 
 ```bash
 cd backend
-npx tsx src/seed.ts
+npm run seed
 ```
-*(Si es exitoso, verás en consola que se crearon 5 usuarios, 4 vehículos y 3 reservas).*
+*(Se limpiarán las colecciones y se creará 1 usuario Administrador y los 4 vehículos de la flota).*
 
-### 5. Ejecutar el proyecto (Frontend + Backend juntos)
+### 5. Ejecutar el proyecto
 
+Para la **Web y el Backend** (se levantan juntos en la raíz):
 ```bash
-# Vuelve a la raíz del proyecto y ejecuta:
 npm run dev
 ```
 
-Esto levantará automáticamente:
-- **Frontend Vite**: `http://localhost:5173`
-- **Backend API**: `http://localhost:5000`
+Para la **App Móvil** (abre una terminal nueva):
+```bash
+cd mobile
+npm start -- --clear
+```
 
 ---
 
-## 🔑 Usuarios de Prueba Creados por el Seed
+## 🔑 Credenciales de Prueba (DB Actualizada)
 
-Puedes usar estos usuarios para iniciar sesión cuando el Frontend esté listo:
+Se ha limpiado la base de datos para pruebas. Usa esta cuenta maestra:
 
 | Rol | Correo | Contraseña |
 |-----|--------|------------|
 | **Administrador** | `admin@empresa.com` | `password123` |
-| **Usuario** | `maria.garcia@empresa.com` | `password123` |
-| **Usuario** | `juan.lopez@empresa.com` | `password123` |
+
+Los usuarios normales podrán ser registrados o integrados posteriormente.
 
 ---
 
@@ -95,9 +89,9 @@ Puedes usar estos usuarios para iniciar sesión cuando el Frontend esté listo:
 
 ```
 PrototipoPractica/
-├── frontend/          # Interfaz visual (Gustavo)
-├── backend/           # Lógica y API (Joaquín)
-├── plan_de_trabajo.md # Reglas de equipo y Git
-├── package.json       # Scripts raíz (concurrently)
+├── mobile/            # App Móvil (Expo/React Native)
+├── backend/           # Lógica y API Node.js
+├── frontend/          # Plataforma Administrativa Web
+├── Tareas_actividades del Proyecto.xlsx # Plan de acción
 └── README.md          # Este archivo
 ```
