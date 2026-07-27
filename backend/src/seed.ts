@@ -36,6 +36,19 @@ const seedData = async () => {
         departamento: 'TI',
         rol: 'admin',
         activo: true,
+        licenciaAlDia: true,
+        fechaVencimientoLicencia: new Date('2027-12-31'),
+      },
+      {
+        nombre: 'Juan',
+        apellido: 'Pérez',
+        email: 'usuario@empresa.com',
+        password: hashedPassword,
+        departamento: 'Operaciones',
+        rol: 'usuario',
+        activo: true,
+        licenciaAlDia: true,
+        fechaVencimientoLicencia: new Date('2027-06-30'),
       },
     ]);
 
@@ -112,7 +125,8 @@ const seedData = async () => {
     console.log('   🎉 SEED COMPLETADO EXITOSAMENTE');
     console.log('========================================');
     console.log('\n📋 Credenciales de prueba:');
-    console.log('   Admin:   admin@empresa.com / password123');
+    console.log('   Admin:     admin@empresa.com   / password123');
+    console.log('   Conductor: usuario@empresa.com / password123');
     console.log('========================================\n');
 
     await mongoose.connection.close();

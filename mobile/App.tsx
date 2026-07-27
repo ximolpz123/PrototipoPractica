@@ -28,10 +28,12 @@ import MisReservasScreen from './screens/MisReservasScreen';
 import FlotaScreen from './screens/FlotaScreen';
 import PerfilScreen from './screens/PerfilScreen';
 import CreateReservationScreen from './screens/CreateReservationScreen';
+import AdminDashboardScreen from './screens/AdminDashboardScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
+// ── Navegación del CONDUCTOR ────────────────────────────────────────────────
 function MainTabNavigator({ route }: any) {
   const { user, handleLogout } = route.params;
 
@@ -58,23 +60,52 @@ function MainTabNavigator({ route }: any) {
         headerShown: true,
       })}
     >
-      <Tab.Screen 
-        name="Inicio" 
-        component={HomeScreen} 
-        initialParams={{ user }} 
+      <Tab.Screen name="Inicio" component={HomeScreen} initialParams={{ user }} />
+      <Tab.Screen name="Reservas" component={MisReservasScreen} />
+      <Tab.Screen name="Flota" component={FlotaScreen} />
+      <Tab.Screen name="Perfil" component={PerfilScreen} initialParams={{ user, handleLogout }} />
+    </Tab.Navigator>
+  );
+}
+
+// ── Navegación del ADMINISTRADOR ─────────────────────────────────────────────
+function AdminTabNavigator({ route }: any) {
+  const { user, handleLogout } = route.params;
+
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName: keyof typeof Ionicons.glyphMap = 'grid';
+          if (route.name === 'Dashboard') {
+            iconName = focused ? 'grid' : 'grid-outline';
+          } else if (route.name === 'Flota Admin') {
+            iconName = focused ? 'car' : 'car-outline';
+          } else if (route.name === 'Perfil Admin') {
+            iconName = focused ? 'person' : 'person-outline';
+          }
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.textMuted,
+        headerShown: true,
+      })}
+    >
+      <Tab.Screen
+        name="Dashboard"
+        component={AdminDashboardScreen}
+        options={{ title: '🛡 Panel Admin', tabBarLabel: 'Solicitudes' }}
       />
-      <Tab.Screen 
-        name="Reservas" 
-        component={MisReservasScreen} 
+      <Tab.Screen
+        name="Flota Admin"
+        component={FlotaScreen}
+        options={{ title: 'Flota de Vehículos', tabBarLabel: 'Flota' }}
       />
-      <Tab.Screen 
-        name="Flota" 
-        component={FlotaScreen} 
-      />
-      <Tab.Screen 
-        name="Perfil" 
-        component={PerfilScreen} 
-        initialParams={{ user, handleLogout }} 
+      <Tab.Screen
+        name="Perfil Admin"
+        component={PerfilScreen}
+        initialParams={{ user, handleLogout }}
+        options={{ tabBarLabel: 'Perfil' }}
       />
     </Tab.Navigator>
   );
@@ -132,27 +163,33 @@ export default function App() {
     );
   }
 
-  // Si el usuario está logueado, usar Navigation
+  // Si el usuario está logueado, bifurcar por rol
   if (user) {
+    const isAdmin = user.rol === 'admin';
     return (
       <NavigationContainer>
         <Stack.Navigator>
-          <Stack.Screen 
-            name="MainTabs" 
-            component={MainTabNavigator} 
-            initialParams={{ user, handleLogout }} 
+          <Stack.Screen
+            name="MainTabs"
+            component={isAdmin ? AdminTabNavigator : MainTabNavigator}
+            initialParams={{ user, handleLogout }}
             options={{ headerShown: false }}
           />
-          <Stack.Screen 
-            name="Camera" 
-            component={CameraScreen} 
-            options={{ title: 'Tomar Evidencia' }}
-          />
-          <Stack.Screen 
-            name="CreateReservation" 
-            component={CreateReservationScreen} 
-            options={{ title: 'Crear Reserva' }}
-          />
+          {/* Pantallas de stack solo para conductores */}
+          {!isAdmin && (
+            <>
+              <Stack.Screen
+                name="Camera"
+                component={CameraScreen}
+                options={{ title: 'Tomar Evidencia' }}
+              />
+              <Stack.Screen
+                name="CreateReservation"
+                component={CreateReservationScreen}
+                options={{ title: 'Crear Reserva' }}
+              />
+            </>
+          )}
         </Stack.Navigator>
       </NavigationContainer>
     );
