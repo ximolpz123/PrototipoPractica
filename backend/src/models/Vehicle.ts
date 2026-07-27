@@ -11,6 +11,11 @@ export interface IVehicle extends Document {
   kilometraje: number;
   ultimoMantenimiento?: Date;
   imagenUrl?: string;
+  ubicacionActual?: {
+    latitud: number;
+    longitud: number;
+    timestamp: Date;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -62,6 +67,11 @@ const vehicleSchema = new Schema<IVehicle>(
     },
     imagenUrl: {
       type: String,
+    },
+    ubicacionActual: {
+      latitud: Number,
+      longitud: Number,
+      timestamp: Date,
     },
   },
   { timestamps: true }

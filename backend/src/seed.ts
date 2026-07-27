@@ -37,128 +37,75 @@ const seedData = async () => {
         rol: 'admin',
         activo: true,
       },
-      {
-        nombre: 'María',
-        apellido: 'García',
-        email: 'maria.garcia@empresa.com',
-        password: hashedPassword,
-        departamento: 'Ventas',
-        rol: 'usuario',
-        activo: true,
-      },
-      {
-        nombre: 'Juan',
-        apellido: 'López',
-        email: 'juan.lopez@empresa.com',
-        password: hashedPassword,
-        departamento: 'Operaciones',
-        rol: 'usuario',
-        activo: true,
-      },
-      {
-        nombre: 'Ana',
-        apellido: 'Rodríguez',
-        email: 'ana.rodriguez@empresa.com',
-        password: hashedPassword,
-        departamento: 'Gerencia',
-        rol: 'usuario',
-        activo: true,
-      },
-      {
-        nombre: 'Pedro',
-        apellido: 'Fernández',
-        email: 'pedro.fernandez@empresa.com',
-        password: hashedPassword,
-        departamento: 'Finanzas',
-        rol: 'usuario',
-        activo: true,
-      },
     ]);
 
     console.log(`👥 ${users.length} usuarios creados`);
 
-    // --- Crear los 4 vehículos de la empresa ---
+    // --- Crear los 5 vehículos reales de la empresa ---
     const vehicles = await Vehicle.insertMany([
       {
-        placa: 'ABC-1234',
-        marca: 'Toyota',
-        modelo: 'Corolla',
-        anio: 2023,
+        placa: 'AMK-2024',
+        marca: 'Volkswagen',
+        modelo: 'Amarok',
+        anio: 2024,
         color: 'Blanco',
-        tipo: 'sedan',
+        tipo: 'pickup',
         estado: 'disponible',
-        kilometraje: 15200,
+        kilometraje: 12000,
         ultimoMantenimiento: new Date('2026-06-01'),
       },
       {
-        placa: 'DEF-5678',
-        marca: 'Hyundai',
-        modelo: 'Tucson',
-        anio: 2024,
+        placa: 'AMK-2025',
+        marca: 'Volkswagen',
+        modelo: 'Amarok',
+        anio: 2025,
         color: 'Gris',
-        tipo: 'suv',
-        estado: 'disponible',
-        kilometraje: 8500,
-        ultimoMantenimiento: new Date('2026-05-15'),
-      },
-      {
-        placa: 'GHI-9012',
-        marca: 'Toyota',
-        modelo: 'Hilux',
-        anio: 2022,
-        color: 'Negro',
         tipo: 'pickup',
         estado: 'disponible',
-        kilometraje: 42000,
-        ultimoMantenimiento: new Date('2026-04-20'),
+        kilometraje: 2500,
+        ultimoMantenimiento: new Date('2026-07-15'),
       },
       {
-        placa: 'JKL-3456',
-        marca: 'Kia',
-        modelo: 'Carnival',
-        anio: 2023,
-        color: 'Azul',
-        tipo: 'van',
-        estado: 'mantenimiento',
-        kilometraje: 28700,
-        ultimoMantenimiento: new Date('2026-07-01'),
+        placa: 'HLX-2024',
+        marca: 'Toyota',
+        modelo: 'Hilux SRV',
+        anio: 2024,
+        color: 'Plata',
+        tipo: 'pickup',
+        estado: 'disponible',
+        kilometraje: 15500,
+        ultimoMantenimiento: new Date('2026-05-10'),
+      },
+      {
+        placa: 'HLX-2025',
+        marca: 'Toyota',
+        modelo: 'Hilux SRV',
+        anio: 2025,
+        color: 'Blanco',
+        tipo: 'pickup',
+        estado: 'disponible',
+        kilometraje: 1800,
+        ultimoMantenimiento: new Date('2026-07-20'),
+      },
+      {
+        placa: 'NSN-2024',
+        marca: 'Nissan',
+        modelo: 'Versa',
+        anio: 2024,
+        color: 'Negro',
+        tipo: 'sedan',
+        estado: 'disponible',
+        kilometraje: 9000,
+        ultimoMantenimiento: new Date('2026-06-25'),
       },
     ]);
 
     console.log(`🚗 ${vehicles.length} vehículos creados`);
 
     // --- Crear algunas reservas de ejemplo ---
-    const reservations = await Reservation.insertMany([
-      {
-        usuario: users[1]._id, // María
-        vehiculo: vehicles[0]._id, // Toyota Corolla
-        fechaInicio: new Date('2026-07-20T08:00:00'),
-        fechaFin: new Date('2026-07-20T18:00:00'),
-        destino: 'Oficina Central - Sucursal Norte',
-        motivo: 'Visita a cliente para presentación de propuesta',
-        estado: 'aprobada',
-      },
-      {
-        usuario: users[2]._id, // Juan
-        vehiculo: vehicles[1]._id, // Hyundai Tucson
-        fechaInicio: new Date('2026-07-22T07:00:00'),
-        fechaFin: new Date('2026-07-23T19:00:00'),
-        destino: 'Planta de producción - Zona Industrial',
-        motivo: 'Supervisión de inventario y logística',
-        estado: 'pendiente',
-      },
-      {
-        usuario: users[3]._id, // Ana
-        vehiculo: vehicles[2]._id, // Toyota Hilux
-        fechaInicio: new Date('2026-07-25T06:00:00'),
-        fechaFin: new Date('2026-07-25T20:00:00'),
-        destino: 'Evento corporativo - Hotel Marriott',
-        motivo: 'Reunión trimestral con directivos regionales',
-        estado: 'pendiente',
-      },
-    ]);
-
-    console.log(`📅 ${reservations.length} reservas creadas`);
+    // (Omitidas temporalmente porque solo existe el usuario Admin)
+    
+    console.log(`📅 0 reservas creadas`);
 
     // --- Resumen ---
     console.log('\n========================================');
@@ -166,10 +113,6 @@ const seedData = async () => {
     console.log('========================================');
     console.log('\n📋 Credenciales de prueba:');
     console.log('   Admin:   admin@empresa.com / password123');
-    console.log('   Usuario: maria.garcia@empresa.com / password123');
-    console.log('   Usuario: juan.lopez@empresa.com / password123');
-    console.log('   Usuario: ana.rodriguez@empresa.com / password123');
-    console.log('   Usuario: pedro.fernandez@empresa.com / password123');
     console.log('========================================\n');
 
     await mongoose.connection.close();
