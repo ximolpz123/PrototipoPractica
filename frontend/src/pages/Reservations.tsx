@@ -1,19 +1,44 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UserProfileMenu from '../components/UserProfileMenu';
+import type { IVehicle } from '../types';
 
-import autoCafeImg from '../assets/auto-cafe.png';
-import camionetaRojaImg from '../assets/camioneta-roja.png';
-import camionetaAzulImg from '../assets/camioneta-azul.png';
 import camionetaBlancaImg from '../assets/camioneta-blanca.png';
+import autoCafeImg from '../assets/auto-cafe.png';
+import camionetaAzulImg from '../assets/camioneta-azul.png';
+import camionetaRojaImg from '../assets/camioneta-roja.png';
+import nissanVersaNegroImg from '../assets/nissan versa negro.png';
+import toyotaHiluxBlancoImg from '../assets/toyota hilux srv blanco.png';
+import toyotaHiluxPlataImg from '../assets/toyota hilux srv plata.png';
+import vwAmarokBlancoImg from '../assets/volkswagen amarok blanco.png';
+import vwAmarokGrisImg from '../assets/volkswagen amarok gris.png';
 
-// ─── Datos de los 4 vehículos ────────────────────────────────────────────────
-const VEHICLES = [
-  { id: '1', nombre: 'Auto Café',        imagen: autoCafeImg,       estado: 'disponible' },
-  { id: '2', nombre: 'Camioneta Roja',   imagen: camionetaRojaImg,  estado: 'reservado' },
-  { id: '3', nombre: 'Camioneta Azul',   imagen: camionetaAzulImg,  estado: 'mantenimiento' },
-  { id: '4', nombre: 'Camioneta Blanca', imagen: camionetaBlancaImg, estado: 'fuera_de_servicio' },
-];
+// ─── Helper: Asignar imagen respectiva según vehículo ────────────────────────
+const getVehicleImage = (v: IVehicle): string => {
+  if (v.imagenUrl) return v.imagenUrl;
+  const marca = v.marca?.toLowerCase() || '';
+  const modelo = v.modelo?.toLowerCase() || '';
+  const color = v.color?.toLowerCase() || '';
+
+  if (marca.includes('nissan') && modelo.includes('versa')) return nissanVersaNegroImg;
+  if (marca.includes('toyota') && modelo.includes('hilux')) {
+    if (color.includes('plata') || color.includes('gris')) return toyotaHiluxPlataImg;
+    return toyotaHiluxBlancoImg;
+  }
+  if (marca.includes('volkswagen') && modelo.includes('amarok')) {
+    if (color.includes('gris') || color.includes('plata')) return vwAmarokGrisImg;
+    return vwAmarokBlancoImg;
+  }
+  if (v.tipo === 'pickup') {
+    if (color.includes('azul')) return camionetaAzulImg;
+    if (color.includes('roj')) return camionetaRojaImg;
+    return camionetaBlancaImg;
+  }
+  if (v.tipo === 'sedan') {
+    if (color.includes('cafe') || color.includes('café') || color.includes('marr')) return autoCafeImg;
+  }
+  return camionetaBlancaImg;
+};
 
 function Reservations() {
   const navigate = useNavigate();
@@ -28,12 +53,29 @@ function Reservations() {
   const [success, setSuccess]             = useState(false);
   const [apiError, setApiError]           = useState('');
 
-  const selectedVehicle = VEHICLES.find((v) => v.id === vehiculoId);
+  const [vehiclesList, setVehiclesList]   = useState<IVehicle[]>([]);
+  const [loadingVehicles, setLoadingVehicles] = useState(false);
+
+  useEffect(() => {
+    setLoadingVehicles(true);
+    const token = localStorage.getItem('token');
+    fetch('http://localhost:5000/api/vehicles', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setVehiclesList(data);
+      })
+      .catch((err) => console.error('Error cargando vehículos', err))
+      .finally(() => setLoadingVehicles(false));
+  }, []);
+
+  const selectedVehicle = vehiclesList.find((v) => v._id === vehiculoId);
 
   const handleVehiculoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value;
     setVehiculoId(id);
-    const v = VEHICLES.find((v) => v.id === id);
+    const v = vehiclesList.find((v) => v._id === id);
     setVehiculoError(!!v && v.estado !== 'disponible');
   };
 
@@ -111,12 +153,13 @@ function Reservations() {
                 className={`reserv-select${vehiculoError ? ' reserv-select-error' : ''}`}
                 value={vehiculoId}
                 onChange={handleVehiculoChange}
+                disabled={loadingVehicles}
                 required
               >
-                <option value="">— Seleccione un vehículo —</option>
-                {VEHICLES.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.nombre} {v.estado !== 'disponible' ? `(${v.estado.replace('_', ' ')})` : ''}
+                <option value="">{loadingVehicles ? 'Cargando vehículos...' : '— Seleccione un vehículo —'}</option>
+                {vehiclesList.map((v) => (
+                  <option key={v._id} value={v._id}>
+                    {v.marca} {v.modelo} - Placa: {v.placa} ({v.estado.replace('_', ' ')})
                   </option>
                 ))}
               </select>
@@ -128,8 +171,8 @@ function Reservations() {
               {selectedVehicle && !vehiculoError && (
                 <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <img
-                    src={selectedVehicle.imagen}
-                    alt={selectedVehicle.nombre}
+                    src={getVehicleImage(selectedVehicle)}
+                    alt={`${selectedVehicle.marca} ${selectedVehicle.modelo}`}
                     style={{ width: '80px', height: '55px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ddd' }}
                   />
                   <span style={{ color: '#22c55e', fontWeight: '600' }}>✔ Disponible</span>
@@ -153,6 +196,7 @@ function Reservations() {
                   value={fechaInicio}
                   onChange={(e) => setFechaInicio(e.target.value)}
                   required
+                  style={{ textAlign: 'center' }}
                 />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
@@ -165,6 +209,7 @@ function Reservations() {
                   min={fechaInicio}
                   onChange={(e) => setFechaFin(e.target.value)}
                   required
+                  style={{ textAlign: 'center' }}
                 />
               </div>
             </div>

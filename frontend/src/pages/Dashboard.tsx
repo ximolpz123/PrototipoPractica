@@ -1,7 +1,16 @@
-import { useState, useEffect } from 'react';
-import UserProfileMenu from '../components/UserProfileMenu';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { IUser, IReservation, IVehicle } from '../types';
-import camionetaBlancaImg from '../assets/camioneta-blanca.png'; // Fallback imagen
+import camionetaBlancaImg from '../assets/camioneta-blanca.png';
+import autoCafeImg from '../assets/auto-cafe.png';
+import camionetaAzulImg from '../assets/camioneta-azul.png';
+import camionetaRojaImg from '../assets/camioneta-roja.png';
+import nissanVersaNegroImg from '../assets/nissan versa negro.png';
+import toyotaHiluxBlancoImg from '../assets/toyota hilux srv blanco.png';
+import toyotaHiluxPlataImg from '../assets/toyota hilux srv plata.png';
+import vwAmarokBlancoImg from '../assets/volkswagen amarok blanco.png';
+import vwAmarokGrisImg from '../assets/volkswagen amarok gris.png';
+import defaultProfileImg from '../assets/foto-preterminada.png';
 
 // ─── Helpers de colores/etiquetas ────────────────────────────────────────────
 const ESTADO_VEHICLE_COLORS: Record<string, string> = {
@@ -24,7 +33,7 @@ const ESTADO_RES_COLORS: Record<string, string> = {
   cancelada: '#ef4444',
 };
 
-type DashTab = 'usuarios' | 'reservaciones' | 'vehiculos';
+type DashTab = 'dashboard' | 'usuarios' | 'reservaciones' | 'vehiculos';
 
 // ─── Formulario vacío de vehículo ────────────────────────────────────────────
 const EMPTY_VEHICLE_FORM = {
@@ -40,13 +49,63 @@ const EMPTY_VEHICLE_FORM = {
   imagenUrl: '',
 };
 
+// ─── Helper: Asignar imagen respectiva según vehículo ────────────────────────
+const getVehicleImage = (v: IVehicle): string => {
+  if (v.imagenUrl) return v.imagenUrl;
+
+  const marca = v.marca?.toLowerCase() || '';
+  const modelo = v.modelo?.toLowerCase() || '';
+  const color = v.color?.toLowerCase() || '';
+
+  if (marca.includes('nissan') && modelo.includes('versa')) return nissanVersaNegroImg;
+
+  if (marca.includes('toyota') && modelo.includes('hilux')) {
+    if (color.includes('plata') || color.includes('gris')) return toyotaHiluxPlataImg;
+    return toyotaHiluxBlancoImg; // Fallback para hilux
+  }
+
+  if (marca.includes('volkswagen') && modelo.includes('amarok')) {
+    if (color.includes('gris') || color.includes('plata')) return vwAmarokGrisImg;
+    return vwAmarokBlancoImg; // Fallback para amarok
+  }
+
+  // Fallbacks genéricos según tipo y color
+  if (v.tipo === 'pickup') {
+    if (color.includes('azul')) return camionetaAzulImg;
+    if (color.includes('roj')) return camionetaRojaImg;
+    return camionetaBlancaImg;
+  }
+
+  if (v.tipo === 'sedan') {
+    if (color.includes('cafe') || color.includes('café') || color.includes('marr')) return autoCafeImg;
+  }
+
+  return camionetaBlancaImg;
+};
+
+// ─── Helper: normalizar usuario (API puede devolver _id o id) ─────────────────
+function normalizeUser(u: Record<string, unknown>): IUser {
+  return {
+    ...u,
+    id: (u.id ?? u._id) as string,
+  } as IUser;
+}
+
 // ─── Componente principal ────────────────────────────────────────────────────
 function Dashboard() {
+  const navigate = useNavigate();
+
   const storedUser = localStorage.getItem('user');
   const user: IUser | null = storedUser ? JSON.parse(storedUser) : null;
   const token = localStorage.getItem('token');
 
-  const [activeTab, setActiveTab] = useState<DashTab>('usuarios');
+  const profileImgKey = user ? `profile_img_${user.id}` : 'profile_img_default';
+  const [profileImg, setProfileImg] = useState<string>(
+    localStorage.getItem(profileImgKey) || defaultProfileImg
+  );
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [activeTab, setActiveTab] = useState<DashTab>('dashboard');
 
   // ── Estado Usuarios ──
   const [users, setUsers] = useState<IUser[]>([]);
@@ -87,8 +146,10 @@ function Dashboard() {
     try {
       const res = await fetch('http://localhost:5000/api/users', { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      setUsers(Array.isArray(data) ? data : []);
-    } catch { setErrorUsers('Error al cargar usuarios'); }
+      // Normaliza _id → id por si la API devuelve _id
+      const normalized = Array.isArray(data) ? data.map(normalizeUser) : [];
+      setUsers(normalized);
+    } catch { setErrorUsers('Error al cargar usuarios. Verifica que el servidor esté activo.'); }
     finally { setLoadingUsers(false); }
   };
 
@@ -110,6 +171,27 @@ function Dashboard() {
       setVehicles(Array.isArray(data) ? data : []);
     } catch { console.error('Error cargando vehículos'); }
     finally { setLoadingVehicles(false); }
+  };
+
+  // ── Foto de perfil ──
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        setProfileImg(result);
+        localStorage.setItem(profileImgKey, result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // ── Logout ──
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
   };
 
   // ────────── CRUD USUARIOS ──────────
@@ -294,145 +376,242 @@ function Dashboard() {
 
   // ──────────────────── RENDER ────────────────────
   return (
-    <div className="user-panel" style={{ position: 'relative' }}>
-      <UserProfileMenu />
+    <div className="dashboard-layout">
 
-      {/* ── Bienvenida ── */}
-      <div className="welcome-header">
-        <span className="welcome-text">
-          ¡Bienvenido! {user?.nombre ?? ''} {user?.apellido ?? ''} 😊
-        </span>
-      </div>
+      {/* ══════════ SIDEBAR AZUL ══════════ */}
+      <aside className="dashboard-sidebar">
 
-      {/* ── Título ── */}
-      <h2 style={{ textAlign: 'center', fontSize: '1.6rem', fontWeight: '700', color: '#000', marginBottom: '1rem' }}>
-        Dashboard
-      </h2>
-
-      {/* ── Tabs ── */}
-      <div className="panel-tabs">
-        <button id="tab-usuarios"      className={`tab-btn${activeTab === 'usuarios'      ? ' active' : ''}`} onClick={() => setActiveTab('usuarios')}>👥 Ver a los Usuarios</button>
-        <button id="tab-reservaciones" className={`tab-btn${activeTab === 'reservaciones' ? ' active' : ''}`} onClick={() => setActiveTab('reservaciones')}>📋 Ver Reservaciones</button>
-        <button id="tab-vehiculos"     className={`tab-btn${activeTab === 'vehiculos'     ? ' active' : ''}`} onClick={() => setActiveTab('vehiculos')}>🚗 Ver Vehículos</button>
-      </div>
-
-      {/* ══════════ TAB: USUARIOS ══════════ */}
-      {activeTab === 'usuarios' && (
-        <div style={{ width: '100%', overflowX: 'auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-            <button className="btn btn-create" onClick={() => setShowCreateUser(true)}>➕ Agregar Usuario</button>
+        {/* Perfil */}
+        <div className="sidebar-profile">
+          <div className="sidebar-photo-upload" onClick={() => fileInputRef.current?.click()} title="Cambiar foto">
+            <img src={profileImg} alt="Perfil" className="sidebar-profile-img" />
+            <div className="sidebar-photo-overlay">📷</div>
           </div>
-          {loadingUsers && <p className="res-status">Cargando usuarios…</p>}
-          {errorUsers  && <p className="res-status res-error">{errorUsers}</p>}
-          {!loadingUsers && !errorUsers && users.length === 0 && <p className="res-status">No hay usuarios registrados.</p>}
-          {!loadingUsers && users.length > 0 && (
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Nombre</th><th>Apellido</th><th>Email</th><th>Departamento</th><th>Rol</th><th>Activo</th><th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map(u => (
-                  <tr key={u.id}>
-                    <td>{u.nombre}</td>
-                    <td>{u.apellido}</td>
-                    <td>{u.email}</td>
-                    <td>{u.departamento}</td>
-                    <td><span className="status-badge" style={{ backgroundColor: u.rol === 'admin' ? '#175fbd' : '#6b7280' }}>{u.rol}</span></td>
-                    <td><span className="status-badge" style={{ backgroundColor: u.activo ? '#22c55e' : '#ef4444' }}>{u.activo ? 'Sí' : 'No'}</span></td>
-                    <td style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      <button className="btn btn-sm" onClick={() => openEdit(u)}>✏️ Editar</button>
-                      <button className="btn btn-sm" style={{ backgroundColor: 'red', color: 'black', border: '2px solid red' }} onClick={() => setShowDeleteUserConfirm(u.id)}>🗑️ Eliminar</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            style={{ display: 'none' }}
+          />
+          <span className="sidebar-profile-name">
+            {user?.nombre ?? ''} {user?.apellido ?? ''}
+          </span>
+          <span className="sidebar-profile-role">
+            {user?.rol === 'admin' ? 'Administrador' : 'Conductor'}
+          </span>
         </div>
-      )}
 
-      {/* ══════════ TAB: RESERVACIONES ══════════ */}
-      {activeTab === 'reservaciones' && (
-        <div className="reservations-panel">
-          {loadingRes && <p className="res-status">Cargando reservaciones…</p>}
-          {errorRes   && <p className="res-status res-error">{errorRes}</p>}
-          {!loadingRes && !errorRes && reservations.length === 0 && <p className="res-status">No hay reservaciones registradas.</p>}
-          <div className="reservations-list">
-            {reservations.map(r => (
-              <div key={r._id} className="reservation-card">
-                <div className="reservation-card-header">
-                  <span className="res-vehicle-name">🚗 {getVehicleName(r.vehiculo)}</span>
-                  <span className="status-badge" style={{ backgroundColor: ESTADO_RES_COLORS[r.estado] ?? '#6b7280' }}>
-                    {r.estado.charAt(0).toUpperCase() + r.estado.slice(1).replace('_', ' ')}
-                  </span>
-                </div>
-                <div className="reservation-card-info">
-                  <span>📅 <strong>Inicio:</strong> {new Date(r.fechaInicio).toLocaleDateString('es-CL')}</span>
-                  <span>📅 <strong>Fin:</strong>    {new Date(r.fechaFin).toLocaleDateString('es-CL')}</span>
-                  {r.destino && <span>📍 <strong>Destino:</strong> {r.destino}</span>}
-                </div>
-                <button className="btn" style={{ marginTop: '1rem', width: '100%' }} onClick={() => setSelectedReservation(r)}>
-                  Ver Reservación
-                </button>
+        {/* Navegación en orden */}
+        <nav className="sidebar-nav">
+          <button
+            id="sidebar-btn-dashboard"
+            className={`sidebar-btn${activeTab === 'dashboard' ? ' active' : ''}`}
+            onClick={() => setActiveTab('dashboard')}
+          >
+            <span className="btn-icon">📊</span> Dashboard
+          </button>
+          <button
+            id="sidebar-btn-usuarios"
+            className={`sidebar-btn${activeTab === 'usuarios' ? ' active' : ''}`}
+            onClick={() => setActiveTab('usuarios')}
+          >
+            <span className="btn-icon">👥</span> Ver Usuarios
+          </button>
+          <button
+            id="sidebar-btn-reservaciones"
+            className={`sidebar-btn${activeTab === 'reservaciones' ? ' active' : ''}`}
+            onClick={() => setActiveTab('reservaciones')}
+          >
+            <span className="btn-icon">📋</span> Ver Reservaciones
+          </button>
+          <button
+            id="sidebar-btn-vehiculos"
+            className={`sidebar-btn${activeTab === 'vehiculos' ? ' active' : ''}`}
+            onClick={() => setActiveTab('vehiculos')}
+          >
+            <span className="btn-icon">🚗</span> Ver Vehículos
+          </button>
+        </nav>
+
+        {/* Cerrar sesión */}
+        <div className="sidebar-logout">
+          <button className="sidebar-logout-btn" onClick={handleLogout}>
+            🚪 Cerrar Sesión
+          </button>
+        </div>
+      </aside>
+
+      {/* ══════════ CONTENIDO PRINCIPAL ══════════ */}
+      <main className="dashboard-content">
+
+        {/* ── Bienvenida ── */}
+        <div className="welcome-header" style={{ maxWidth: '100%' }}>
+          <span className="welcome-text">
+            ¡Bienvenido! {user?.nombre ?? ''} {user?.apellido ?? ''}
+          </span>
+        </div>
+
+        {/* ══════════ TAB: DASHBOARD ══════════ */}
+        {activeTab === 'dashboard' && (
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '24px', alignItems: 'flex-start' }}>
+            <h2 style={{ textAlign: 'left', fontSize: '1.6rem', fontWeight: '700', color: '#000', margin: 0 }}>
+              Resumen General
+            </h2>
+            {/* Tarjetas de estadísticas — los valores se llenarán con datos reales */}
+            <div className="dash-stats-grid">
+              <div className="dash-stat-card">
+                <span className="dash-stat-icon">📋</span>
+                <span className="dash-stat-label">Reservas Activas</span>
+                <span className="dash-stat-value" id="stat-reservas-activas">—</span>
+                <span className="dash-stat-sub">Pendientes + En curso</span>
               </div>
-            ))}
+              <div className="dash-stat-card">
+                <span className="dash-stat-icon">🚗</span>
+                <span className="dash-stat-label">Vehículos Disponibles</span>
+                <span className="dash-stat-value" id="stat-vehiculos-disponibles">—</span>
+                <span className="dash-stat-sub">De la flota total</span>
+              </div>
+              <div className="dash-stat-card">
+                <span className="dash-stat-icon">👥</span>
+                <span className="dash-stat-label">Usuarios Registrados</span>
+                <span className="dash-stat-value" id="stat-usuarios-total">—</span>
+                <span className="dash-stat-sub">Conductores y admins</span>
+              </div>
+              <div className="dash-stat-card">
+                <span className="dash-stat-icon">🔧</span>
+                <span className="dash-stat-label">En Mantenimiento</span>
+                <span className="dash-stat-value" id="stat-mantenimiento">—</span>
+                <span className="dash-stat-sub">Vehículos no disponibles</span>
+              </div>
+            </div>
+
+            <p style={{ color: '#9ca3af', fontSize: '0.9rem', marginTop: '8px' }}>
+              ℹ️ Los datos se cargarán cuando conectes el endpoint de estadísticas.
+            </p>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ══════════ TAB: VEHÍCULOS ══════════ */}
-      {activeTab === 'vehiculos' && (
-        <div>
-          {/* Botón Agregar */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-            <button className="btn btn-create" onClick={() => { setVehicleForm(EMPTY_VEHICLE_FORM); setShowCreateVehicle(true); }}>
-              ➕ Agregar Vehículo
-            </button>
+        {/* ══════════ TAB: USUARIOS ══════════ */}
+        {activeTab === 'usuarios' && (
+          <div style={{ width: '100%', overflowX: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '700', color: '#000' }}> Usuarios</h2>
+              <button className="btn btn-create" onClick={() => setShowCreateUser(true)}>➕ Agregar Usuario</button>
+            </div>
+            {loadingUsers && <p className="res-status">Cargando usuarios…</p>}
+            {errorUsers && <p className="res-status res-error">{errorUsers}</p>}
+            {!loadingUsers && !errorUsers && users.length === 0 && <p className="res-status">No hay usuarios registrados.</p>}
+            {!loadingUsers && users.length > 0 && (
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Nombre</th><th>Apellido</th><th>Email</th><th>Departamento</th><th>Rol</th><th>Activo</th><th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map(u => (
+                    <tr key={u.id}>
+                      <td>{u.nombre}</td>
+                      <td>{u.apellido}</td>
+                      <td>{u.email}</td>
+                      <td>{u.departamento}</td>
+                      <td><span className="status-badge" style={{ backgroundColor: u.rol === 'admin' ? '#175fbd' : '#6b7280' }}>{u.rol}</span></td>
+                      <td><span className="status-badge" style={{ backgroundColor: u.activo ? '#22c55e' : '#ef4444' }}>{u.activo ? 'Sí' : 'No'}</span></td>
+                      <td style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <button className="btn btn-sm" onClick={() => openEdit(u)}>✏️ Editar</button>
+                        <button className="btn btn-sm" style={{ backgroundColor: 'red', color: 'black', border: '2px solid red' }} onClick={() => setShowDeleteUserConfirm(u.id)}>🗑️ Eliminar</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
+        )}
 
-          {loadingVehicles && <p className="res-status">Cargando vehículos…</p>}
-          {!loadingVehicles && vehicles.length === 0 && <p className="res-status">No hay vehículos registrados.</p>}
-
-          <div className="vehicles-grid">
-            {vehicles.map(v => {
-              const imgUrl = v.imagenUrl || camionetaBlancaImg;
-              return (
-                <div key={v._id} className="vehicle-card">
-                  <img src={imgUrl} alt={`${v.marca} ${v.modelo}`} className="vehicle-card-img" />
-                  <div className="vehicle-card-body">
-                    <h2 className="vehicle-card-title">{v.marca} {v.modelo}</h2>
-                    <div className="vehicle-card-info">
-                      <span><strong>Patente:</strong> {v.placa}</span>
-                      <span><strong>Año:</strong> {v.anio}</span>
-                      <span><strong>Color:</strong> {v.color}</span>
-                      <span><strong>Km:</strong> {v.kilometraje.toLocaleString('es-CL')}</span>
-                      {v.ultimoMantenimiento && (
-                        <span style={{ fontSize: '0.85rem', marginTop: '4px', display: 'block' }}>
-                          <strong>Último Mant.:</strong><br />
-                          {new Date(v.ultimoMantenimiento).toLocaleString('es-CL')}
-                        </span>
-                      )}
-                    </div>
-                    <span className="status-badge" style={{ backgroundColor: ESTADO_VEHICLE_COLORS[v.estado] }}>
-                      {ESTADO_VEHICLE_LABELS[v.estado]}
+        {/* ══════════ TAB: RESERVACIONES ══════════ */}
+        {activeTab === 'reservaciones' && (
+          <div className="reservations-panel" style={{ maxWidth: '100%' }}>
+            <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '700', color: '#000' }}> Reservaciones</h2>
+            {loadingRes && <p className="res-status">Cargando reservaciones…</p>}
+            {errorRes && <p className="res-status res-error">{errorRes}</p>}
+            {!loadingRes && !errorRes && reservations.length === 0 && <p className="res-status">No hay reservaciones registradas.</p>}
+            <div className="reservations-list">
+              {reservations.map(r => (
+                <div key={r._id} className="reservation-card">
+                  <div className="reservation-card-header">
+                    <span className="res-vehicle-name">🚗 {getVehicleName(r.vehiculo)}</span>
+                    <span className="status-badge" style={{ backgroundColor: ESTADO_RES_COLORS[r.estado] ?? '#6b7280' }}>
+                      {r.estado.charAt(0).toUpperCase() + r.estado.slice(1).replace('_', ' ')}
                     </span>
-                    <button
-                      id={`ver-vehiculo-admin-${v._id}`}
-                      className="btn btn-sm"
-                      style={{ marginTop: '10px', width: '100%' }}
-                      onClick={() => setSelectedVehicle(v)}
-                    >
-                      🔍 Ver Vehículo
-                    </button>
                   </div>
+                  <div className="reservation-card-info">
+                    <span>📅 <strong>Inicio:</strong> {new Date(r.fechaInicio).toLocaleDateString('es-CL')}</span>
+                    <span>📅 <strong>Fin:</strong>    {new Date(r.fechaFin).toLocaleDateString('es-CL')}</span>
+                    {r.destino && <span>📍 <strong>Destino:</strong> {r.destino}</span>}
+                  </div>
+                  <button className="btn" style={{ marginTop: '1rem', width: '100%' }} onClick={() => setSelectedReservation(r)}>
+                    Ver Reservación
+                  </button>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* ══════════ TAB: VEHÍCULOS ══════════ */}
+        {activeTab === 'vehiculos' && (
+          <div style={{ width: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '700', color: '#000' }}>   Vehículos</h2>
+              <button className="btn btn-create" onClick={() => { setVehicleForm(EMPTY_VEHICLE_FORM); setShowCreateVehicle(true); }}>
+                ➕ Agregar Vehículo
+              </button>
+            </div>
+
+            {loadingVehicles && <p className="res-status">Cargando vehículos…</p>}
+            {!loadingVehicles && vehicles.length === 0 && <p className="res-status">No hay vehículos registrados.</p>}
+
+            <div className="vehicles-grid" style={{ maxWidth: '100%' }}>
+              {vehicles.map(v => {
+                const imgUrl = getVehicleImage(v);
+                return (
+                  <div key={v._id} className="vehicle-card">
+                    <img src={imgUrl} alt={`${v.marca} ${v.modelo}`} className="vehicle-card-img" />
+                    <div className="vehicle-card-body">
+                      <h2 className="vehicle-card-title">{v.marca} {v.modelo}</h2>
+                      <div className="vehicle-card-info">
+                        <span><strong>Patente:</strong> {v.placa}</span>
+                        <span><strong>Año:</strong> {v.anio}</span>
+                        <span><strong>Color:</strong> {v.color}</span>
+                        <span><strong>Km:</strong> {v.kilometraje.toLocaleString('es-CL')}</span>
+                        {v.ultimoMantenimiento && (
+                          <span style={{ fontSize: '0.85rem', marginTop: '4px', display: 'block' }}>
+                            <strong>Último Mant.:</strong><br />
+                            {new Date(v.ultimoMantenimiento).toLocaleString('es-CL')}
+                          </span>
+                        )}
+                      </div>
+                      <span className="status-badge" style={{ backgroundColor: ESTADO_VEHICLE_COLORS[v.estado] }}>
+                        {ESTADO_VEHICLE_LABELS[v.estado]}
+                      </span>
+                      <button
+                        id={`ver-vehiculo-admin-${v._id}`}
+                        className="btn btn-sm"
+                        style={{ marginTop: '10px', width: '100%' }}
+                        onClick={() => setSelectedVehicle(v)}
+                      >
+                        🔍 Ver Vehículo
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </main>
 
       {/* ══════════ MODAL: DETALLE VEHÍCULO (Admin) ══════════ */}
       {selectedVehicle && (
@@ -457,7 +636,7 @@ function Dashboard() {
               {/* Imagen */}
               <div style={{ flex: '0 0 auto' }}>
                 <img
-                  src={selectedVehicle.imagenUrl || camionetaBlancaImg}
+                  src={getVehicleImage(selectedVehicle)}
                   alt={`${selectedVehicle.marca} ${selectedVehicle.modelo}`}
                   style={{ width: '260px', height: '180px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #e5e7eb' }}
                 />
@@ -494,38 +673,14 @@ function Dashboard() {
                   ¿Desea eliminar este Vehículo?
                 </p>
                 <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                  <button
-                    className="btn"
-                    style={{ backgroundColor: 'red', color: 'black', padding: '0.5rem 2rem' }}
-                    onClick={() => deleteVehicle(selectedVehicle._id)}
-                  >
-                    Sí
-                  </button>
-                  <button
-                    className="btn"
-                    style={{ backgroundColor: '#175fbd', color: 'black', padding: '0.5rem 2rem' }}
-                    onClick={() => setShowDeleteVehicleConfirm(null)}
-                  >
-                    No
-                  </button>
+                  <button className="btn" style={{ backgroundColor: 'red', color: 'black', padding: '0.5rem 2rem' }} onClick={() => deleteVehicle(selectedVehicle._id)}>Sí</button>
+                  <button className="btn" style={{ backgroundColor: '#175fbd', color: 'black', padding: '0.5rem 2rem' }} onClick={() => setShowDeleteVehicleConfirm(null)}>No</button>
                 </div>
               </div>
             ) : (
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', borderTop: '1px solid #e5e7eb', paddingTop: '1.25rem', flexWrap: 'wrap' }}>
-                <button
-                  className="btn"
-                  style={{ backgroundColor: '#175fbd', color: 'black', padding: '0.6rem 1.8rem' }}
-                  onClick={() => openEditVehicle(selectedVehicle)}
-                >
-                  ✏️ Editar Vehículo
-                </button>
-                <button
-                  className="btn"
-                  style={{ backgroundColor: 'red', color: 'black', padding: '0.6rem 1.8rem' }}
-                  onClick={() => setShowDeleteVehicleConfirm(selectedVehicle._id)}
-                >
-                  🗑️ Eliminar Vehículo
-                </button>
+                <button className="btn" style={{ backgroundColor: '#175fbd', color: 'black', padding: '0.6rem 1.8rem' }} onClick={() => openEditVehicle(selectedVehicle)}>✏️ Editar Vehículo</button>
+                <button className="btn" style={{ backgroundColor: 'red', color: 'black', padding: '0.6rem 1.8rem' }} onClick={() => setShowDeleteVehicleConfirm(selectedVehicle._id)}>🗑️ Eliminar Vehículo</button>
               </div>
             )}
           </div>
@@ -535,11 +690,7 @@ function Dashboard() {
       {/* ══════════ MODAL: CREAR VEHÍCULO ══════════ */}
       {showCreateVehicle && (
         <div className="modal-overlay" onClick={() => setShowCreateVehicle(false)}>
-          <div
-            className="modal-content"
-            style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '520px', width: '95%', color: '#000', textAlign: 'left', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}
-            onClick={e => e.stopPropagation()}
-          >
+          <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '520px', width: '95%', color: '#000', textAlign: 'left', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowCreateVehicle(false)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}>➕ Agregar Vehículo</h2>
             <form onSubmit={createVehicle}>
@@ -556,11 +707,7 @@ function Dashboard() {
       {/* ══════════ MODAL: EDITAR VEHÍCULO ══════════ */}
       {showEditVehicle && (
         <div className="modal-overlay" onClick={() => setShowEditVehicle(null)}>
-          <div
-            className="modal-content"
-            style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '520px', width: '95%', color: '#000', textAlign: 'left', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}
-            onClick={e => e.stopPropagation()}
-          >
+          <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '520px', width: '95%', color: '#000', textAlign: 'left', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowEditVehicle(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}>✏️ Editar Vehículo</h2>
             <VehicleFormFields />
@@ -575,11 +722,7 @@ function Dashboard() {
       {/* ══════════ MODAL: DETALLE RESERVACIÓN ══════════ */}
       {selectedReservation && (
         <div className="modal-overlay" onClick={() => setSelectedReservation(null)}>
-          <div
-            className="modal-content"
-            style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '520px', width: '90%', color: '#000', textAlign: 'center', position: 'relative' }}
-            onClick={e => e.stopPropagation()}
-          >
+          <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '520px', width: '90%', color: '#000', textAlign: 'center', position: 'relative' }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setSelectedReservation(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1.5rem' }}>Detalles de Reservación</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem', textAlign: 'left', fontSize: '1.05rem' }}>
@@ -593,7 +736,7 @@ function Dashboard() {
               <p style={{ margin: 0 }}><strong>Inicio:</strong> {new Date(selectedReservation.fechaInicio).toLocaleString('es-CL')}</p>
               <p style={{ margin: 0 }}><strong>Fin:</strong>    {new Date(selectedReservation.fechaFin).toLocaleString('es-CL')}</p>
               {selectedReservation.destino && <p style={{ margin: 0 }}><strong>Destino:</strong> {selectedReservation.destino}</p>}
-              {selectedReservation.motivo  && <p style={{ margin: 0 }}><strong>Motivo:</strong>  {selectedReservation.motivo}</p>}
+              {selectedReservation.motivo && <p style={{ margin: 0 }}><strong>Motivo:</strong>  {selectedReservation.motivo}</p>}
             </div>
             {selectedReservation.estado === 'pendiente' ? (
               <button
@@ -620,7 +763,7 @@ function Dashboard() {
             <button onClick={() => setEditUser(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}>Editar Usuario</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {(['nombre','apellido','email','departamento'] as const).map(field => (
+              {(['nombre', 'apellido', 'email', 'departamento'] as const).map(field => (
                 <div key={field}>
                   <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem', textTransform: 'capitalize' }}>{field}:</label>
                   <input className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} value={editForm[field]} onChange={e => setEditForm(f => ({ ...f, [field]: e.target.value }))} />
@@ -668,7 +811,7 @@ function Dashboard() {
             <button onClick={() => setShowCreateUser(false)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}>Agregar Usuario</h2>
             <form onSubmit={createUser} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {([['nombre','Nombre'],['apellido','Apellido'],['email','Email'],['password','Contraseña'],['departamento','Departamento']] as [keyof typeof createForm, string][]).map(([field, label]) => (
+              {([['nombre', 'Nombre'], ['apellido', 'Apellido'], ['email', 'Email'], ['password', 'Contraseña'], ['departamento', 'Departamento']] as [keyof typeof createForm, string][]).map(([field, label]) => (
                 <div key={field}>
                   <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>{label}:</label>
                   <input className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} type={field === 'password' ? 'password' : 'text'} value={createForm[field]} onChange={e => setCreateForm(f => ({ ...f, [field]: e.target.value }))} required={field !== 'departamento'} />
