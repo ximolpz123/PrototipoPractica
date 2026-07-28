@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, TextInput, Modal, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, TextInput, Modal, ScrollView, RefreshControl, Linking } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../constants';
 import { locationService } from '../services/location.service';
@@ -88,6 +88,21 @@ export default function HomeScreen({ route, navigation }: any) {
     } catch (err: any) {
       const msg = err.response?.data?.message ?? 'Error al iniciar el viaje.';
       Alert.alert('Error', msg);
+    }
+  };
+
+  const handleNavigate = async () => {
+    if (!activeReserva?.destino) return;
+    
+    const query = encodeURIComponent(activeReserva.destino);
+    // URL universal que funciona en iOS y Android para abrir Google Maps
+    const url = `https://www.google.com/maps/search/?api=1&query=${query}`;
+    
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      await Linking.openURL(url);
+    } else {
+      Alert.alert('Error', 'No se pudo abrir la aplicación de mapas.');
     }
   };
 
@@ -183,9 +198,15 @@ export default function HomeScreen({ route, navigation }: any) {
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity style={styles.btnDanger} onPress={handleEndTrip}>
-            <Text style={styles.btnText}>⏹ Finalizar Viaje</Text>
-          </TouchableOpacity>
+          <View style={styles.activeActionsRow}>
+            <TouchableOpacity style={styles.btnNav} onPress={handleNavigate}>
+              <Text style={styles.btnText}>🗺️ Navegar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.btnDangerHalf} onPress={handleEndTrip}>
+              <Text style={styles.btnText}>⏹ Finalizar</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       ) : upcomingReserva ? (
         <View style={styles.card}>
@@ -361,14 +382,33 @@ const styles = StyleSheet.create({
   gpsIndicatorText: {
     fontSize: 11,
     color: COLORS.success,
-    fontWeight: '700',
+    marginTop: 15,
   },
   btnPrimary: {
     backgroundColor: COLORS.primary,
-    borderRadius: 9,
-    padding: 13,
+    paddingVertical: 12,
+    borderRadius: 8,
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 15,
+  },
+  activeActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 15,
+  },
+  btnNav: {
+    flex: 1,
+    backgroundColor: COLORS.primaryDark,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  btnDangerHalf: {
+    flex: 1,
+    backgroundColor: COLORS.danger,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
   },
   btnDanger: {
     backgroundColor: COLORS.danger,
