@@ -43,18 +43,19 @@ const getVehicleImage = (v: IVehicle): string => {
 function Reservations() {
   const navigate = useNavigate();
 
-  const [vehiculoId, setVehiculoId]       = useState('');
-  const [fechaInicio, setFechaInicio]     = useState('');
-  const [fechaFin, setFechaFin]           = useState('');
-  const [destino, setDestino]             = useState('');
-  const [motivo, setMotivo]               = useState('');
+  const [vehiculoId, setVehiculoId] = useState('');
+  const [fechaInicio, setFechaInicio] = useState('');
+  const [fechaFin, setFechaFin] = useState('');
+  const [destino, setDestino] = useState('');
+  const [motivo, setMotivo] = useState('');
   const [vehiculoError, setVehiculoError] = useState(false);
-  const [loading, setLoading]             = useState(false);
-  const [success, setSuccess]             = useState(false);
-  const [apiError, setApiError]           = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [apiError, setApiError] = useState('');
 
-  const [vehiclesList, setVehiclesList]   = useState<IVehicle[]>([]);
+  const [vehiclesList, setVehiclesList] = useState<IVehicle[]>([]);
   const [loadingVehicles, setLoadingVehicles] = useState(false);
+  // Estado para la lista de vehículos
 
   useEffect(() => {
     setLoadingVehicles(true);
