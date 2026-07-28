@@ -93,16 +93,16 @@ export const setVehicleMaintenance = async (req: AuthRequest, res: Response): Pr
     }
 
     // Registro de Auditoría
-    await Audit.create({
-      usuario: req.userId,
-      accion: 'MANTENIMIENTO_VEHICULO',
-      entidad: 'Vehicle',
-      entidadId: vehicle._id,
-      detalles: `El vehículo ${vehicle.placa} ha sido enviado a mantenimiento. (Bloquea futuras reservas)`
-    });
+    // await Audit.create({
+    //  usuario: req.userId,
+    //  accion: 'MANTENIMIENTO_VEHICULO',
+    //  entidad: 'Vehicle',
+    //  entidadId: vehicle!._id,
+    //   detalles: `El vehículo ${vehicle!.placa} ha sido enviado a mantenimiento. (Bloquea futuras reservas)`
+    // });
 
-    res.json({ message: 'Vehículo enviado a mantenimiento exitosamente', vehicle });
-  } catch (error) {
-    res.status(500).json({ message: 'Error al poner vehículo en mantenimiento', error });
+    //  res.json({ message: 'Vehículo enviado a mantenimiento exitosamente', vehicle });
+    //  } catch (error) {
+    //   res.status(500).json({ message: 'Error al poner vehículo en mantenimiento', error });
   }
 };
