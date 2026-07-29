@@ -11,6 +11,7 @@ import {
   Platform,
   ImageBackground,
   Image,
+  Modal,
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -73,10 +74,12 @@ function MainTabNavigator({ route }: any) {
 // ── Navegación del ADMINISTRADOR ─────────────────────────────────────────────
 function AdminTabNavigator({ route }: any) {
   const { user, handleLogout } = route.params;
+  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
 
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
+    <>
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap = 'grid';
           if (route.name === 'Dashboard') {
@@ -103,16 +106,7 @@ function AdminTabNavigator({ route }: any) {
           tabBarLabel: 'Solicitudes',
           headerRight: () => (
             <TouchableOpacity 
-              onPress={() => {
-                Alert.alert(
-                  'Cerrar Sesión',
-                  '¿Estás seguro de que deseas cerrar sesión?',
-                  [
-                    { text: 'Cancelar', style: 'cancel' },
-                    { text: 'Sí, Salir', style: 'destructive', onPress: handleLogout }
-                  ]
-                );
-              }} 
+              onPress={() => setLogoutModalVisible(true)} 
               style={{ marginRight: 15 }}
             >
               <Ionicons name="log-out-outline" size={24} color={COLORS.danger} />
@@ -136,6 +130,29 @@ function AdminTabNavigator({ route }: any) {
         options={{ title: 'Auditoría y Evidencia', tabBarLabel: 'Historial' }}
       />
     </Tab.Navigator>
+    
+      {/* Modal de confirmación de cierre de sesión con el diseño de la app */}
+      <Modal visible={logoutModalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalIconContainer}>
+              <Ionicons name="log-out-outline" size={40} color={COLORS.danger} />
+            </View>
+            <Text style={styles.modalTitle}>Cerrar Sesión</Text>
+            <Text style={styles.modalText}>¿Estás seguro de que deseas cerrar sesión y salir del panel de administración?</Text>
+            
+            <View style={styles.modalButtonsRow}>
+              <TouchableOpacity style={styles.modalBtnCancel} onPress={() => setLogoutModalVisible(false)}>
+                <Text style={styles.modalBtnCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalBtnDanger} onPress={handleLogout}>
+                <Text style={styles.modalBtnDangerText}>Sí, Salir</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -381,6 +398,79 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+  },
+  btnTextDark: {
+    color: COLORS.primaryDark,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  modalIconContainer: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: COLORS.danger + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 10,
+  },
+  modalText: {
+    fontSize: 15,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  modalButtonsRow: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 12,
+  },
+  modalBtnCancel: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+  },
+  modalBtnCancelText: {
+    color: COLORS.text,
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  modalBtnDanger: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    backgroundColor: COLORS.danger,
+    alignItems: 'center',
+  },
+  modalBtnDangerText: {
+    color: COLORS.white,
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   logoText: {
     color: COLORS.primary,
