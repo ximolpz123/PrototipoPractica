@@ -102,7 +102,19 @@ function AdminTabNavigator({ route }: any) {
           title: '🛡 Panel Admin',
           tabBarLabel: 'Solicitudes',
           headerRight: () => (
-            <TouchableOpacity onPress={handleLogout} style={{ marginRight: 15 }}>
+            <TouchableOpacity 
+              onPress={() => {
+                Alert.alert(
+                  'Cerrar Sesión',
+                  '¿Estás seguro de que deseas cerrar sesión?',
+                  [
+                    { text: 'Cancelar', style: 'cancel' },
+                    { text: 'Sí, Salir', style: 'destructive', onPress: handleLogout }
+                  ]
+                );
+              }} 
+              style={{ marginRight: 15 }}
+            >
               <Ionicons name="log-out-outline" size={24} color={COLORS.danger} />
             </TouchableOpacity>
           ),
