@@ -1,12 +1,15 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
+import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, Alert, Modal, Image, ScrollView, RefreshControl,
+  ActivityIndicator, Alert, Modal, Image, ScrollView, RefreshControl, Platform
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants';
 import { reservationService, IReservation } from '../services/reservation.service';
+import { vehicleService, IVehicle } from '../services/vehicle.service';
 
 const ESTADO_COLOR: Record<string, string> = {
   pendiente: COLORS.warning,
@@ -30,7 +33,6 @@ function isSameDay(date1: Date, date2: Date) {
 }
 
 type TipoFoto = 'todas' | 'salida' | 'retorno';
-type FiltroFecha = 'todas' | 'hoy' | 'ayer';
 
 // ─── Componente de Picker personalizado (Combobox) ────────────────────────────
 function Picker({
@@ -114,23 +116,29 @@ const pickerStyles = StyleSheet.create({
 // ─── Pantalla principal ────────────────────────────────────────────────────────
 export default function AdminHistoryScreen() {
   const [reservas, setReservas] = useState<IReservation[]>([]);
+  const [vehiculos, setVehiculos] = useState<IVehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   // Filtros
   const [filtroVehiculo, setFiltroVehiculo] = useState('');
-  const [filtroFecha, setFiltroFecha] = useState<FiltroFecha>('todas');
+  const [filtroFecha, setFiltroFecha] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [filtroTipoFoto, setFiltroTipoFoto] = useState<TipoFoto>('todas');
 
   // Modal detalle
   const [selectedReserva, setSelectedReserva] = useState<IReservation | null>(null);
 
-  const cargarReservas = async (isRefresh = false) => {
+  const cargarDatos = async (isRefresh = false) => {
     try {
       if (!isRefresh) setLoading(true);
-      const todas = await reservationService.getAllReservations();
+      const [todas, flota] = await Promise.all([
+        reservationService.getAllReservations(),
+        vehicleService.getAll()
+      ]);
       todas.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setReservas(todas);
+      setVehiculos(flota);
     } catch {
       Alert.alert('Error', 'No se pudo cargar el historial.');
     } finally {
@@ -139,31 +147,18 @@ export default function AdminHistoryScreen() {
     }
   };
 
-  useFocusEffect(useCallback(() => { cargarReservas(); }, []));
+  useFocusEffect(useCallback(() => { cargarDatos(); }, []));
 
-  const onRefresh = () => { setRefreshing(true); cargarReservas(true); };
+  const onRefresh = () => { setRefreshing(true); cargarDatos(true); };
 
   // ─── Opciones dinámicas para los filtros ─────────────────────────────────────
   const vehiculoOptions = useMemo(() => {
-    const seen = new Set<string>();
     const opts: { label: string; value: string }[] = [{ label: 'Todos los vehículos', value: '' }];
-    reservas.forEach(r => {
-      if (r.vehiculo) {
-        const key = `${r.vehiculo.placa}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          opts.push({ label: `${r.vehiculo.marca} ${r.vehiculo.modelo} · ${r.vehiculo.placa}`, value: key });
-        }
-      }
+    vehiculos.forEach(v => {
+      opts.push({ label: `${v.marca} ${v.modelo} · ${v.placa}`, value: v.placa });
     });
     return opts;
-  }, [reservas]);
-
-  const fechaOptions: { label: string; value: FiltroFecha }[] = [
-    { label: 'Cualquier fecha', value: 'todas' },
-    { label: 'Hoy', value: 'hoy' },
-    { label: 'Ayer', value: 'ayer' },
-  ];
+  }, [vehiculos]);
 
   const tipoFotoOptions: { label: string; value: TipoFoto }[] = [
     { label: 'Todas las fotos', value: 'todas' },
@@ -173,17 +168,15 @@ export default function AdminHistoryScreen() {
 
   // ─── Aplicar filtros ──────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
-    const hoy = new Date();
-    const ayer = new Date(); ayer.setDate(ayer.getDate() - 1);
-
     return reservas.filter(r => {
       // Filtro vehículo
       if (filtroVehiculo && r.vehiculo?.placa !== filtroVehiculo) return false;
 
       // Filtro fecha (basado en fechaInicio)
-      const fechaViaje = new Date(r.fechaInicio);
-      if (filtroFecha === 'hoy' && !isSameDay(fechaViaje, hoy)) return false;
-      if (filtroFecha === 'ayer' && !isSameDay(fechaViaje, ayer)) return false;
+      if (filtroFecha) {
+        const fechaViaje = new Date(r.fechaInicio);
+        if (!isSameDay(fechaViaje, filtroFecha)) return false;
+      }
 
       // Filtro tipo de foto: solo mostrar reservas que tengan ese tipo de fotos
       if (filtroTipoFoto === 'salida' && (!r.fotosSalida || r.fotosSalida.length === 0)) return false;
@@ -193,12 +186,19 @@ export default function AdminHistoryScreen() {
     });
   }, [reservas, filtroVehiculo, filtroFecha, filtroTipoFoto]);
 
-  const hayFiltros = filtroVehiculo !== '' || filtroFecha !== 'todas' || filtroTipoFoto !== 'todas';
+  const hayFiltros = filtroVehiculo !== '' || filtroFecha !== null || filtroTipoFoto !== 'todas';
 
   const limpiarFiltros = () => {
     setFiltroVehiculo('');
-    setFiltroFecha('todas');
+    setFiltroFecha(null);
     setFiltroTipoFoto('todas');
+  };
+
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      setFiltroFecha(selectedDate);
+    }
   };
 
   // ─── Render de tarjeta ────────────────────────────────────────────────────────
@@ -266,12 +266,15 @@ export default function AdminHistoryScreen() {
           />
         </View>
         <View style={styles.filterRow}>
-          <Picker
-            label="Fecha"
-            value={filtroFecha}
-            options={fechaOptions}
-            onChange={(v) => setFiltroFecha(v as FiltroFecha)}
-          />
+          <TouchableOpacity 
+            style={[pickerStyles.trigger, { flex: 1 }]} 
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text style={[pickerStyles.triggerText, filtroFecha && pickerStyles.triggerTextActive]} numberOfLines={1}>
+              {filtroFecha ? filtroFecha.toLocaleDateString('es-CL') : 'Cualquier fecha'}
+            </Text>
+            <Ionicons name="calendar-outline" size={14} color={COLORS.textMuted} />
+          </TouchableOpacity>
           <View style={{ width: 10 }} />
           <Picker
             label="Evidencia"
@@ -280,6 +283,16 @@ export default function AdminHistoryScreen() {
             onChange={(v) => setFiltroTipoFoto(v as TipoFoto)}
           />
         </View>
+        
+        {showDatePicker && (
+          <DateTimePicker
+            value={filtroFecha || new Date()}
+            mode="date"
+            display="default"
+            onChange={handleDateChange}
+          />
+        )}
+
         {hayFiltros && (
           <TouchableOpacity style={styles.clearBtn} onPress={limpiarFiltros}>
             <Ionicons name="close-circle" size={14} color={COLORS.danger} />

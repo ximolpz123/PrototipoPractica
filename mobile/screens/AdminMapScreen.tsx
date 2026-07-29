@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   refreshBtn: {
     position: 'absolute',
     top: 20,
-    right: 20,
+    left: 20,
     backgroundColor: COLORS.primary,
     width: 44,
     height: 44,
