@@ -1,9 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import {
-import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, Alert, Modal, Image, ScrollView, RefreshControl, Platform
-} from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Modal, Image, ScrollView, RefreshControl, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -266,8 +262,8 @@ export default function AdminHistoryScreen() {
           />
         </View>
         <View style={styles.filterRow}>
-          <TouchableOpacity 
-            style={[pickerStyles.trigger, { flex: 1 }]} 
+          <TouchableOpacity
+            style={[pickerStyles.trigger, { flex: 1 }]}
             onPress={() => setShowDatePicker(true)}
           >
             <Text style={[pickerStyles.triggerText, filtroFecha && pickerStyles.triggerTextActive]} numberOfLines={1}>
@@ -283,7 +279,7 @@ export default function AdminHistoryScreen() {
             onChange={(v) => setFiltroTipoFoto(v as TipoFoto)}
           />
         </View>
-        
+
         {showDatePicker && (
           <DateTimePicker
             value={filtroFecha || new Date()}
