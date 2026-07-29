@@ -29,6 +29,8 @@ import FlotaScreen from './screens/FlotaScreen';
 import PerfilScreen from './screens/PerfilScreen';
 import CreateReservationScreen from './screens/CreateReservationScreen';
 import AdminDashboardScreen from './screens/AdminDashboardScreen';
+import AdminHistoryScreen from './screens/AdminHistoryScreen';
+import AdminMapScreen from './screens/AdminMapScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -79,10 +81,12 @@ function AdminTabNavigator({ route }: any) {
           let iconName: keyof typeof Ionicons.glyphMap = 'grid';
           if (route.name === 'Dashboard') {
             iconName = focused ? 'grid' : 'grid-outline';
+          } else if (route.name === 'Mapa Admin') {
+            iconName = focused ? 'map' : 'map-outline';
           } else if (route.name === 'Flota Admin') {
             iconName = focused ? 'car' : 'car-outline';
-          } else if (route.name === 'Perfil Admin') {
-            iconName = focused ? 'person' : 'person-outline';
+          } else if (route.name === 'Historial Admin') {
+            iconName = focused ? 'list' : 'list-outline';
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -94,7 +98,20 @@ function AdminTabNavigator({ route }: any) {
       <Tab.Screen
         name="Dashboard"
         component={AdminDashboardScreen}
-        options={{ title: '🛡 Panel Admin', tabBarLabel: 'Solicitudes' }}
+        options={{
+          title: '🛡 Panel Admin',
+          tabBarLabel: 'Solicitudes',
+          headerRight: () => (
+            <TouchableOpacity onPress={handleLogout} style={{ marginRight: 15 }}>
+              <Ionicons name="log-out-outline" size={24} color={COLORS.danger} />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Mapa Admin"
+        component={AdminMapScreen}
+        options={{ title: 'Mapa en Tiempo Real', tabBarLabel: 'Mapa' }}
       />
       <Tab.Screen
         name="Flota Admin"
@@ -102,10 +119,9 @@ function AdminTabNavigator({ route }: any) {
         options={{ title: 'Flota de Vehículos', tabBarLabel: 'Flota' }}
       />
       <Tab.Screen
-        name="Perfil Admin"
-        component={PerfilScreen}
-        initialParams={{ user, handleLogout }}
-        options={{ tabBarLabel: 'Perfil' }}
+        name="Historial Admin"
+        component={AdminHistoryScreen}
+        options={{ title: 'Auditoría y Evidencia', tabBarLabel: 'Historial' }}
       />
     </Tab.Navigator>
   );
