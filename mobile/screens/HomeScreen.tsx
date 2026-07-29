@@ -130,22 +130,13 @@ export default function HomeScreen({ route, navigation }: any) {
     }
 
     try {
-      setCompletingTrip(true);
-      // 1. Completar la reserva en el backend (guarda kmRetorno y actualiza km del vehículo)
-      await reservationService.completeReservation(reserva._id, km);
-      // 2. Detener GPS
-      await locationService.stopTracking();
-      setIsTracking(false);
+      // Navegamos a la cámara y pasamos el kilometraje ingresado.
+      // La llamada real al backend (completeReservation) y stopTracking se harán dentro de CameraScreen tras subir las fotos.
       setShowKmModal(false);
-      // 3. Navegar a la cámara para fotos de retorno
-      navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'retorno' });
-      // 4. Recargar la pantalla
-      loadReservas();
+      navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'retorno', kmRetorno: km });
     } catch (err: any) {
-      const msg = err.response?.data?.message ?? 'Error al finalizar el viaje.';
+      const msg = err.response?.data?.message ?? 'Error al iniciar el proceso de finalizar viaje.';
       Alert.alert('Error', msg);
-    } finally {
-      setCompletingTrip(false);
     }
   };
 

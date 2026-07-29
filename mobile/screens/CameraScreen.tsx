@@ -4,15 +4,71 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { COLORS, API_URL } from '../constants';
 import axios from 'axios';
 import { authService } from '../services/auth.service';
+import { reservationService } from '../services/reservation.service';
+import { locationService } from '../services/location.service';
 
 export default function CameraScreen({ route, navigation }: any) {
-  const { reservaId, tipo } = route.params; // 'salida' o 'retorno'
+  const { reservaId, tipo, kmRetorno } = route.params; // 'salida' o 'retorno'
   
   const [permission, requestPermission] = useCameraPermissions();
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [canGoBack, setCanGoBack] = useState(false);
   
   const cameraRef = useRef<CameraView>(null);
+
+  React.useEffect(() => {
+    const handleBeforeRemove = (e: any) => {
+      if (canGoBack) {
+        return;
+      }
+
+      e.preventDefault();
+
+      if (tipo === 'salida') {
+        Alert.alert(
+          'Fotos Obligatorias',
+          'Debes tomar fotos de evidencia para iniciar tu viaje. Si retrocedes, tu viaje será cancelado automáticamente.',
+          [
+            { text: 'Tomar fotos', style: 'cancel', onPress: () => {} },
+            {
+              text: 'Cancelar Viaje',
+              style: 'destructive',
+              onPress: async () => {
+                try {
+                  await reservationService.cancelReservation(reservaId);
+                  await locationService.stopTracking();
+                  setCanGoBack(true);
+                  navigation.dispatch(e.data.action);
+                } catch (error) {
+                  Alert.alert('Error', 'No se pudo cancelar el viaje.');
+                }
+              },
+            },
+          ]
+        );
+      } else if (tipo === 'retorno') {
+        Alert.alert(
+          'Atención',
+          'Aún no has completado tu viaje. Si retrocedes, tu viaje seguirá "En Curso" y deberás finalizarlo más tarde.',
+          [
+            { text: 'Subir fotos ahora', style: 'cancel', onPress: () => {} },
+            {
+              text: 'Volver al Inicio',
+              style: 'default',
+              onPress: () => {
+                setCanGoBack(true);
+                navigation.dispatch(e.data.action);
+              },
+            },
+          ]
+        );
+      }
+    };
+
+    navigation.addListener('beforeRemove', handleBeforeRemove);
+    return () => navigation.removeListener('beforeRemove', handleBeforeRemove);
+  }, [navigation, canGoBack, tipo, reservaId]);
 
   if (!permission) {
     return <View style={styles.container}><ActivityIndicator size="large" /></View>;
@@ -81,8 +137,15 @@ export default function CameraScreen({ route, navigation }: any) {
         }
       });
 
+      // Si es retorno, completamos la reserva después de subir las fotos exitosamente
+      if (tipo === 'retorno' && kmRetorno !== undefined) {
+        await reservationService.completeReservation(reservaId, kmRetorno);
+        await locationService.stopTracking();
+      }
+
       Alert.alert('Éxito', 'Las fotos han sido subidas correctamente a Cloudinary y guardadas en la base de datos.');
-      navigation.goBack();
+      setCanGoBack(true);
+      navigation.navigate('MainTabs');
     } catch (error: any) {
       console.error(error.response?.data || error);
       Alert.alert('Error', 'No se pudieron subir las fotos. Verifica la consola.');
