@@ -253,9 +253,11 @@ export default function App() {
       >
         <View style={styles.loginCardNew}>
           <View style={styles.loginHeader}>
-            <View style={styles.logoPlaceholder}>
-              <Text style={styles.logoText}>BF</Text>
-            </View>
+            <Image 
+              source={require('./assets/logo.png')} 
+              style={styles.logoImage} 
+              resizeMode="contain" 
+            />
             <Text style={styles.titleNew}>Bitnets Flota</Text>
             <Text style={styles.subtitleNew}>Ingrese sus credenciales</Text>
           </View>
@@ -385,19 +387,12 @@ const styles = StyleSheet.create({
     padding: 30,
     alignItems: 'center',
   },
-  logoPlaceholder: {
-    width: 60,
-    height: 60,
-    backgroundColor: 'white',
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
+  logoImage: {
+    width: 80,
+    height: 80,
     marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    borderRadius: 40,
+    backgroundColor: COLORS.white,
   },
   btnTextDark: {
     color: COLORS.primaryDark,
