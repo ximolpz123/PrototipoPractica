@@ -36,7 +36,7 @@ export default function CameraScreen({ route, navigation }: any) {
               style: 'destructive',
               onPress: async () => {
                 try {
-                  await reservationService.cancelReservation(reservaId);
+                  await reservationService.cancel(reservaId);
                   await locationService.stopTracking();
                   setCanGoBack(true);
                   navigation.dispatch(e.data.action);
