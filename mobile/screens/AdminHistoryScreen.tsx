@@ -1,7 +1,7 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, Alert, TextInput, Modal, Image, ScrollView
+  ActivityIndicator, Alert, Modal, Image, ScrollView, RefreshControl,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,41 +23,185 @@ function formatFecha(dateStr: string) {
   });
 }
 
+function isSameDay(date1: Date, date2: Date) {
+  return date1.getFullYear() === date2.getFullYear()
+    && date1.getMonth() === date2.getMonth()
+    && date1.getDate() === date2.getDate();
+}
+
+type TipoFoto = 'todas' | 'salida' | 'retorno';
+type FiltroFecha = 'todas' | 'hoy' | 'ayer';
+
+// ─── Componente de Picker personalizado (Combobox) ────────────────────────────
+function Picker({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { label: string; value: string }[];
+  onChange: (val: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find(o => o.value === value)?.label ?? label;
+
+  return (
+    <View style={pickerStyles.wrapper}>
+      <TouchableOpacity style={pickerStyles.trigger} onPress={() => setOpen(true)}>
+        <Text style={[pickerStyles.triggerText, value !== '' && pickerStyles.triggerTextActive]} numberOfLines={1}>
+          {selected}
+        </Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={14} color={COLORS.textMuted} />
+      </TouchableOpacity>
+
+      <Modal visible={open} transparent animationType="fade">
+        <TouchableOpacity style={pickerStyles.overlay} onPress={() => setOpen(false)} activeOpacity={1}>
+          <View style={pickerStyles.dropdown}>
+            <Text style={pickerStyles.dropdownTitle}>{label}</Text>
+            {options.map(opt => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[
+                  pickerStyles.option,
+                  value === opt.value && pickerStyles.optionActive,
+                ]}
+                onPress={() => { onChange(opt.value); setOpen(false); }}
+              >
+                {value === opt.value && <Ionicons name="checkmark" size={16} color={COLORS.primary} style={{ marginRight: 8 }} />}
+                <Text style={[pickerStyles.optionText, value === opt.value && pickerStyles.optionTextActive]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+}
+
+const pickerStyles = StyleSheet.create({
+  wrapper: { flex: 1 },
+  trigger: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: COLORS.white, borderRadius: 8, paddingHorizontal: 12,
+    paddingVertical: 10, borderWidth: 1, borderColor: COLORS.border,
+  },
+  triggerText: { fontSize: 13, color: COLORS.textMuted, flex: 1 },
+  triggerTextActive: { color: COLORS.text, fontWeight: '600' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 30 },
+  dropdown: {
+    backgroundColor: COLORS.white, borderRadius: 14,
+    padding: 10, shadowColor: '#000', shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, elevation: 8,
+  },
+  dropdownTitle: {
+    fontSize: 12, fontWeight: 'bold', color: COLORS.textMuted,
+    textTransform: 'uppercase', paddingHorizontal: 8, paddingVertical: 6,
+    borderBottomWidth: 1, borderColor: COLORS.border, marginBottom: 6,
+  },
+  option: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 12, paddingVertical: 12, borderRadius: 8,
+  },
+  optionActive: { backgroundColor: COLORS.primary + '15' },
+  optionText: { fontSize: 15, color: COLORS.text },
+  optionTextActive: { color: COLORS.primary, fontWeight: '600' },
+});
+
+// ─── Pantalla principal ────────────────────────────────────────────────────────
 export default function AdminHistoryScreen() {
   const [reservas, setReservas] = useState<IReservation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  
-  // Modal states
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Filtros
+  const [filtroVehiculo, setFiltroVehiculo] = useState('');
+  const [filtroFecha, setFiltroFecha] = useState<FiltroFecha>('todas');
+  const [filtroTipoFoto, setFiltroTipoFoto] = useState<TipoFoto>('todas');
+
+  // Modal detalle
   const [selectedReserva, setSelectedReserva] = useState<IReservation | null>(null);
 
-  const cargarReservas = async () => {
+  const cargarReservas = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (!isRefresh) setLoading(true);
       const todas = await reservationService.getAllReservations();
-      // Ordenar por más recientes primero
       todas.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setReservas(todas);
-    } catch (err) {
+    } catch {
       Alert.alert('Error', 'No se pudo cargar el historial.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      cargarReservas();
-    }, [])
-  );
+  useFocusEffect(useCallback(() => { cargarReservas(); }, []));
 
-  const filteredReservas = reservas.filter((r) => {
-    const q = search.toLowerCase();
-    const vehiculoStr = r.vehiculo ? `${r.vehiculo.marca} ${r.vehiculo.modelo} ${r.vehiculo.placa}`.toLowerCase() : '';
-    const conductorStr = r.usuario ? `${r.usuario.nombre} ${r.usuario.apellido}`.toLowerCase() : '';
-    return vehiculoStr.includes(q) || conductorStr.includes(q) || r.estado.includes(q);
-  });
+  const onRefresh = () => { setRefreshing(true); cargarReservas(true); };
 
+  // ─── Opciones dinámicas para los filtros ─────────────────────────────────────
+  const vehiculoOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const opts: { label: string; value: string }[] = [{ label: 'Todos los vehículos', value: '' }];
+    reservas.forEach(r => {
+      if (r.vehiculo) {
+        const key = `${r.vehiculo.placa}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          opts.push({ label: `${r.vehiculo.marca} ${r.vehiculo.modelo} · ${r.vehiculo.placa}`, value: key });
+        }
+      }
+    });
+    return opts;
+  }, [reservas]);
+
+  const fechaOptions: { label: string; value: FiltroFecha }[] = [
+    { label: 'Cualquier fecha', value: 'todas' },
+    { label: 'Hoy', value: 'hoy' },
+    { label: 'Ayer', value: 'ayer' },
+  ];
+
+  const tipoFotoOptions: { label: string; value: TipoFoto }[] = [
+    { label: 'Todas las fotos', value: 'todas' },
+    { label: 'Fotos de Salida', value: 'salida' },
+    { label: 'Fotos de Retorno', value: 'retorno' },
+  ];
+
+  // ─── Aplicar filtros ──────────────────────────────────────────────────────────
+  const filtered = useMemo(() => {
+    const hoy = new Date();
+    const ayer = new Date(); ayer.setDate(ayer.getDate() - 1);
+
+    return reservas.filter(r => {
+      // Filtro vehículo
+      if (filtroVehiculo && r.vehiculo?.placa !== filtroVehiculo) return false;
+
+      // Filtro fecha (basado en fechaInicio)
+      const fechaViaje = new Date(r.fechaInicio);
+      if (filtroFecha === 'hoy' && !isSameDay(fechaViaje, hoy)) return false;
+      if (filtroFecha === 'ayer' && !isSameDay(fechaViaje, ayer)) return false;
+
+      // Filtro tipo de foto: solo mostrar reservas que tengan ese tipo de fotos
+      if (filtroTipoFoto === 'salida' && (!r.fotosSalida || r.fotosSalida.length === 0)) return false;
+      if (filtroTipoFoto === 'retorno' && (!r.fotosRetorno || r.fotosRetorno.length === 0)) return false;
+
+      return true;
+    });
+  }, [reservas, filtroVehiculo, filtroFecha, filtroTipoFoto]);
+
+  const hayFiltros = filtroVehiculo !== '' || filtroFecha !== 'todas' || filtroTipoFoto !== 'todas';
+
+  const limpiarFiltros = () => {
+    setFiltroVehiculo('');
+    setFiltroFecha('todas');
+    setFiltroTipoFoto('todas');
+  };
+
+  // ─── Render de tarjeta ────────────────────────────────────────────────────────
   const renderReserva = ({ item }: { item: IReservation }) => {
     const color = ESTADO_COLOR[item.estado] ?? COLORS.textMuted;
     const vehiculo = item.vehiculo
@@ -66,12 +210,10 @@ export default function AdminHistoryScreen() {
     const conductor = item.usuario
       ? `${item.usuario.nombre} ${item.usuario.apellido}`
       : 'Usuario desconocido';
+    const totalFotos = (item.fotosSalida?.length || 0) + (item.fotosRetorno?.length || 0);
 
     return (
-      <TouchableOpacity 
-        style={styles.card} 
-        onPress={() => setSelectedReserva(item)}
-      >
+      <TouchableOpacity style={styles.card} onPress={() => setSelectedReserva(item)}>
         <View style={styles.cardHeader}>
           <View style={{ flex: 1 }}>
             <Text style={styles.cardConductor}>{conductor}</Text>
@@ -84,14 +226,12 @@ export default function AdminHistoryScreen() {
           </View>
         </View>
 
-        <View style={styles.cardBody}>
-          <Text style={styles.infoLine}>📅 Inicio: {formatFecha(item.fechaInicio)}</Text>
-          <Text style={styles.infoLine}>📍 Destino: {item.destino}</Text>
-          
-          <View style={styles.photosIndicator}>
-            <Ionicons name="camera-outline" size={14} color={COLORS.textMuted} />
-            <Text style={styles.photosText}>
-              Evidencia: {(item.fotosSalida?.length || 0) + (item.fotosRetorno?.length || 0)} fotos
+        <View style={styles.cardFooter}>
+          <Text style={styles.cardDate}>📅 {formatFecha(item.fechaInicio)}</Text>
+          <View style={styles.photoChip}>
+            <Ionicons name="camera-outline" size={12} color={totalFotos > 0 ? COLORS.success : COLORS.textMuted} />
+            <Text style={[styles.photoChipText, totalFotos > 0 && { color: COLORS.success }]}>
+              {totalFotos} foto{totalFotos !== 1 ? 's' : ''}
             </Text>
           </View>
         </View>
@@ -99,44 +239,85 @@ export default function AdminHistoryScreen() {
     );
   };
 
+  // ─── Render de fotos en modal ─────────────────────────────────────────────────
+  const renderFotos = (fotos: string[] | undefined, tipo: string) => {
+    if (!fotos || fotos.length === 0) {
+      return <Text style={styles.noPhotos}>Sin fotos de {tipo}.</Text>;
+    }
+    return (
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        {fotos.map((url, i) => (
+          <Image key={i} source={{ uri: url }} style={styles.photo} resizeMode="cover" />
+        ))}
+      </ScrollView>
+    );
+  };
+
   return (
     <View style={styles.container}>
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color={COLORS.textMuted} style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Buscar por placa, conductor o estado..."
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
+      {/* ─── Panel de Filtros ─────────────────────────────────────────── */}
+      <View style={styles.filtersPanel}>
+        <View style={styles.filterRow}>
+          <Picker
+            label="Vehículo"
+            value={filtroVehiculo}
+            options={vehiculoOptions}
+            onChange={setFiltroVehiculo}
+          />
+        </View>
+        <View style={styles.filterRow}>
+          <Picker
+            label="Fecha"
+            value={filtroFecha}
+            options={fechaOptions}
+            onChange={(v) => setFiltroFecha(v as FiltroFecha)}
+          />
+          <View style={{ width: 10 }} />
+          <Picker
+            label="Evidencia"
+            value={filtroTipoFoto}
+            options={tipoFotoOptions}
+            onChange={(v) => setFiltroTipoFoto(v as TipoFoto)}
+          />
+        </View>
+        {hayFiltros && (
+          <TouchableOpacity style={styles.clearBtn} onPress={limpiarFiltros}>
+            <Ionicons name="close-circle" size={14} color={COLORS.danger} />
+            <Text style={styles.clearBtnText}>Limpiar filtros</Text>
           </TouchableOpacity>
         )}
       </View>
+
+      {/* ─── Conteo de resultados ──────────────────────────────────────── */}
+      <Text style={styles.resultCount}>{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</Text>
 
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Cargando historial...</Text>
         </View>
-      ) : filteredReservas.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <View style={styles.centered}>
           <Text style={styles.emptyIcon}>🔍</Text>
-          <Text style={styles.emptyText}>No se encontraron resultados.</Text>
+          <Text style={styles.emptyText}>No se encontraron resultados con los filtros aplicados.</Text>
+          {hayFiltros && (
+            <TouchableOpacity onPress={limpiarFiltros} style={styles.clearBtnLarge}>
+              <Text style={styles.clearBtnLargeText}>Limpiar filtros</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : (
         <FlatList
-          data={filteredReservas}
+          data={filtered}
           keyExtractor={(item) => item._id}
           renderItem={renderReserva}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}
         />
       )}
 
-      {/* Modal para ver detalles y fotos */}
+      {/* ─── Modal de Detalle + Evidencia ─────────────────────────────── */}
       <Modal visible={!!selectedReserva} animationType="slide" presentationStyle="pageSheet">
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
@@ -150,58 +331,61 @@ export default function AdminHistoryScreen() {
             <ScrollView style={styles.modalScroll}>
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Conductor</Text>
-                <Text style={styles.sectionText}>{selectedReserva.usuario ? `${selectedReserva.usuario.nombre} ${selectedReserva.usuario.apellido}` : 'N/A'}</Text>
+                <Text style={styles.sectionText}>
+                  {selectedReserva.usuario ? `${selectedReserva.usuario.nombre} ${selectedReserva.usuario.apellido}` : 'N/A'}
+                </Text>
               </View>
 
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Vehículo</Text>
-                <Text style={styles.sectionText}>{selectedReserva.vehiculo ? `${selectedReserva.vehiculo.marca} ${selectedReserva.vehiculo.modelo} (${selectedReserva.vehiculo.placa})` : 'N/A'}</Text>
+                <Text style={styles.sectionText}>
+                  {selectedReserva.vehiculo
+                    ? `${selectedReserva.vehiculo.marca} ${selectedReserva.vehiculo.modelo} (${selectedReserva.vehiculo.placa})`
+                    : 'N/A'}
+                </Text>
+              </View>
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Destino</Text>
+                <Text style={styles.sectionText}>{selectedReserva.destino}</Text>
               </View>
 
               <View style={styles.sectionRow}>
                 <View style={styles.halfSection}>
-                  <Text style={styles.sectionTitle}>Odómetro Salida</Text>
+                  <Text style={styles.sectionTitle}>Km Salida</Text>
                   <Text style={styles.sectionText}>{selectedReserva.kmSalida ? `${selectedReserva.kmSalida} km` : '-'}</Text>
                 </View>
                 <View style={styles.halfSection}>
-                  <Text style={styles.sectionTitle}>Odómetro Retorno</Text>
+                  <Text style={styles.sectionTitle}>Km Retorno</Text>
                   <Text style={styles.sectionText}>{selectedReserva.kmRetorno ? `${selectedReserva.kmRetorno} km` : '-'}</Text>
                 </View>
               </View>
 
               {selectedReserva.observaciones && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Observaciones del Conductor</Text>
+                  <Text style={styles.sectionTitle}>Observaciones</Text>
                   <Text style={styles.sectionText}>{selectedReserva.observaciones}</Text>
                 </View>
               )}
 
-              {/* Fotos de Salida */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Evidencia Salida ({selectedReserva.fotosSalida?.length || 0})</Text>
-                {selectedReserva.fotosSalida && selectedReserva.fotosSalida.length > 0 ? (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoScroll}>
-                    {selectedReserva.fotosSalida.map((url, index) => (
-                      <Image key={index} source={{ uri: url }} style={styles.photo} />
-                    ))}
-                  </ScrollView>
-                ) : (
-                  <Text style={styles.noPhotos}>Sin fotos registradas al inicio del viaje.</Text>
-                )}
+                <View style={styles.sectionTitleRow}>
+                  <Ionicons name="camera" size={16} color={COLORS.primary} />
+                  <Text style={[styles.sectionTitle, { marginLeft: 6 }]}>
+                    Evidencia al Salir ({selectedReserva.fotosSalida?.length || 0})
+                  </Text>
+                </View>
+                {renderFotos(selectedReserva.fotosSalida, 'salida')}
               </View>
 
-              {/* Fotos de Retorno */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Evidencia Retorno ({selectedReserva.fotosRetorno?.length || 0})</Text>
-                {selectedReserva.fotosRetorno && selectedReserva.fotosRetorno.length > 0 ? (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoScroll}>
-                    {selectedReserva.fotosRetorno.map((url, index) => (
-                      <Image key={index} source={{ uri: url }} style={styles.photo} />
-                    ))}
-                  </ScrollView>
-                ) : (
-                  <Text style={styles.noPhotos}>Sin fotos registradas al finalizar el viaje.</Text>
-                )}
+                <View style={styles.sectionTitleRow}>
+                  <Ionicons name="camera" size={16} color={COLORS.success} />
+                  <Text style={[styles.sectionTitle, { marginLeft: 6 }]}>
+                    Evidencia al Retornar ({selectedReserva.fotosRetorno?.length || 0})
+                  </Text>
+                </View>
+                {renderFotos(selectedReserva.fotosRetorno, 'retorno')}
               </View>
             </ScrollView>
           )}
@@ -217,53 +401,50 @@ const styles = StyleSheet.create({
   loadingText: { marginTop: 10, color: COLORS.textMuted, fontSize: 14 },
   emptyIcon: { fontSize: 44, marginBottom: 10 },
   emptyText: { fontSize: 15, color: COLORS.textMuted, textAlign: 'center' },
-  
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.white,
-    margin: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  searchIcon: { marginRight: 8 },
-  searchInput: { flex: 1, fontSize: 15, color: COLORS.text },
 
-  list: { paddingHorizontal: 16, paddingBottom: 30 },
+  // Filters
+  filtersPanel: { backgroundColor: COLORS.white, padding: 14, borderBottomWidth: 1, borderColor: COLORS.border, gap: 10 },
+  filterRow: { flexDirection: 'row' },
+  clearBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start' },
+  clearBtnText: { fontSize: 12, color: COLORS.danger, fontWeight: '600' },
+  clearBtnLarge: {
+    marginTop: 16, paddingHorizontal: 20, paddingVertical: 10,
+    backgroundColor: COLORS.danger + '15', borderRadius: 8,
+  },
+  clearBtnLargeText: { color: COLORS.danger, fontWeight: 'bold', fontSize: 14 },
+
+  resultCount: { fontSize: 12, color: COLORS.textMuted, paddingHorizontal: 16, paddingVertical: 8 },
+
+  // List
+  list: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 30 },
   card: {
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    backgroundColor: COLORS.white, borderRadius: 12, padding: 14, marginBottom: 10,
+    borderWidth: 1, borderColor: COLORS.border,
   },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
   cardConductor: { fontSize: 15, fontWeight: 'bold', color: COLORS.text },
-  cardVehiculo: { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
-  estadoBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginLeft: 8 },
-  estadoText: { fontSize: 10, fontWeight: 'bold' },
-  cardBody: { backgroundColor: '#F8FAFC', borderRadius: 8, padding: 10, gap: 4 },
-  infoLine: { fontSize: 13, color: COLORS.text },
-  photosIndicator: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5 },
-  photosText: { fontSize: 12, color: COLORS.textMuted },
+  cardVehiculo: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  estadoBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, marginLeft: 8 },
+  estadoText: { fontSize: 9, fontWeight: 'bold' },
+  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardDate: { fontSize: 12, color: COLORS.textMuted },
+  photoChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  photoChipText: { fontSize: 12, color: COLORS.textMuted },
 
+  // Modal
   modalContainer: { flex: 1, backgroundColor: COLORS.background },
   modalHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 20, backgroundColor: COLORS.white, borderBottomWidth: 1, borderColor: COLORS.border
+    padding: 20, backgroundColor: COLORS.white, borderBottomWidth: 1, borderColor: COLORS.border,
   },
   modalTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text },
   modalScroll: { flex: 1, padding: 20 },
   section: { marginBottom: 20 },
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
-  halfSection: { flex: 1 },
-  sectionTitle: { fontSize: 12, fontWeight: 'bold', color: COLORS.textMuted, textTransform: 'uppercase', marginBottom: 5 },
+  halfSection: { flex: 1, marginRight: 10 },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  sectionTitle: { fontSize: 11, fontWeight: 'bold', color: COLORS.textMuted, textTransform: 'uppercase', marginBottom: 4 },
   sectionText: { fontSize: 16, color: COLORS.text },
-  photoScroll: { flexDirection: 'row', marginTop: 10 },
-  photo: { width: 140, height: 180, borderRadius: 10, marginRight: 10, backgroundColor: '#eee' },
+  photo: { width: 150, height: 200, borderRadius: 10, marginRight: 10, backgroundColor: '#eee' },
   noPhotos: { fontSize: 14, color: COLORS.textMuted, fontStyle: 'italic', marginTop: 5 },
 });

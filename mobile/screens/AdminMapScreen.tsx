@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import MapView, { Marker, Callout } from 'react-native-maps';
+import * as Location from 'expo-location';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
@@ -22,6 +23,7 @@ export default function AdminMapScreen() {
   const [vehicles, setVehicles] = useState<IVehicleLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [myLocation, setMyLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   const fetchLocations = async () => {
     try {
@@ -36,9 +38,17 @@ export default function AdminMapScreen() {
     }
   };
 
+  const fetchMyLocation = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') return;
+    const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+    setMyLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+  };
+
   useFocusEffect(
     useCallback(() => {
       fetchLocations();
+      fetchMyLocation();
       // Polling cada 30 segundos mientras la pantalla esté activa
       const interval = setInterval(fetchLocations, 30000);
       return () => clearInterval(interval);
@@ -72,7 +82,7 @@ export default function AdminMapScreen() {
       <MapView
         style={styles.map}
         initialRegion={initialRegion}
-        showsUserLocation={false}
+        showsUserLocation={true}
       >
         {activeVehicles.map(v => (
           <Marker
