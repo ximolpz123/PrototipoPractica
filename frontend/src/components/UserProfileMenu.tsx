@@ -82,6 +82,11 @@ function UserProfileMenu() {
             <p className="profile-panel-name">
               <strong>{user.rol === 'admin' ? 'Administrador' : 'Conductor'}:</strong> {user.nombre} {user.apellido}
             </p>
+            {user.departamento && (
+              <p className="profile-panel-name" style={{ marginTop: '-4px' }}>
+                <strong>Dpto:</strong> {user.departamento}
+              </p>
+            )}
             {user.rol !== 'admin' && (
               <p className="profile-panel-license">
                 <strong>Estado de su Licencia:</strong> <span className="license-status">AL DIA</span>

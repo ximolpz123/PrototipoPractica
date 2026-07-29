@@ -179,6 +179,14 @@ function Vehicles() {
           <span className="sidebar-profile-role">
             {user?.rol === 'admin' ? 'Administrador' : 'Conductor'}
           </span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', marginTop: '4px', fontSize: '13px', color: 'rgba(255,255,255,0.9)' }}>
+            {user?.departamento && (
+              <span><strong>Dpto:</strong> {user.departamento}</span>
+            )}
+            {user?.rol !== 'admin' && (
+              <span><strong>Licencia:</strong> <span style={{ color: '#4ade80', fontWeight: 'bold' }}>AL DÍA</span></span>
+            )}
+          </div>
         </div>
 
         {/* Navegación en orden */}
@@ -192,12 +200,14 @@ function Vehicles() {
         </div>
 
         {/* Logout bottom */}
-        <button className="sidebar-btn sidebar-logout" onClick={() => {
-          localStorage.removeItem('token');
-          navigate('/login');
-        }}>
-          <span className="btn-icon">🚪</span> Cerrar Sesión
-        </button>
+        <div className="sidebar-logout">
+          <button className="sidebar-logout-btn" onClick={() => {
+            localStorage.removeItem('token');
+            navigate('/login');
+          }}>
+            <span className="btn-icon">🚪</span> Cerrar Sesión
+          </button>
+        </div>
       </aside>
 
       {/* ══════════ MAIN CONTENT ══════════ */}

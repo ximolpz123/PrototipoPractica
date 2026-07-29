@@ -39,6 +39,8 @@ export interface IReservation {
   estado: 'pendiente' | 'aprobada' | 'en_curso' | 'completada' | 'cancelada';
   kmSalida?: number;
   kmRetorno?: number;
+  fotosSalida?: string[];
+  fotosRetorno?: string[];
   observaciones?: string;
   createdAt: string;
   updatedAt: string;
