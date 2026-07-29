@@ -7,6 +7,7 @@ import vehicleRoutes from './routes/vehicle.routes.js';
 import reservationRoutes from './routes/reservation.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 import trackingRoutes from './routes/tracking.routes.js';
+import userRoutes from './routes/user.routes.js';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -29,6 +30,7 @@ app.get('/api/health', (_req, res) => {
 
 // Rutas de la API
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/dashboard', dashboardRoutes);

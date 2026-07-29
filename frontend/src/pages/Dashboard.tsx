@@ -123,6 +123,11 @@ function Dashboard() {
   const [errorRes, setErrorRes] = useState('');
   const [selectedReservation, setSelectedReservation] = useState<IReservation | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  
+  // ── Filtros de Reservaciones ──
+  const [resFilterVehicle, setResFilterVehicle] = useState('todos');
+  const [resFilterDate, setResFilterDate] = useState('');
+  const [resFilterPhotos, setResFilterPhotos] = useState('todas');
 
   // ── Estado Vehículos ──
   const [vehicles, setVehicles] = useState<IVehicle[]>([]);
@@ -136,7 +141,10 @@ function Dashboard() {
   // ── Cargar datos al cambiar tab ──
   useEffect(() => {
     if (activeTab === 'usuarios') fetchUsers();
-    if (activeTab === 'reservaciones') fetchReservations();
+    if (activeTab === 'reservaciones') {
+      fetchReservations();
+      fetchVehicles();
+    }
     if (activeTab === 'vehiculos') fetchVehicles();
   }, [activeTab]);
 
@@ -374,6 +382,24 @@ function Dashboard() {
     </div>
   );
 
+  // ────────── Helper: filter reservations ──────────
+  const filteredReservations = reservations.filter(r => {
+    if (resFilterVehicle !== 'todos') {
+      const vId = typeof r.vehiculo === 'object' && r.vehiculo !== null ? (r.vehiculo as any)._id : r.vehiculo;
+      if (vId !== resFilterVehicle) return false;
+    }
+    if (resFilterDate) {
+      const rDate = new Date(r.createdAt || r.fechaInicio).toISOString().split('T')[0];
+      if (rDate !== resFilterDate) return false;
+    }
+    if (resFilterPhotos === 'inicio') {
+      if (!r.fotosSalida || r.fotosSalida.length === 0) return false;
+    } else if (resFilterPhotos === 'fin') {
+      if (!r.fotosRetorno || r.fotosRetorno.length === 0) return false;
+    }
+    return true;
+  });
+
   // ──────────────────── RENDER ────────────────────
   return (
     <div className="dashboard-layout">
@@ -496,7 +522,7 @@ function Dashboard() {
         {activeTab === 'usuarios' && (
           <div style={{ width: '100%', overflowX: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '700', color: '#000' }}> Usuarios</h2>
+              <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '700', color: '#000' }}> Usuarios</h2>
               <button className="btn btn-create" onClick={() => setShowCreateUser(true)}>➕ Agregar Usuario</button>
             </div>
             {loadingUsers && <p className="res-status">Cargando usuarios…</p>}
@@ -506,7 +532,7 @@ function Dashboard() {
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>Nombre</th><th>Apellido</th><th>Email</th><th>Departamento</th><th>Rol</th><th>Activo</th><th>Acciones</th>
+                    <th>Nombre</th><th>Apellido</th><th>Email</th><th>Rol</th><th>Activo</th><th style={{ textAlign: 'center' }}>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -515,10 +541,9 @@ function Dashboard() {
                       <td>{u.nombre}</td>
                       <td>{u.apellido}</td>
                       <td>{u.email}</td>
-                      <td>{u.departamento}</td>
                       <td><span className="status-badge" style={{ backgroundColor: u.rol === 'admin' ? '#175fbd' : '#6b7280' }}>{u.rol}</span></td>
                       <td><span className="status-badge" style={{ backgroundColor: u.activo ? '#22c55e' : '#ef4444' }}>{u.activo ? 'Sí' : 'No'}</span></td>
-                      <td style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <td style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center' }}>
                         <button className="btn btn-sm" onClick={() => openEdit(u)}>✏️ Editar</button>
                         <button className="btn btn-sm" style={{ backgroundColor: 'red', color: 'black', border: '2px solid red' }} onClick={() => setShowDeleteUserConfirm(u.id)}>🗑️ Eliminar</button>
                       </td>
@@ -533,12 +558,39 @@ function Dashboard() {
         {/* ══════════ TAB: RESERVACIONES ══════════ */}
         {activeTab === 'reservaciones' && (
           <div className="reservations-panel" style={{ maxWidth: '100%' }}>
-            <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '700', color: '#000' }}> Reservaciones</h2>
+            <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '700', color: '#000', marginBottom: '1rem' }}> Reservaciones</h2>
+            
+            {user?.rol === 'admin' && (
+              <div className="filter-panel" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem', padding: '1rem', borderRadius: '8px', width: '100%', boxSizing: 'border-box' }}>
+                <div style={{ flex: '1' }}>
+                  <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>Vehículo</label>
+                  <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} value={resFilterVehicle} onChange={e => setResFilterVehicle(e.target.value)}>
+                    <option value="todos">Todos los Vehículos</option>
+                    {vehicles.map(v => (
+                      <option key={v._id} value={v._id}>{v.marca} {v.modelo} - {v.placa}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ flex: '1' }}>
+                  <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>Fecha de Creación</label>
+                  <input type="date" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} value={resFilterDate} onChange={e => setResFilterDate(e.target.value)} />
+                </div>
+                <div style={{ flex: '1' }}>
+                  <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>Evidencia</label>
+                  <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} value={resFilterPhotos} onChange={e => setResFilterPhotos(e.target.value)}>
+                    <option value="todas">Toda la evidencia</option>
+                    <option value="inicio">Solo de inicio</option>
+                    <option value="fin">Solo de fin</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
             {loadingRes && <p className="res-status">Cargando reservaciones…</p>}
             {errorRes && <p className="res-status res-error">{errorRes}</p>}
-            {!loadingRes && !errorRes && reservations.length === 0 && <p className="res-status">No hay reservaciones registradas.</p>}
+            {!loadingRes && !errorRes && filteredReservations.length === 0 && <p className="res-status">No se encontraron reservaciones con estos filtros.</p>}
             <div className="reservations-list">
-              {reservations.map(r => (
+              {filteredReservations.map(r => (
                 <div key={r._id} className="reservation-card">
                   <div className="reservation-card-header">
                     <span className="res-vehicle-name">🚗 {getVehicleName(r.vehiculo)}</span>
@@ -547,6 +599,9 @@ function Dashboard() {
                     </span>
                   </div>
                   <div className="reservation-card-info">
+                    {user?.rol === 'admin' && (
+                      <span>👤 <strong>Usuario:</strong> {typeof r.usuario === 'object' && r.usuario !== null ? `${(r.usuario as any).nombre} ${(r.usuario as any).apellido}` : 'Desconocido'}</span>
+                    )}
                     <span>📅 <strong>Inicio:</strong> {new Date(r.fechaInicio).toLocaleDateString('es-CL')}</span>
                     <span>📅 <strong>Fin:</strong>    {new Date(r.fechaFin).toLocaleDateString('es-CL')}</span>
                     {r.destino && <span>📍 <strong>Destino:</strong> {r.destino}</span>}
@@ -564,7 +619,7 @@ function Dashboard() {
         {activeTab === 'vehiculos' && (
           <div style={{ width: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '700', color: '#000' }}>   Vehículos</h2>
+              <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '700', color: '#000' }}>   Vehículos</h2>
               <button className="btn btn-create" onClick={() => { setVehicleForm(EMPTY_VEHICLE_FORM); setShowCreateVehicle(true); }}>
                 ➕ Agregar Vehículo
               </button>
@@ -722,11 +777,17 @@ function Dashboard() {
       {/* ══════════ MODAL: DETALLE RESERVACIÓN ══════════ */}
       {selectedReservation && (
         <div className="modal-overlay" onClick={() => setSelectedReservation(null)}>
-          <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '520px', width: '90%', color: '#000', textAlign: 'center', position: 'relative' }} onClick={e => e.stopPropagation()}>
+          <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '520px', width: '90%', color: '#000', textAlign: 'center', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setSelectedReservation(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1.5rem' }}>Detalles de Reservación</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem', textAlign: 'left', fontSize: '1.05rem' }}>
+              {user?.rol === 'admin' && typeof selectedReservation.usuario === 'object' && selectedReservation.usuario !== null && (
+                <p style={{ margin: 0 }}><strong>Usuario:</strong> {(selectedReservation.usuario as any).nombre} {(selectedReservation.usuario as any).apellido}</p>
+              )}
               <p style={{ margin: 0 }}><strong>Vehículo:</strong> {getVehicleName(selectedReservation.vehiculo)}</p>
+              {typeof selectedReservation.vehiculo === 'object' && selectedReservation.vehiculo !== null && (selectedReservation.vehiculo as any).placa && (
+                <p style={{ margin: 0 }}><strong>Patente:</strong> {(selectedReservation.vehiculo as any).placa}</p>
+              )}
               <p style={{ margin: 0 }}>
                 <strong>Estado:</strong>{' '}
                 <span className="status-badge" style={{ backgroundColor: ESTADO_RES_COLORS[selectedReservation.estado] ?? '#6b7280' }}>
@@ -737,6 +798,28 @@ function Dashboard() {
               <p style={{ margin: 0 }}><strong>Fin:</strong>    {new Date(selectedReservation.fechaFin).toLocaleString('es-CL')}</p>
               {selectedReservation.destino && <p style={{ margin: 0 }}><strong>Destino:</strong> {selectedReservation.destino}</p>}
               {selectedReservation.motivo && <p style={{ margin: 0 }}><strong>Motivo:</strong>  {selectedReservation.motivo}</p>}
+              
+              {selectedReservation.fotosSalida && selectedReservation.fotosSalida.length > 0 && (
+                <div style={{ marginTop: '1rem' }}>
+                  <strong>Fotos de Inicio del Viaje:</strong>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
+                    {selectedReservation.fotosSalida.map((foto, idx) => (
+                      <img key={idx} src={`http://localhost:5000${foto}`} alt={`Inicio ${idx}`} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc' }} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedReservation.fotosRetorno && selectedReservation.fotosRetorno.length > 0 && (
+                <div style={{ marginTop: '1rem' }}>
+                  <strong>Fotos de Fin del Viaje:</strong>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
+                    {selectedReservation.fotosRetorno.map((foto, idx) => (
+                      <img key={idx} src={`http://localhost:5000${foto}`} alt={`Fin ${idx}`} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc' }} />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             {selectedReservation.estado === 'pendiente' ? (
               <button

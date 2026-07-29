@@ -8,7 +8,7 @@ function Home() {
         <img src={logo} alt="Bitnets" className="logo-img" />
         <span className="logo-text">Bitnets</span>
       </div>
-      <h1>Sistema de Reserva de Vehículos</h1>
+      <h1>Bienvenido a la Reservación de Vehículos</h1>
       <p>Gestiona las reservas de vehículos de la empresa de forma rápida y sencilla.</p>
       <div className="home-actions">
         <Link to="/login" className="btn btn-primary">
