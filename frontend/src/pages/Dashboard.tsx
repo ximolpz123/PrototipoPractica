@@ -304,11 +304,12 @@ function Dashboard() {
   const approveReservation = async (id: string) => {
     setApprovingId(id);
     try {
-      await fetch(`http://localhost:5000/api/reservations/${id}`, {
-        method: 'PUT',
+      const response = await fetch(`http://localhost:5000/api/reservations/${id}/status`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ estado: 'aprobada' }),
       });
+      if (!response.ok) throw new Error('Falló la aprobación');
       await fetchReservations();
       setSelectedReservation(prev => prev && prev._id === id ? { ...prev, estado: 'aprobada' } : prev);
     } catch { alert('Error al aprobar reservación'); }
