@@ -3,6 +3,7 @@ import Reservation from '../models/Reservation.js';
 import Vehicle from '../models/Vehicle.js';
 import Audit from '../models/Audit.js';
 import { AuthRequest } from '../middleware/auth.js';
+import { timeService } from '../services/time.service.js';
 
 // Obtener todas las reservas (admin ve todas, usuario solo las suyas)
 export const getReservations = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -53,16 +54,20 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
     }
 
     // ── Validación 4: El vehículo no tiene reservas solapadas ──────────────
+    // Aplicamos un margen de 30 minutos a la reserva solicitada
+    const inicioBuffer = new Date(inicio.getTime() - 30 * 60000);
+    const finBuffer = new Date(fin.getTime() + 30 * 60000);
+
     const vehiculoSolapado = await Reservation.findOne({
       vehiculo,
       estado: { $in: ['pendiente', 'aprobada', 'en_curso'] },
-      fechaInicio: { $lt: fin },
-      fechaFin: { $gt: inicio },
+      fechaInicio: { $lt: finBuffer },
+      fechaFin: { $gt: inicioBuffer },
     });
 
     if (vehiculoSolapado) {
       res.status(409).json({
-        message: 'El vehículo ya tiene una reserva en ese rango de fechas',
+        message: 'El vehículo ya tiene una reserva o un margen de mantenimiento en ese rango',
       });
       return;
     }
@@ -71,7 +76,7 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
     const usuarioSolapado = await Reservation.findOne({
       usuario: req.userId,
       estado: { $in: ['pendiente', 'aprobada', 'en_curso'] },
-      fechaInicio: { $lt: fin },
+      fechaInicio: { $lt: fin }, // Usuario no necesita buffer contra sí mismo
       fechaFin: { $gt: inicio },
     });
 
@@ -133,6 +138,18 @@ export const startReservation = async (req: AuthRequest, res: Response): Promise
 
     if (reservation.estado !== 'aprobada') {
       res.status(400).json({ message: `No se puede iniciar: la reserva está en estado '${reservation.estado}'` });
+      return;
+    }
+
+    // Validar que no falten más de 10 minutos para iniciar
+    const currentTime = timeService.getCurrentTime();
+    const fechaInicioReserva = new Date(reservation.fechaInicio);
+    const maxTiempoAntes = new Date(fechaInicioReserva.getTime() - 10 * 60000); // 10 mins antes
+
+    if (currentTime < maxTiempoAntes) {
+      res.status(400).json({ 
+        message: `Aún es muy pronto para iniciar. Puedes iniciar el viaje a partir de las ${maxTiempoAntes.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}` 
+      });
       return;
     }
 

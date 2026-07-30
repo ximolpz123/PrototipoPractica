@@ -8,7 +8,7 @@ import reservationRoutes from './routes/reservation.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 import trackingRoutes from './routes/tracking.routes.js';
 import userRoutes from './routes/user.routes.js';
-
+import devRoutes from './routes/dev.routes.js';
 // Cargar variables de entorno
 dotenv.config();
 
@@ -35,6 +35,7 @@ app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/tracking', trackingRoutes);
+app.use('/api/dev', devRoutes);
 
 // Iniciar servidor
 const startServer = async () => {

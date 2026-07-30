@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../constants';
 import { locationService } from '../services/location.service';
 import { reservationService, IReservation } from '../services/reservation.service';
+import api from '../services/api';
 
 export default function HomeScreen({ route, navigation }: any) {
   const { user } = route.params;
@@ -17,6 +18,31 @@ export default function HomeScreen({ route, navigation }: any) {
   const [showKmModal, setShowKmModal] = useState(false);
   const [kmRetornoInput, setKmRetornoInput] = useState('');
   const [completingTrip, setCompletingTrip] = useState(false);
+
+  // Modal DEV para Máquina del Tiempo
+  const [devModalVisible, setDevModalVisible] = useState(false);
+
+  const changeDevTime = async (hours: number, days: number) => {
+    try {
+      await api.post('/dev/time', { action: 'set', hours, days });
+      Alert.alert('Éxito', 'Tiempo adelantado (simulado).');
+      setDevModalVisible(false);
+      loadReservas(true); // Recargar datos
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo cambiar el tiempo');
+    }
+  };
+
+  const resetDevTime = async () => {
+    try {
+      await api.post('/dev/time', { action: 'reset' });
+      Alert.alert('Éxito', 'Reloj vuelto a la normalidad.');
+      setDevModalVisible(false);
+      loadReservas(true);
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo reiniciar el tiempo');
+    }
+  };
 
   const loadReservas = async (isRefresh = false) => {
     try {
@@ -166,6 +192,14 @@ export default function HomeScreen({ route, navigation }: any) {
       <Text style={styles.welcomeTitle}>¡Bienvenido! 👋</Text>
       <Text style={styles.welcomeName}>{user.nombre} {user.apellido}</Text>
       <Text style={styles.welcomeRole}>Rol: {user.rol}</Text>
+      
+      {/* Botón DEV (Visible solo para pruebas) */}
+      <TouchableOpacity 
+        style={{ backgroundColor: 'orange', padding: 10, borderRadius: 8, marginVertical: 10, alignItems: 'center' }} 
+        onPress={() => setDevModalVisible(true)}
+      >
+        <Text style={{ color: 'white', fontWeight: 'bold' }}>🕒 DEV: Cambiar Hora</Text>
+      </TouchableOpacity>
 
       {/* Tarjeta de Viaje Activo */}
       {activeReserva ? (
@@ -273,6 +307,36 @@ export default function HomeScreen({ route, navigation }: any) {
                 }
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── Modal DEV Time Machine ─── */}
+      <Modal visible={devModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>🕒 Máquina del Tiempo</Text>
+            <Text style={{ marginBottom: 15, textAlign: 'center', color: COLORS.textMuted }}>Solo para pruebas. Afecta al backend.</Text>
+            
+            <TouchableOpacity style={styles.btnPrimary} onPress={() => changeDevTime(1, 0)}>
+              <Text style={styles.btnText}>Adelantar 1 Hora</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={[styles.btnPrimary, { marginTop: 10 }]} onPress={() => changeDevTime(3, 0)}>
+              <Text style={styles.btnText}>Adelantar 3 Horas</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.btnPrimary, { marginTop: 10 }]} onPress={() => changeDevTime(0, 1)}>
+              <Text style={styles.btnText}>Adelantar 1 Día</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.btnDanger, { marginTop: 20 }]} onPress={resetDevTime}>
+              <Text style={styles.btnText}>Reiniciar Tiempo Real</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.btnPrimary, { marginTop: 15, backgroundColor: COLORS.textMuted }]} onPress={() => setDevModalVisible(false)}>
+              <Text style={styles.btnText}>Cerrar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
