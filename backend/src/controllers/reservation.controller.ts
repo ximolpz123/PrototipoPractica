@@ -124,7 +124,6 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
       accion: 'NUEVA_RESERVA',
       entidad: 'Reservation',
       entidadId: reservation._id,
-      detalles: `Reserva pendiente de aprobación desde ${inicio.toISOString()} hasta ${fin.toISOString()}`
       detalles: `Reserva solicitada desde ${inicio.toISOString()} hasta ${fin.toISOString()}`
     });
 
