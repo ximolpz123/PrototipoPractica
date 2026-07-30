@@ -1,9 +1,10 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Modal, Image, ScrollView, RefreshControl, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Modal, Image, ScrollView, RefreshControl, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants';
+import { useAlert } from '../context/AlertContext';
 import { reservationService, IReservation } from '../services/reservation.service';
 import { vehicleService, IVehicle } from '../services/vehicle.service';
 
@@ -110,6 +111,7 @@ const pickerStyles = StyleSheet.create({
 
 // ─── Pantalla principal ────────────────────────────────────────────────────────
 export default function AdminHistoryScreen() {
+  const { showAlert } = useAlert();
   const [reservas, setReservas] = useState<IReservation[]>([]);
   const [vehiculos, setVehiculos] = useState<IVehicle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -135,7 +137,7 @@ export default function AdminHistoryScreen() {
       setReservas(todas);
       setVehiculos(flota);
     } catch {
-      Alert.alert('Error', 'No se pudo cargar el historial.');
+      showAlert('Error', 'No se pudo cargar el historial.');
     } finally {
       setLoading(false);
       setRefreshing(false);

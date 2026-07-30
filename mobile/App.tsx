@@ -32,6 +32,7 @@ import CreateReservationScreen from './screens/CreateReservationScreen';
 import AdminDashboardScreen from './screens/AdminDashboardScreen';
 import AdminHistoryScreen from './screens/AdminHistoryScreen';
 import AdminMapScreen from './screens/AdminMapScreen';
+import { AlertProvider, useAlert } from './context/AlertContext';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -156,8 +157,10 @@ function AdminTabNavigator({ route }: any) {
   );
 }
 
-export default function App() {
-  const [user, setUser] = useState<IUser | null>(null);
+// ====== COMPONENTE PRINCIPAL ======
+function MainApp() {
+  const { showAlert } = useAlert();
+  const [user, setUser] = useState<any>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -175,7 +178,7 @@ export default function App() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Por favor ingresa tu email y contraseña');
+      showAlert('Error', 'Por favor ingresa tu email y contraseña');
       return;
     }
 
@@ -185,7 +188,7 @@ export default function App() {
       setUser(response.user);
     } catch (error: any) {
       const message = error.response?.data?.message || 'Error al iniciar sesión';
-      Alert.alert('Error', message);
+      showAlert('Error', message);
     } finally {
       setLoading(false);
     }
@@ -297,6 +300,14 @@ export default function App() {
         </View>
       </KeyboardAvoidingView>
     </ImageBackground>
+  );
+}
+
+export default function App() {
+  return (
+    <AlertProvider>
+      <MainApp />
+    </AlertProvider>
   );
 }
 

@@ -1,11 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, Alert, RefreshControl, ScrollView,
+  ActivityIndicator, RefreshControl, ScrollView,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants';
+import { useAlert } from '../context/AlertContext';
 import { reservationService, IReservation } from '../services/reservation.service';
 
 const ESTADO_COLOR: Record<string, string> = {
@@ -24,6 +25,7 @@ function formatFecha(dateStr: string) {
 }
 
 export default function AdminDashboardScreen({ navigation }: any) {
+  const { showAlert } = useAlert();
   const [reservas, setReservas] = useState<IReservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -36,7 +38,7 @@ export default function AdminDashboardScreen({ navigation }: any) {
       const todas = await reservationService.getAllReservations();
       setReservas(todas);
     } catch (err) {
-      Alert.alert('Error', 'No se pudieron cargar las reservas.');
+      showAlert('Error', 'No se pudieron cargar las reservas.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -56,7 +58,7 @@ export default function AdminDashboardScreen({ navigation }: any) {
 
   const handleUpdateEstado = async (id: string, nuevoEstado: 'aprobada' | 'cancelada') => {
     const accion = nuevoEstado === 'aprobada' ? 'aprobar' : 'rechazar';
-    Alert.alert(
+    showAlert(
       `¿${nuevoEstado === 'aprobada' ? 'Aprobar' : 'Rechazar'} reserva?`,
       `¿Seguro que deseas ${accion} esta solicitud?`,
       [
@@ -70,7 +72,7 @@ export default function AdminDashboardScreen({ navigation }: any) {
               await reservationService.updateStatus(id, nuevoEstado);
               await cargarReservas(true);
             } catch (err: any) {
-              Alert.alert('Error', err.response?.data?.message ?? 'No se pudo actualizar el estado.');
+              showAlert('Error', err.response?.data?.message ?? 'No se pudo actualizar el estado.');
             } finally {
               setActionLoading(null);
             }

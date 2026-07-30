@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, TextInput, Modal, ScrollView, RefreshControl, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput, Modal, ScrollView, RefreshControl, Linking } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../constants';
+import { useAlert } from '../context/AlertContext';
 import { locationService } from '../services/location.service';
 import { reservationService, IReservation } from '../services/reservation.service';
 import api from '../services/api';
 
 export default function HomeScreen({ route, navigation }: any) {
+  const { showAlert } = useAlert();
   const { user } = route.params;
 
   const [activeReserva, setActiveReserva] = useState<IReservation | null>(null);
@@ -25,22 +27,22 @@ export default function HomeScreen({ route, navigation }: any) {
   const changeDevTime = async (hours: number, days: number) => {
     try {
       await api.post('/dev/time', { action: 'set', hours, days });
-      Alert.alert('Éxito', 'Tiempo adelantado (simulado).');
+      showAlert('Éxito', 'Tiempo adelantado (simulado).');
       setDevModalVisible(false);
       loadReservas(true); // Recargar datos
     } catch (error) {
-      Alert.alert('Error', 'No se pudo cambiar el tiempo');
+      showAlert('Error', 'No se pudo cambiar el tiempo');
     }
   };
 
   const resetDevTime = async () => {
     try {
       await api.post('/dev/time', { action: 'reset' });
-      Alert.alert('Éxito', 'Reloj vuelto a la normalidad.');
+      showAlert('Éxito', 'Reloj vuelto a la normalidad.');
       setDevModalVisible(false);
       loadReservas(true);
     } catch (error) {
-      Alert.alert('Error', 'No se pudo reiniciar el tiempo');
+      showAlert('Error', 'No se pudo reiniciar el tiempo');
     }
   };
 
@@ -90,7 +92,7 @@ export default function HomeScreen({ route, navigation }: any) {
   const handleStartTrip = async () => {
     const reserva = activeReserva ?? upcomingReserva;
     if (!reserva) {
-      Alert.alert('Sin reserva', 'No tienes una reserva aprobada para iniciar.');
+      showAlert('Sin reserva', 'No tienes una reserva aprobada para iniciar.');
       return;
     }
 
@@ -106,14 +108,14 @@ export default function HomeScreen({ route, navigation }: any) {
         setIsTracking(true);
         navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'salida' });
       } else {
-        Alert.alert(
+        showAlert(
           'Permiso requerido',
           'Necesitas dar permiso de ubicación "Todo el tiempo" (Always) para que el GPS funcione en segundo plano.\n\nVe a Ajustes > Aplicaciones > Expo Go > Permisos > Ubicación > Siempre.'
         );
       }
     } catch (err: any) {
       const msg = err.response?.data?.message ?? 'Error al iniciar el viaje.';
-      Alert.alert('Error', msg);
+      showAlert('Error', msg);
     }
   };
 
@@ -128,7 +130,7 @@ export default function HomeScreen({ route, navigation }: any) {
     if (supported) {
       await Linking.openURL(url);
     } else {
-      Alert.alert('Error', 'No se pudo abrir la aplicación de mapas.');
+      showAlert('Error', 'No se pudo abrir la aplicación de mapas.');
     }
   };
 
@@ -144,11 +146,11 @@ export default function HomeScreen({ route, navigation }: any) {
 
     const km = parseInt(kmRetornoInput, 10);
     if (isNaN(km) || km < 0) {
-      Alert.alert('Kilometraje inválido', 'Ingresa un número válido de kilómetros.');
+      showAlert('Kilometraje inválido', 'Ingresa un número válido de kilómetros.');
       return;
     }
     if (reserva.kmSalida !== undefined && km < reserva.kmSalida) {
-      Alert.alert(
+      showAlert(
         'Kilometraje inválido',
         `El odómetro de retorno (${km} km) no puede ser menor al de salida (${reserva.kmSalida} km).`
       );
@@ -162,7 +164,7 @@ export default function HomeScreen({ route, navigation }: any) {
       navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'retorno', kmRetorno: km });
     } catch (err: any) {
       const msg = err.response?.data?.message ?? 'Error al iniciar el proceso de finalizar viaje.';
-      Alert.alert('Error', msg);
+      showAlert('Error', msg);
     }
   };
 

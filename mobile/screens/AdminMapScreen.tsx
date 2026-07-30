@@ -1,11 +1,12 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import MapView, { Marker, Callout } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
 import { COLORS } from '../constants';
+import { useAlert } from '../context/AlertContext';
 
 interface IVehicleLocation {
   _id: string;
@@ -20,6 +21,7 @@ interface IVehicleLocation {
 }
 
 export default function AdminMapScreen() {
+  const { showAlert } = useAlert();
   const [vehicles, setVehicles] = useState<IVehicleLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -31,7 +33,7 @@ export default function AdminMapScreen() {
       const response = await api.get('/tracking/active');
       setVehicles(response.data);
     } catch (err) {
-      Alert.alert('Error', 'No se pudieron cargar las ubicaciones.');
+      showAlert('Error', 'No se pudieron cargar las ubicaciones.');
     } finally {
       setLoading(false);
       setRefreshing(false);

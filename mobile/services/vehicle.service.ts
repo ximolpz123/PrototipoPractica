@@ -8,7 +8,7 @@ export interface IVehicle {
   anio: number;
   color: string;
   tipo: string;
-  estado: 'disponible' | 'reservado' | 'mantenimiento' | 'fuera_de_servicio';
+  estado: 'disponible' | 'reservado' | 'en_curso' | 'mantenimiento' | 'fuera_de_servicio';
   kilometraje: number;
   ultimoMantenimiento?: string;
 }

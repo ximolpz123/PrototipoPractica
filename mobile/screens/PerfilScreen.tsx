@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../constants';
+import { useAlert } from '../context/AlertContext';
 
 export default function PerfilScreen({ route }: any) {
+  const { showAlert } = useAlert();
   const handleLogout = route.params?.handleLogout || (() => {});
   const user = route.params?.user || {
     nombre: 'Joaquín',
@@ -24,7 +26,7 @@ export default function PerfilScreen({ route }: any) {
   const handleChangePhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso denegado', 'Necesitamos acceso a tu galería para cambiar la foto.');
+      showAlert('Permiso denegado', 'Necesitamos acceso a tu galería para cambiar la foto.');
       return;
     }
 

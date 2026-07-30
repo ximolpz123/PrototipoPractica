@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  Alert, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
+  ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS } from '../constants';
+import { useAlert } from '../context/AlertContext';
 import { vehicleService, IVehicle } from '../services/vehicle.service';
 import { reservationService } from '../services/reservation.service';
 
@@ -13,6 +14,7 @@ const TIPO_ICON: Record<string, string> = {
 };
 
 export default function CreateReservationScreen({ navigation }: any) {
+  const { showAlert } = useAlert();
   const [vehicles, setVehicles] = useState<IVehicle[]>([]);
   const [loadingVehicles, setLoadingVehicles] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -40,7 +42,7 @@ export default function CreateReservationScreen({ navigation }: any) {
       // Los reservados/en_curso aún se pueden seleccionar para reservar en otro horario
       setVehicles(all.filter((v) => v.estado !== 'mantenimiento' && v.estado !== 'fuera_de_servicio'));
     } catch (err) {
-      Alert.alert('Error', 'No se pudo cargar la lista de vehículos.');
+      showAlert('Error', 'No se pudo cargar la lista de vehículos.');
     } finally {
       setLoadingVehicles(false);
     }
@@ -54,15 +56,15 @@ export default function CreateReservationScreen({ navigation }: any) {
 
   const handleConfirm = async () => {
     if (!selectedVehicle) {
-      Alert.alert('Falta vehículo', 'Debes seleccionar un vehículo.');
+      showAlert('Falta vehículo', 'Debes seleccionar un vehículo.');
       return;
     }
     if (!destino.trim()) {
-      Alert.alert('Falta destino', 'Debes ingresar el destino del viaje.');
+      showAlert('Falta destino', 'Debes ingresar el destino del viaje.');
       return;
     }
     if (!motive.trim()) {
-      Alert.alert('Falta motivo', 'Debes ingresar el motivo del viaje.');
+      showAlert('Falta motivo', 'Debes ingresar el motivo del viaje.');
       return;
     }
 
@@ -70,11 +72,11 @@ export default function CreateReservationScreen({ navigation }: any) {
     const fechaFin = buildDateTime(date, endTime);
 
     if (fechaFin <= fechaInicio) {
-      Alert.alert('Horario inválido', 'La hora de fin debe ser posterior a la de inicio.');
+      showAlert('Horario inválido', 'La hora de fin debe ser posterior a la de inicio.');
       return;
     }
     if (fechaInicio < new Date()) {
-      Alert.alert('Fecha inválida', 'La fecha de inicio no puede ser en el pasado.');
+      showAlert('Fecha inválida', 'La fecha de inicio no puede ser en el pasado.');
       return;
     }
 
@@ -87,12 +89,12 @@ export default function CreateReservationScreen({ navigation }: any) {
         destino: destino.trim(),
         motivo: motive.trim(),
       });
-      Alert.alert('✅ Reserva Enviada', 'Tu solicitud fue enviada y está pendiente de aprobación.', [
+      showAlert('✅ Reserva Enviada', 'Tu solicitud fue enviada y está pendiente de aprobación.', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (err: any) {
       const msg = err.response?.data?.message ?? 'No se pudo crear la reserva. Intenta de nuevo.';
-      Alert.alert('Error', msg);
+      showAlert('Error', msg);
     } finally {
       setSubmitting(false);
     }
