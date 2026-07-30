@@ -72,6 +72,7 @@ function Vehicles() {
   const [errorRes, setErrorRes] = useState('');
   const [selectedReservation, setSelectedReservation] = useState<IReservation | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   // Leer usuario del localStorage
   const storedUser = localStorage.getItem('user');
@@ -156,10 +157,10 @@ function Vehicles() {
 
   return (
     <div className="dashboard-layout">
-      
+
       {/* ══════════ SIDEBAR AZUL ══════════ */}
       <aside className="dashboard-sidebar">
-        
+
         {/* Perfil */}
         <div className="sidebar-profile">
           <div className="sidebar-photo-upload" onClick={() => fileInputRef.current?.click()} title="Cambiar foto">
@@ -180,11 +181,8 @@ function Vehicles() {
             {user?.rol === 'admin' ? 'Administrador' : 'Conductor'}
           </span>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', marginTop: '4px', fontSize: '13px', color: 'rgba(255,255,255,0.9)' }}>
-            {user?.departamento && (
-              <span><strong>Dpto:</strong> {user.departamento}</span>
-            )}
             {user?.rol !== 'admin' && (
-              <span><strong>Licencia:</strong> <span style={{ color: '#4ade80', fontWeight: 'bold' }}>AL DÍA</span></span>
+              <span><strong>Licencia:</strong> <span style={{ color: user?.licenciaAlDia === false ? '#ef4444' : '#4ade80', fontWeight: 'bold' }}>{user?.licenciaAlDia === false ? 'NO AL DÍA' : 'AL DÍA'}</span></span>
             )}
           </div>
         </div>
@@ -192,27 +190,24 @@ function Vehicles() {
         {/* Navegación en orden */}
         <div className="sidebar-nav">
           <button className={`sidebar-btn${activeTab === 'catalogo' ? ' active' : ''}`} onClick={() => setActiveTab('catalogo')}>
-            <span className="btn-icon">🚗</span> Ver Vehículos
+            <span className="btn-icon"></span> Ver Vehículos
           </button>
           <button className={`sidebar-btn${activeTab === 'reservaciones' ? ' active' : ''}`} onClick={() => setActiveTab('reservaciones')}>
-            <span className="btn-icon">📋</span> Mis Reservaciones
+            <span className="btn-icon"></span> Mis Reservaciones
           </button>
         </div>
 
         {/* Logout bottom */}
         <div className="sidebar-logout">
-          <button className="sidebar-logout-btn" onClick={() => {
-            localStorage.removeItem('token');
-            navigate('/login');
-          }}>
-            <span className="btn-icon">🚪</span> Cerrar Sesión
+          <button className="sidebar-logout-btn" onClick={() => setShowLogoutModal(true)}>
+            <span className="btn-icon"></span> Cerrar Sesión
           </button>
         </div>
       </aside>
 
       {/* ══════════ MAIN CONTENT ══════════ */}
       <main className="dashboard-content">
-        
+
         {/* ── Bienvenida ── */}
         <div className="welcome-header" style={{ maxWidth: '100%' }}>
           <span className="welcome-text">
@@ -220,217 +215,261 @@ function Vehicles() {
           </span>
         </div>
 
-      {/* ── Panel: Catálogo ── */}
-      {activeTab === 'catalogo' && (
-        <div className="vehicles-grid">
-          {loadingVehicles && <p style={{ textAlign: 'center', width: '100%' }}>Cargando vehículos...</p>}
-          {!loadingVehicles && vehiclesList.map((v) => {
-            const imgUrl = getVehicleImage(v);
-            return (
-              <div key={v._id} className="vehicle-card">
-                <img
-                  src={imgUrl}
-                  alt={`${v.marca} ${v.modelo}`}
-                  className="vehicle-card-img"
-                />
-                <div className="vehicle-card-body">
-                  <h2 className="vehicle-card-title">{v.marca} {v.modelo}</h2>
-                  <div className="vehicle-card-info">
-                    <span><strong>Patente:</strong> {v.placa}</span>
-                    <span><strong>Año:</strong> {v.anio}</span>
-                    <span><strong>Color:</strong> {v.color}</span>
-                    <span><strong>Kilometraje:</strong> {v.kilometraje} km</span>
-                    {v.ultimoMantenimiento && (
-                      <span style={{ fontSize: '0.9rem', color: '#555', marginTop: '4px', display: 'block' }}>
-                        <strong>Último Mantenimiento:</strong><br />
-                        {new Date(v.ultimoMantenimiento).toLocaleString('es-CL')}
-                      </span>
-                    )}
+        {/* ── Panel: Catálogo ── */}
+        {activeTab === 'catalogo' && (
+          <div className="vehicles-grid">
+            {loadingVehicles && <p style={{ textAlign: 'center', width: '100%' }}>Cargando vehículos...</p>}
+            {!loadingVehicles && vehiclesList.map((v) => {
+              const imgUrl = getVehicleImage(v);
+              return (
+                <div key={v._id} className="vehicle-card">
+                  <img
+                    src={imgUrl}
+                    alt={`${v.marca} ${v.modelo}`}
+                    className="vehicle-card-img"
+                  />
+                  <div className="vehicle-card-body">
+                    <h2 className="vehicle-card-title">{v.marca} {v.modelo}</h2>
+                    <div className="vehicle-card-info">
+                      <span><strong>Patente:</strong> {v.placa}</span>
+                      <span><strong>Año:</strong> {v.anio}</span>
+                      <span><strong>Color:</strong> {v.color}</span>
+                      <span><strong>Kilometraje:</strong> {v.kilometraje} km</span>
+                      {v.ultimoMantenimiento && (
+                        <span style={{ fontSize: '0.9rem', color: '#555', marginTop: '4px', display: 'block' }}>
+                          <strong>Último Mantenimiento:</strong><br />
+                          {new Date(v.ultimoMantenimiento).toLocaleString('es-CL')}
+                        </span>
+                      )}
+                    </div>
+                    <span
+                      className="status-badge"
+                      style={{ backgroundColor: ESTADO_COLORS[v.estado] || '#gray' }}
+                    >
+                      {ESTADO_LABELS[v.estado] || v.estado}
+                    </span>
+                    <button
+                      id={`ver-vehiculo-${v._id}`}
+                      className="btn btn-sm"
+                      style={{ marginTop: '10px' }}
+                      onClick={() => setModalImg(imgUrl)}
+                    >
+                      Ver Vehículo
+                    </button>
                   </div>
-                  <span
-                    className="status-badge"
-                    style={{ backgroundColor: ESTADO_COLORS[v.estado] || '#gray' }}
-                  >
-                    {ESTADO_LABELS[v.estado] || v.estado}
-                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Panel: Reservaciones ── */}
+        {activeTab === 'reservaciones' && (
+          <div className="reservations-panel">
+            <button
+              id="btn-crear-reservacion"
+              className="btn btn-create"
+              onClick={() => navigate('/reservations')}
+            >
+              ➕ Crear Reservación
+            </button>
+
+            {loadingRes && <p className="res-status">Cargando reservaciones…</p>}
+            {errorRes && <p className="res-status res-error">{errorRes}</p>}
+
+            {!loadingRes && !errorRes && reservations.length === 0 && (
+              <p className="res-status">No tiene ninguna reservación</p>
+            )}
+
+            <div className="reservations-list">
+              {reservations.map((r) => (
+                <div key={r._id} className="reservation-card">
+                  <div className="reservation-card-header">
+                    <span className="res-vehicle-name"> {getVehicleName(r.vehiculo)}</span>
+                    <span
+                      className="status-badge"
+                      style={{
+                        backgroundColor:
+                          r.estado === 'aprobada' ? '#22c55e' :
+                            r.estado === 'pendiente' ? '#f59e0b' :
+                              r.estado === 'en_curso' ? '#3b82f6' :
+                                r.estado === 'completada' ? '#8b5cf6' : '#ef4444',
+                      }}
+                    >
+                      {r.estado.charAt(0).toUpperCase() + r.estado.slice(1).replace('_', ' ')}
+                    </span>
+                  </div>
+                  <div className="reservation-card-info">
+                    <span> <strong>Inicio:</strong> {new Date(r.fechaInicio).toLocaleDateString('es-CL')}</span>
+                    <span> <strong>Fin:</strong> {new Date(r.fechaFin).toLocaleDateString('es-CL')}</span>
+                    {r.destino && <span> <strong>Destino:</strong> {r.destino}</span>}
+                    {r.motivo && <span> <strong>Motivo:</strong> {r.motivo}</span>}
+                  </div>
                   <button
-                    id={`ver-vehiculo-${v._id}`}
-                    className="btn btn-sm"
-                    style={{ marginTop: '10px' }}
-                    onClick={() => setModalImg(imgUrl)}
+                    className="btn"
+                    style={{ marginTop: '1rem', width: '100%' }}
+                    onClick={() => setSelectedReservation(r)}
                   >
-                    🔍 Ver Vehículo
+                    Ver Reservación
                   </button>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ── Panel: Reservaciones ── */}
-      {activeTab === 'reservaciones' && (
-        <div className="reservations-panel">
-          <button
-            id="btn-crear-reservacion"
-            className="btn btn-create"
-            onClick={() => navigate('/reservations')}
-          >
-            ➕ Crear Reservación
-          </button>
-
-          {loadingRes && <p className="res-status">Cargando reservaciones…</p>}
-          {errorRes && <p className="res-status res-error">{errorRes}</p>}
-
-          {!loadingRes && !errorRes && reservations.length === 0 && (
-            <p className="res-status">No tiene ninguna reservación</p>
-          )}
-
-          <div className="reservations-list">
-            {reservations.map((r) => (
-              <div key={r._id} className="reservation-card">
-                <div className="reservation-card-header">
-                  <span className="res-vehicle-name">🚗 {getVehicleName(r.vehiculo)}</span>
-                  <span
-                    className="status-badge"
-                    style={{
-                      backgroundColor:
-                        r.estado === 'aprobada' ? '#22c55e' :
-                          r.estado === 'pendiente' ? '#f59e0b' :
-                            r.estado === 'en_curso' ? '#3b82f6' :
-                              r.estado === 'completada' ? '#8b5cf6' : '#ef4444',
-                    }}
-                  >
-                    {r.estado.charAt(0).toUpperCase() + r.estado.slice(1).replace('_', ' ')}
-                  </span>
-                </div>
-                <div className="reservation-card-info">
-                  <span>📅 <strong>Inicio:</strong> {new Date(r.fechaInicio).toLocaleDateString('es-CL')}</span>
-                  <span>📅 <strong>Fin:</strong> {new Date(r.fechaFin).toLocaleDateString('es-CL')}</span>
-                  {r.destino && <span>📍 <strong>Destino:</strong> {r.destino}</span>}
-                  {r.motivo && <span>📝 <strong>Motivo:</strong> {r.motivo}</span>}
-                </div>
-                <button
-                  className="btn"
-                  style={{ marginTop: '1rem', width: '100%' }}
-                  onClick={() => setSelectedReservation(r)}
-                >
-                  Ver Reservación
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Modal imagen ── */}
-      {modalImg && (
-        <div
-          id="modal-overlay"
-          className="modal-overlay"
-          onClick={() => setModalImg(null)}
-        >
-          <img
-            src={modalImg}
-            alt="Vista ampliada"
-            className="modal-img"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
-
-      {/* ── Modal Reservación ── */}
-      {selectedReservation && (
-        <div
-          className="modal-overlay"
-          onClick={() => {
-            setSelectedReservation(null);
-            setShowDeleteConfirm(false);
-          }}
-        >
-          <div
-            className="modal-content"
-            style={{
-              backgroundColor: 'white',
-              padding: '2rem',
-              borderRadius: '8px',
-              maxWidth: '500px',
-              width: '90%',
-              color: '#000',
-              textAlign: 'center',
-              position: 'relative'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => {
-                setSelectedReservation(null);
-                setShowDeleteConfirm(false);
-              }}
-              style={{
-                position: 'absolute',
-                top: '12px',
-                right: '12px',
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                border: 'none',
-                backgroundColor: '#e5e7eb',
-                color: '#000',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 0
-              }}
-            >
-              X
-            </button>
-            <h2 style={{ marginTop: 0, marginBottom: '1.5rem', color: '#000' }}>Detalles de Reservación</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem', textAlign: 'left', fontSize: '1.1rem' }}>
-              <p style={{ margin: 0 }}><strong>Tipo de vehículo:</strong> {getVehicleName(selectedReservation.vehiculo)}</p>
-              <p style={{ margin: 0 }}><strong>Estado:</strong> {selectedReservation.estado.charAt(0).toUpperCase() + selectedReservation.estado.slice(1).replace('_', ' ')}</p>
-              <p style={{ margin: 0 }}><strong>Inicio:</strong> {new Date(selectedReservation.fechaInicio).toLocaleString('es-CL')}</p>
-              <p style={{ margin: 0 }}><strong>Fin:</strong> {new Date(selectedReservation.fechaFin).toLocaleString('es-CL')}</p>
-              {selectedReservation.destino && <p style={{ margin: 0 }}><strong>Destino:</strong> {selectedReservation.destino}</p>}
-              {selectedReservation.motivo && <p style={{ margin: 0 }}><strong>Motivo:</strong> {selectedReservation.motivo}</p>}
+              ))}
             </div>
+          </div>
+        )}
 
-            {showDeleteConfirm ? (
-              <div style={{ borderTop: '1px solid #ccc', paddingTop: '1.5rem' }}>
-                <p style={{ fontWeight: 'bold', marginBottom: '1.5rem', fontSize: '1.2rem', color: '#000' }}>¿Quiere eliminar esta Reservación?</p>
+        {/* ── Modal imagen ── */}
+        {modalImg && (
+          <div
+            id="modal-overlay"
+            className="modal-overlay"
+            onClick={() => setModalImg(null)}
+          >
+            <img
+              src={modalImg}
+              alt="Vista ampliada"
+              className="modal-img"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
+
+        {/* ── Modal Reservación ── */}
+        {selectedReservation && (
+          <div
+            className="modal-overlay"
+            onClick={() => {
+              setSelectedReservation(null);
+              setShowDeleteConfirm(false);
+            }}
+          >
+            <div
+              className="modal-content"
+              style={{
+                backgroundColor: 'white',
+                padding: '2rem',
+                borderRadius: '8px',
+                maxWidth: '500px',
+                width: '90%',
+                color: '#000',
+                textAlign: 'center',
+                position: 'relative'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => {
+                  setSelectedReservation(null);
+                  setShowDeleteConfirm(false);
+                }}
+                style={{
+                  position: 'absolute',
+                  top: '12px',
+                  right: '12px',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  border: 'none',
+                  backgroundColor: '#e5e7eb',
+                  color: '#000',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0
+                }}
+              >
+                X
+              </button>
+              <h2 style={{ marginTop: 0, marginBottom: '1.5rem', color: '#000' }}>Detalles de Reservación</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem', textAlign: 'left', fontSize: '1.1rem' }}>
+                <p style={{ margin: 0 }}><strong>Tipo de vehículo:</strong> {getVehicleName(selectedReservation.vehiculo)}</p>
+                <p style={{ margin: 0 }}><strong>Estado:</strong> {selectedReservation.estado.charAt(0).toUpperCase() + selectedReservation.estado.slice(1).replace('_', ' ')}</p>
+                <p style={{ margin: 0 }}><strong>Inicio:</strong> {new Date(selectedReservation.fechaInicio).toLocaleString('es-CL')}</p>
+                <p style={{ margin: 0 }}><strong>Fin:</strong> {new Date(selectedReservation.fechaFin).toLocaleString('es-CL')}</p>
+                {selectedReservation.destino && <p style={{ margin: 0 }}><strong>Destino:</strong> {selectedReservation.destino}</p>}
+                {selectedReservation.motivo && <p style={{ margin: 0 }}><strong>Motivo:</strong> {selectedReservation.motivo}</p>}
+              </div>
+
+              {showDeleteConfirm ? (
+                <div style={{ borderTop: '1px solid #ccc', paddingTop: '1.5rem' }}>
+                  <p style={{ fontWeight: 'bold', marginBottom: '1.5rem', fontSize: '1.2rem', color: '#000' }}>¿Quiere eliminar esta Reservación?</p>
+                  <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                    <button
+                      className="btn"
+                      style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', padding: '0.5rem 2rem', border: '2px solid black' }}
+                      onClick={() => handleDeleteReservation(selectedReservation._id)}
+                    >
+                      Si
+                    </button>
+                    <button
+                      className="btn"
+                      style={{ backgroundColor: '#175fbd', color: 'black', padding: '0.5rem 2rem' }}
+                      onClick={() => setShowDeleteConfirm(false)}
+                    >
+                      No
+                    </button>
+                  </div>
+                </div>
+              ) : (
                 <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
                   <button
                     className="btn"
-                    style={{ backgroundColor: 'red', color: 'black', padding: '0.5rem 2rem' }}
-                    onClick={() => handleDeleteReservation(selectedReservation._id)}
+                    style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black' }}
+                    onClick={() => setShowDeleteConfirm(true)}
                   >
-                    Si
-                  </button>
-                  <button
-                    className="btn"
-                    style={{ backgroundColor: '#175fbd', color: 'black', padding: '0.5rem 2rem' }}
-                    onClick={() => setShowDeleteConfirm(false)}
-                  >
-                    No
+                    Eliminar Reservación
                   </button>
                 </div>
-              </div>
-            ) : (
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Modal Logout ── */}
+        {showLogoutModal && (
+          <div
+            className="modal-overlay"
+            onClick={() => setShowLogoutModal(false)}
+          >
+            <div
+              className="modal-content"
+              style={{
+                backgroundColor: 'white',
+                padding: '2rem',
+                borderRadius: '8px',
+                maxWidth: '400px',
+                width: '90%',
+                color: '#000',
+                textAlign: 'center',
+                position: 'relative'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 style={{ marginTop: 0, marginBottom: '1.5rem', color: '#000', fontSize: '1.5rem' }}>¿Seguro que quiere Cerrar Sesión?</h2>
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
                 <button
                   className="btn"
-                  style={{ backgroundColor: 'red', color: 'black' }}
-                  onClick={() => setShowDeleteConfirm(true)}
+                  style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', padding: '0.5rem 2rem', marginTop: 0 }}
+                  onClick={() => {
+                    localStorage.removeItem('token');
+                    navigate('/login');
+                  }}
                 >
-                  Eliminar Reservación
+                  Sí
+                </button>
+                <button
+                  className="btn"
+                  style={{ background: '#478EC6', color: 'black', padding: '0.5rem 2rem', marginTop: 0 }}
+                  onClick={() => setShowLogoutModal(false)}
+                >
+                  No
                 </button>
               </div>
-            )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
       </main>
     </div>
   );

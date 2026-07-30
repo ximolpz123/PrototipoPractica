@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import UserProfileMenu from '../components/UserProfileMenu';
-import type { IVehicle } from '../types';
+import type { IUser, IVehicle } from '../types';
 
 import camionetaBlancaImg from '../assets/camioneta-blanca.png';
 import autoCafeImg from '../assets/auto-cafe.png';
@@ -42,6 +41,34 @@ const getVehicleImage = (v: IVehicle): string => {
 
 function Reservations() {
   const navigate = useNavigate();
+
+  let user: IUser | null = null;
+  try {
+    user = JSON.parse(localStorage.getItem('user') || 'null');
+  } catch {
+    /* ignore */
+  }
+
+  const defaultProfileImg = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+  const profileImgKey = user ? `profile_img_${user.id}` : 'profile_img_default';
+  const [profileImg, setProfileImg] = useState<string>(
+    localStorage.getItem(profileImgKey) || defaultProfileImg
+  );
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        setProfileImg(result);
+        localStorage.setItem(profileImgKey, result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const [vehiculoId, setVehiculoId] = useState('');
   const [fechaInicio, setFechaInicio] = useState('');
@@ -121,8 +148,46 @@ function Reservations() {
   };
 
   return (
-    <div className="page" style={{ position: 'relative', width: '100%', boxSizing: 'border-box', padding: '2rem' }}>
-      <UserProfileMenu />
+    <div className="dashboard-layout">
+      {/* ══════════ SIDEBAR AZUL ══════════ */}
+      <aside className="dashboard-sidebar">
+        {/* Perfil */}
+        <div className="sidebar-profile">
+          <div className="sidebar-photo-upload" onClick={() => fileInputRef.current?.click()} title="Cambiar foto">
+            <img src={profileImg} alt="Perfil" className="sidebar-profile-img" />
+            <div className="sidebar-photo-overlay">📷</div>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            style={{ display: 'none' }}
+          />
+          <span className="sidebar-profile-name">
+            {user?.nombre ?? ''} {user?.apellido ?? ''}
+          </span>
+          <span className="sidebar-profile-role">
+            {user?.rol === 'admin' ? 'Administrador' : 'Conductor'}
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', marginTop: '4px', fontSize: '13px', color: 'rgba(255,255,255,0.9)' }}>
+            {user?.rol !== 'admin' && (
+              <span><strong>Licencia:</strong> <span style={{ color: user?.licenciaAlDia === false ? '#ef4444' : '#4ade80', fontWeight: 'bold' }}>{user?.licenciaAlDia === false ? 'NO AL DÍA' : 'AL DÍA'}</span></span>
+            )}
+          </div>
+        </div>
+
+        {/* Cerrar sesión */}
+        <div className="sidebar-logout">
+          <button className="sidebar-logout-btn" onClick={() => setShowLogoutModal(true)}>
+            Cerrar Sesión
+          </button>
+        </div>
+      </aside>
+
+      {/* ══════════ CONTENIDO PRINCIPAL ══════════ */}
+      <main className="dashboard-content">
+        <div className="page" style={{ position: 'relative', width: '100%', boxSizing: 'border-box', padding: '2rem' }}>
 
       <h1 style={{ textAlign: 'center', marginTop: '3rem', marginBottom: '1.5rem', fontSize: '2rem', color: '#000' }}>
         Cree su Reservación
@@ -268,20 +333,66 @@ function Reservations() {
               disabled={loading || vehiculoError || !vehiculoId || !fechaInicio || !fechaFin || !destino}
               style={{ backgroundColor: '#175fbd', color: 'black', opacity: (loading || vehiculoError || !vehiculoId || !fechaInicio || !fechaFin || !destino) ? 0.5 : 1 }}
             >
-              {loading ? 'Enviando…' : '✅ Crear la Reservación'}
+              {loading ? 'Enviando…' : ' Crear la Reservación'}
             </button>
             <button
               id="btn-cancelar-reservacion"
               type="button"
               className="btn"
               onClick={handleCancel}
-              style={{ backgroundColor: '#e5e7eb', color: 'black' }}
+              style={{ backgroundColor: '#002266ff', color: 'black' }}
             >
               ✖ Cancelar
             </button>
           </div>
         </form>
       )}
+        </div>
+
+        {/* ── Modal Logout ── */}
+        {showLogoutModal && (
+          <div
+            className="modal-overlay"
+            onClick={() => setShowLogoutModal(false)}
+          >
+            <div
+              className="modal-content"
+              style={{
+                backgroundColor: 'white',
+                padding: '2rem',
+                borderRadius: '8px',
+                maxWidth: '400px',
+                width: '90%',
+                color: '#000',
+                textAlign: 'center',
+                position: 'relative'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 style={{ marginTop: 0, marginBottom: '1.5rem', color: '#000', fontSize: '1.5rem' }}>¿Seguro que quiere Cerrar Sesión?</h2>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                <button
+                  className="btn"
+                  style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', padding: '0.5rem 2rem', marginTop: 0 }}
+                  onClick={() => {
+                    localStorage.removeItem('token');
+                    navigate('/login');
+                  }}
+                >
+                  Sí
+                </button>
+                <button
+                  className="btn"
+                  style={{ background: '#478EC6', color: 'black', padding: '0.5rem 2rem', marginTop: 0 }}
+                  onClick={() => setShowLogoutModal(false)}
+                >
+                  No
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }

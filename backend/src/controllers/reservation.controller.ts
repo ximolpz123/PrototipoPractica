@@ -82,7 +82,7 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
       return;
     }
 
-    // ── Crear la reserva (Estado: Aprobada) ──────────────────────────────
+    // ── Crear la reserva (Estado: Pendiente) ───────────────────────────────────────
     const reservation = await Reservation.create({
       usuario: req.userId,
       vehiculo,
@@ -90,16 +90,16 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
       fechaFin: fin,
       destino,
       motivo,
-      estado: 'aprobada'
+      estado: 'pendiente'
     });
 
-    // ── Registro de Auditoría (Trazabilidad Completa) ────────────────────
+    // ── Registro de Auditoría (Trazabilidad Completa) ────────────────────────
     await Audit.create({
       usuario: req.userId,
       accion: 'NUEVA_RESERVA',
       entidad: 'Reservation',
       entidadId: reservation._id,
-      detalles: `Reserva aprobada desde ${inicio.toISOString()} hasta ${fin.toISOString()}`
+      detalles: `Reserva pendiente de aprobación desde ${inicio.toISOString()} hasta ${fin.toISOString()}`
     });
 
     const populated = await reservation.populate([
