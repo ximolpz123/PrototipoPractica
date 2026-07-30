@@ -23,12 +23,31 @@ export default function HomeScreen({ route, navigation }: any) {
 
   // Modal DEV para Máquina del Tiempo
   const [devModalVisible, setDevModalVisible] = useState(false);
+  const [serverOffset, setServerOffset] = useState(0);
+  const [simulatedTime, setSimulatedTime] = useState(new Date());
+
+  const fetchTimeOffset = async () => {
+    try {
+      const res = await api.get('/dev/time');
+      setServerOffset(res.data.offset);
+    } catch (e) {
+      console.log('No se pudo obtener offset del server', e);
+    }
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSimulatedTime(new Date(Date.now() + serverOffset));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [serverOffset]);
 
   const changeDevTime = async (hours: number, days: number) => {
     try {
       await api.post('/dev/time', { action: 'set', hours, days });
       showAlert('Éxito', 'Tiempo adelantado (simulado).');
       setDevModalVisible(false);
+      await fetchTimeOffset();
       loadReservas(true); // Recargar datos
     } catch (error) {
       showAlert('Error', 'No se pudo cambiar el tiempo');
@@ -40,6 +59,7 @@ export default function HomeScreen({ route, navigation }: any) {
       await api.post('/dev/time', { action: 'reset' });
       showAlert('Éxito', 'Reloj vuelto a la normalidad.');
       setDevModalVisible(false);
+      await fetchTimeOffset();
       loadReservas(true);
     } catch (error) {
       showAlert('Error', 'No se pudo reiniciar el tiempo');
@@ -69,6 +89,8 @@ export default function HomeScreen({ route, navigation }: any) {
       // Sincronizar estado del GPS
       const tracking = await locationService.isTracking();
       setIsTracking(tracking);
+
+      await fetchTimeOffset();
     } catch (err) {
       console.error('Error cargando reservas:', err);
     } finally {
@@ -191,9 +213,24 @@ export default function HomeScreen({ route, navigation }: any) {
       }
     >
       {/* Bienvenida */}
-      <Text style={styles.welcomeTitle}>¡Bienvenido! 👋</Text>
-      <Text style={styles.welcomeName}>{user.nombre} {user.apellido}</Text>
-      <Text style={styles.welcomeRole}>Rol: {user.rol}</Text>
+      <View style={styles.headerRow}>
+        <View>
+          <Text style={styles.welcomeTitle}>¡Bienvenido! 👋</Text>
+          <Text style={styles.welcomeName}>{user.nombre} {user.apellido}</Text>
+          <Text style={styles.welcomeRole}>Rol: {user.rol}</Text>
+        </View>
+        
+        {/* Reloj visible */}
+        <View style={styles.clockContainer}>
+          <Text style={styles.clockTime}>
+            {simulatedTime.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          </Text>
+          <Text style={styles.clockDate}>
+            {simulatedTime.toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}
+          </Text>
+          {serverOffset !== 0 && <Text style={styles.clockDevBadge}>SIMULADO</Text>}
+        </View>
+      </View>
       
       {/* Botón DEV (Visible solo para pruebas) */}
       <TouchableOpacity 
@@ -378,6 +415,42 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.textMuted,
     textTransform: 'capitalize',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  clockContainer: {
+    alignItems: 'flex-end',
+    backgroundColor: '#F8FAFC',
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  clockTime: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    fontVariant: ['tabular-nums'],
+  },
+  clockDate: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  clockDevBadge: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#FFF',
+    backgroundColor: '#FFA500',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 4,
+    overflow: 'hidden',
   },
   welcomeDept: {
     fontSize: 13,
