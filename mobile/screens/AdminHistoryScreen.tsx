@@ -28,7 +28,6 @@ function isSameDay(date1: Date, date2: Date) {
     && date1.getDate() === date2.getDate();
 }
 
-type TipoFoto = 'todas' | 'salida' | 'retorno';
 
 // ─── Componente de Picker personalizado (Combobox) ────────────────────────────
 function Picker({
@@ -121,7 +120,6 @@ export default function AdminHistoryScreen() {
   const [filtroVehiculo, setFiltroVehiculo] = useState('');
   const [filtroFecha, setFiltroFecha] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [filtroTipoFoto, setFiltroTipoFoto] = useState<TipoFoto>('todas');
 
   // Modal detalle
   const [selectedReserva, setSelectedReserva] = useState<IReservation | null>(null);
@@ -157,10 +155,6 @@ export default function AdminHistoryScreen() {
     return opts;
   }, [vehiculos]);
 
-  const tipoFotoOptions: { label: string; value: TipoFoto }[] = [
-    { label: 'Fotos de Salida', value: 'salida' },
-    { label: 'Fotos de Retorno', value: 'retorno' },
-  ];
 
   // ─── Aplicar filtros ──────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -174,20 +168,15 @@ export default function AdminHistoryScreen() {
         if (!isSameDay(fechaViaje, filtroFecha)) return false;
       }
 
-      // Filtro tipo de foto: solo mostrar reservas que tengan ese tipo de fotos
-      if (filtroTipoFoto === 'salida' && (!r.fotosSalida || r.fotosSalida.length === 0)) return false;
-      if (filtroTipoFoto === 'retorno' && (!r.fotosRetorno || r.fotosRetorno.length === 0)) return false;
-
       return true;
     });
-  }, [reservas, filtroVehiculo, filtroFecha, filtroTipoFoto]);
+  }, [reservas, filtroVehiculo, filtroFecha]);
 
-  const hayFiltros = filtroVehiculo !== '' || filtroFecha !== null || filtroTipoFoto !== 'todas';
+  const hayFiltros = filtroVehiculo !== '' || filtroFecha !== null;
 
   const limpiarFiltros = () => {
     setFiltroVehiculo('');
     setFiltroFecha(null);
-    setFiltroTipoFoto('todas');
   };
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
@@ -273,13 +262,6 @@ export default function AdminHistoryScreen() {
             </Text>
             <Ionicons name="calendar-outline" size={14} color={COLORS.textMuted} />
           </TouchableOpacity>
-          <View style={{ width: 10 }} />
-          <Picker
-            label="Evidencia"
-            value={filtroTipoFoto}
-            options={tipoFotoOptions}
-            onChange={(v) => setFiltroTipoFoto(v as TipoFoto)}
-          />
         </View>
 
         {showDatePicker && (
