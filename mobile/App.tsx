@@ -11,6 +11,7 @@ import {
   Platform,
   ImageBackground,
   Image,
+  Modal,
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -28,10 +29,15 @@ import MisReservasScreen from './screens/MisReservasScreen';
 import FlotaScreen from './screens/FlotaScreen';
 import PerfilScreen from './screens/PerfilScreen';
 import CreateReservationScreen from './screens/CreateReservationScreen';
+import AdminDashboardScreen from './screens/AdminDashboardScreen';
+import AdminHistoryScreen from './screens/AdminHistoryScreen';
+import AdminMapScreen from './screens/AdminMapScreen';
+import { AlertProvider, useAlert } from './context/AlertContext';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
+// ── Navegación del CONDUCTOR ────────────────────────────────────────────────
 function MainTabNavigator({ route }: any) {
   const { user, handleLogout } = route.params;
 
@@ -58,30 +64,103 @@ function MainTabNavigator({ route }: any) {
         headerShown: true,
       })}
     >
-      <Tab.Screen 
-        name="Inicio" 
-        component={HomeScreen} 
-        initialParams={{ user }} 
-      />
-      <Tab.Screen 
-        name="Reservas" 
-        component={MisReservasScreen} 
-      />
-      <Tab.Screen 
-        name="Flota" 
-        component={FlotaScreen} 
-      />
-      <Tab.Screen 
-        name="Perfil" 
-        component={PerfilScreen} 
-        initialParams={{ user, handleLogout }} 
-      />
+      <Tab.Screen name="Inicio" component={HomeScreen} initialParams={{ user }} />
+      <Tab.Screen name="Reservas" component={MisReservasScreen} />
+      <Tab.Screen name="Flota" component={FlotaScreen} />
+      <Tab.Screen name="Perfil" component={PerfilScreen} initialParams={{ user, handleLogout }} />
     </Tab.Navigator>
   );
 }
 
-export default function App() {
-  const [user, setUser] = useState<IUser | null>(null);
+// ── Navegación del ADMINISTRADOR ─────────────────────────────────────────────
+function AdminTabNavigator({ route }: any) {
+  const { user, handleLogout } = route.params;
+  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+
+  return (
+    <>
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName: keyof typeof Ionicons.glyphMap = 'grid';
+          if (route.name === 'Dashboard') {
+            iconName = focused ? 'grid' : 'grid-outline';
+          } else if (route.name === 'Mapa Admin') {
+            iconName = focused ? 'map' : 'map-outline';
+          } else if (route.name === 'Flota Admin') {
+            iconName = focused ? 'car' : 'car-outline';
+          } else if (route.name === 'Historial Admin') {
+            iconName = focused ? 'list' : 'list-outline';
+          }
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.textMuted,
+        headerShown: true,
+      })}
+    >
+      <Tab.Screen
+        name="Dashboard"
+        component={AdminDashboardScreen}
+        options={{
+          title: 'Panel Admin',
+          tabBarLabel: 'Solicitudes',
+          headerRight: () => (
+            <TouchableOpacity 
+              onPress={() => setLogoutModalVisible(true)} 
+              style={{ marginRight: 15 }}
+            >
+              <Ionicons name="log-out-outline" size={24} color={COLORS.danger} />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Mapa Admin"
+        component={AdminMapScreen}
+        options={{ title: 'Mapa en Tiempo Real', tabBarLabel: 'Mapa' }}
+      />
+      <Tab.Screen
+        name="Flota Admin"
+        component={FlotaScreen}
+        options={{ title: 'Flota de Vehículos', tabBarLabel: 'Flota' }}
+      />
+      <Tab.Screen
+        name="Historial Admin"
+        component={AdminHistoryScreen}
+        options={{ title: 'Auditoría y Evidencia', tabBarLabel: 'Historial' }}
+      />
+    </Tab.Navigator>
+    
+      {/* Modal de confirmación de cierre de sesión con el diseño de la app */}
+      <Modal visible={logoutModalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalIconContainer}>
+              <Ionicons name="log-out-outline" size={40} color={COLORS.danger} />
+            </View>
+            <Text style={styles.modalTitle}>Cerrar Sesión</Text>
+            <Text style={styles.modalText}>¿Estás seguro de que deseas cerrar sesión y salir del panel de administración?</Text>
+            
+            <View style={styles.modalButtonsRow}>
+              <TouchableOpacity style={styles.modalBtnCancel} onPress={() => setLogoutModalVisible(false)}>
+                <Text style={styles.modalBtnCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalBtnDanger} onPress={handleLogout}>
+                <Text style={styles.modalBtnDangerText}>Sí, Salir</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+}
+
+// ====== COMPONENTE PRINCIPAL ======
+function MainApp() {
+  const { showAlert } = useAlert();
+  const [user, setUser] = useState<any>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -99,7 +178,7 @@ export default function App() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Por favor ingresa tu email y contraseña');
+      showAlert('Error', 'Por favor ingresa tu email y contraseña');
       return;
     }
 
@@ -109,7 +188,7 @@ export default function App() {
       setUser(response.user);
     } catch (error: any) {
       const message = error.response?.data?.message || 'Error al iniciar sesión';
-      Alert.alert('Error', message);
+      showAlert('Error', message);
     } finally {
       setLoading(false);
     }
@@ -132,27 +211,33 @@ export default function App() {
     );
   }
 
-  // Si el usuario está logueado, usar Navigation
+  // Si el usuario está logueado, bifurcar por rol
   if (user) {
+    const isAdmin = user.rol === 'admin';
     return (
       <NavigationContainer>
         <Stack.Navigator>
-          <Stack.Screen 
-            name="MainTabs" 
-            component={MainTabNavigator} 
-            initialParams={{ user, handleLogout }} 
+          <Stack.Screen
+            name="MainTabs"
+            component={isAdmin ? AdminTabNavigator : MainTabNavigator}
+            initialParams={{ user, handleLogout }}
             options={{ headerShown: false }}
           />
-          <Stack.Screen 
-            name="Camera" 
-            component={CameraScreen} 
-            options={{ title: 'Tomar Evidencia' }}
-          />
-          <Stack.Screen 
-            name="CreateReservation" 
-            component={CreateReservationScreen} 
-            options={{ title: 'Crear Reserva' }}
-          />
+          {/* Pantallas de stack solo para conductores */}
+          {!isAdmin && (
+            <>
+              <Stack.Screen
+                name="Camera"
+                component={CameraScreen}
+                options={{ title: 'Tomar Evidencia' }}
+              />
+              <Stack.Screen
+                name="CreateReservation"
+                component={CreateReservationScreen}
+                options={{ title: 'Crear Reserva' }}
+              />
+            </>
+          )}
         </Stack.Navigator>
       </NavigationContainer>
     );
@@ -171,9 +256,11 @@ export default function App() {
       >
         <View style={styles.loginCardNew}>
           <View style={styles.loginHeader}>
-            <View style={styles.logoPlaceholder}>
-              <Text style={styles.logoText}>BF</Text>
-            </View>
+            <Image 
+              source={require('./assets/logo.png')} 
+              style={styles.logoImage} 
+              resizeMode="contain" 
+            />
             <Text style={styles.titleNew}>Bitnets Flota</Text>
             <Text style={styles.subtitleNew}>Ingrese sus credenciales</Text>
           </View>
@@ -213,6 +300,14 @@ export default function App() {
         </View>
       </KeyboardAvoidingView>
     </ImageBackground>
+  );
+}
+
+export default function App() {
+  return (
+    <AlertProvider>
+      <MainApp />
+    </AlertProvider>
   );
 }
 
@@ -303,19 +398,85 @@ const styles = StyleSheet.create({
     padding: 30,
     alignItems: 'center',
   },
-  logoPlaceholder: {
-    width: 60,
-    height: 60,
-    backgroundColor: 'white',
-    borderRadius: 30,
+  logoImage: {
+    width: 80,
+    height: 80,
+    marginBottom: 10,
+    borderRadius: 40,
+    backgroundColor: COLORS.white,
+  },
+  btnTextDark: {
+    color: COLORS.primaryDark,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  modalIconContainer: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: COLORS.danger + '15',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: COLORS.text,
     marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+  },
+  modalText: {
+    fontSize: 15,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  modalButtonsRow: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 12,
+  },
+  modalBtnCancel: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+  },
+  modalBtnCancelText: {
+    color: COLORS.text,
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  modalBtnDanger: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    backgroundColor: COLORS.danger,
+    alignItems: 'center',
+  },
+  modalBtnDangerText: {
+    color: COLORS.white,
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   logoText: {
     color: COLORS.primary,

@@ -30,9 +30,22 @@ export interface IReservation {
 }
 
 export const reservationService = {
+  // Conductor: solo sus reservas
   getMyReservations: async (): Promise<IReservation[]> => {
     const response = await api.get('/reservations');
     return response.data;
+  },
+
+  // Admin: todas las reservas del sistema
+  getAllReservations: async (): Promise<IReservation[]> => {
+    const response = await api.get('/reservations');
+    return response.data;
+  },
+
+  // Admin: aprobar, rechazar, etc.
+  updateStatus: async (id: string, estado: string): Promise<IReservation> => {
+    const response = await api.patch(`/reservations/${id}/status`, { estado });
+    return response.data.reservation;
   },
 
   create: async (data: {

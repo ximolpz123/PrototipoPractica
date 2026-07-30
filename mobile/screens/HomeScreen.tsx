@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, TextInput, Modal, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput, Modal, ScrollView, RefreshControl, Linking } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../constants';
+import { useAlert } from '../context/AlertContext';
 import { locationService } from '../services/location.service';
 import { reservationService, IReservation } from '../services/reservation.service';
+import api from '../services/api';
 
 export default function HomeScreen({ route, navigation }: any) {
+  const { showAlert } = useAlert();
   const { user } = route.params;
 
   const [activeReserva, setActiveReserva] = useState<IReservation | null>(null);
@@ -17,6 +20,31 @@ export default function HomeScreen({ route, navigation }: any) {
   const [showKmModal, setShowKmModal] = useState(false);
   const [kmRetornoInput, setKmRetornoInput] = useState('');
   const [completingTrip, setCompletingTrip] = useState(false);
+
+  // Modal DEV para Máquina del Tiempo
+  const [devModalVisible, setDevModalVisible] = useState(false);
+
+  const changeDevTime = async (hours: number, days: number) => {
+    try {
+      await api.post('/dev/time', { action: 'set', hours, days });
+      showAlert('Éxito', 'Tiempo adelantado (simulado).');
+      setDevModalVisible(false);
+      loadReservas(true); // Recargar datos
+    } catch (error) {
+      showAlert('Error', 'No se pudo cambiar el tiempo');
+    }
+  };
+
+  const resetDevTime = async () => {
+    try {
+      await api.post('/dev/time', { action: 'reset' });
+      showAlert('Éxito', 'Reloj vuelto a la normalidad.');
+      setDevModalVisible(false);
+      loadReservas(true);
+    } catch (error) {
+      showAlert('Error', 'No se pudo reiniciar el tiempo');
+    }
+  };
 
   const loadReservas = async (isRefresh = false) => {
     try {
@@ -64,7 +92,7 @@ export default function HomeScreen({ route, navigation }: any) {
   const handleStartTrip = async () => {
     const reserva = activeReserva ?? upcomingReserva;
     if (!reserva) {
-      Alert.alert('Sin reserva', 'No tienes una reserva aprobada para iniciar.');
+      showAlert('Sin reserva', 'No tienes una reserva aprobada para iniciar.');
       return;
     }
 
@@ -80,14 +108,29 @@ export default function HomeScreen({ route, navigation }: any) {
         setIsTracking(true);
         navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'salida' });
       } else {
-        Alert.alert(
+        showAlert(
           'Permiso requerido',
           'Necesitas dar permiso de ubicación "Todo el tiempo" (Always) para que el GPS funcione en segundo plano.\n\nVe a Ajustes > Aplicaciones > Expo Go > Permisos > Ubicación > Siempre.'
         );
       }
     } catch (err: any) {
       const msg = err.response?.data?.message ?? 'Error al iniciar el viaje.';
-      Alert.alert('Error', msg);
+      showAlert('Error', msg);
+    }
+  };
+
+  const handleNavigate = async () => {
+    if (!activeReserva?.destino) return;
+    
+    const query = encodeURIComponent(activeReserva.destino);
+    // URL universal que funciona en iOS y Android para abrir Google Maps
+    const url = `https://www.google.com/maps/search/?api=1&query=${query}`;
+    
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      await Linking.openURL(url);
+    } else {
+      showAlert('Error', 'No se pudo abrir la aplicación de mapas.');
     }
   };
 
@@ -103,11 +146,11 @@ export default function HomeScreen({ route, navigation }: any) {
 
     const km = parseInt(kmRetornoInput, 10);
     if (isNaN(km) || km < 0) {
-      Alert.alert('Kilometraje inválido', 'Ingresa un número válido de kilómetros.');
+      showAlert('Kilometraje inválido', 'Ingresa un número válido de kilómetros.');
       return;
     }
     if (reserva.kmSalida !== undefined && km < reserva.kmSalida) {
-      Alert.alert(
+      showAlert(
         'Kilometraje inválido',
         `El odómetro de retorno (${km} km) no puede ser menor al de salida (${reserva.kmSalida} km).`
       );
@@ -115,22 +158,13 @@ export default function HomeScreen({ route, navigation }: any) {
     }
 
     try {
-      setCompletingTrip(true);
-      // 1. Completar la reserva en el backend (guarda kmRetorno y actualiza km del vehículo)
-      await reservationService.completeReservation(reserva._id, km);
-      // 2. Detener GPS
-      await locationService.stopTracking();
-      setIsTracking(false);
+      // Navegamos a la cámara y pasamos el kilometraje ingresado.
+      // La llamada real al backend (completeReservation) y stopTracking se harán dentro de CameraScreen tras subir las fotos.
       setShowKmModal(false);
-      // 3. Navegar a la cámara para fotos de retorno
-      navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'retorno' });
-      // 4. Recargar la pantalla
-      loadReservas();
+      navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'retorno', kmRetorno: km });
     } catch (err: any) {
-      const msg = err.response?.data?.message ?? 'Error al finalizar el viaje.';
-      Alert.alert('Error', msg);
-    } finally {
-      setCompletingTrip(false);
+      const msg = err.response?.data?.message ?? 'Error al iniciar el proceso de finalizar viaje.';
+      showAlert('Error', msg);
     }
   };
 
@@ -160,7 +194,14 @@ export default function HomeScreen({ route, navigation }: any) {
       <Text style={styles.welcomeTitle}>¡Bienvenido! 👋</Text>
       <Text style={styles.welcomeName}>{user.nombre} {user.apellido}</Text>
       <Text style={styles.welcomeRole}>Rol: {user.rol}</Text>
-      <Text style={styles.welcomeDept}>Departamento: {user.departamento}</Text>
+      
+      {/* Botón DEV (Visible solo para pruebas) */}
+      <TouchableOpacity 
+        style={{ backgroundColor: 'orange', padding: 10, borderRadius: 8, marginVertical: 10, alignItems: 'center' }} 
+        onPress={() => setDevModalVisible(true)}
+      >
+        <Text style={{ color: 'white', fontWeight: 'bold' }}>🕒 DEV: Cambiar Hora</Text>
+      </TouchableOpacity>
 
       {/* Tarjeta de Viaje Activo */}
       {activeReserva ? (
@@ -183,9 +224,15 @@ export default function HomeScreen({ route, navigation }: any) {
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity style={styles.btnDanger} onPress={handleEndTrip}>
-            <Text style={styles.btnText}>⏹ Finalizar Viaje</Text>
-          </TouchableOpacity>
+          <View style={styles.activeActionsRow}>
+            <TouchableOpacity style={styles.btnNav} onPress={handleNavigate}>
+              <Text style={styles.btnText}>🗺️ Navegar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.btnDangerHalf} onPress={handleEndTrip}>
+              <Text style={styles.btnText}>⏹ Finalizar</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       ) : upcomingReserva ? (
         <View style={styles.card}>
@@ -262,6 +309,36 @@ export default function HomeScreen({ route, navigation }: any) {
                 }
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── Modal DEV Time Machine ─── */}
+      <Modal visible={devModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>🕒 Máquina del Tiempo</Text>
+            <Text style={{ marginBottom: 15, textAlign: 'center', color: COLORS.textMuted }}>Solo para pruebas. Afecta al backend.</Text>
+            
+            <TouchableOpacity style={styles.btnPrimary} onPress={() => changeDevTime(1, 0)}>
+              <Text style={styles.btnText}>Adelantar 1 Hora</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={[styles.btnPrimary, { marginTop: 10 }]} onPress={() => changeDevTime(3, 0)}>
+              <Text style={styles.btnText}>Adelantar 3 Horas</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.btnPrimary, { marginTop: 10 }]} onPress={() => changeDevTime(0, 1)}>
+              <Text style={styles.btnText}>Adelantar 1 Día</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.btnDanger, { marginTop: 20 }]} onPress={resetDevTime}>
+              <Text style={styles.btnText}>Reiniciar Tiempo Real</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.btnPrimary, { marginTop: 15, backgroundColor: COLORS.textMuted }]} onPress={() => setDevModalVisible(false)}>
+              <Text style={styles.btnText}>Cerrar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -361,14 +438,33 @@ const styles = StyleSheet.create({
   gpsIndicatorText: {
     fontSize: 11,
     color: COLORS.success,
-    fontWeight: '700',
+    marginTop: 15,
   },
   btnPrimary: {
     backgroundColor: COLORS.primary,
-    borderRadius: 9,
-    padding: 13,
+    paddingVertical: 12,
+    borderRadius: 8,
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 15,
+  },
+  activeActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 15,
+  },
+  btnNav: {
+    flex: 1,
+    backgroundColor: COLORS.primaryDark,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  btnDangerHalf: {
+    flex: 1,
+    backgroundColor: COLORS.danger,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
   },
   btnDanger: {
     backgroundColor: COLORS.danger,

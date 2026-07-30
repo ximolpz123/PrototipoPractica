@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
-  Alert, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
+  ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS } from '../constants';
+import { useAlert } from '../context/AlertContext';
 import { vehicleService, IVehicle } from '../services/vehicle.service';
 import { reservationService } from '../services/reservation.service';
 
@@ -13,6 +14,7 @@ const TIPO_ICON: Record<string, string> = {
 };
 
 export default function CreateReservationScreen({ navigation }: any) {
+  const { showAlert } = useAlert();
   const [vehicles, setVehicles] = useState<IVehicle[]>([]);
   const [loadingVehicles, setLoadingVehicles] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -36,10 +38,11 @@ export default function CreateReservationScreen({ navigation }: any) {
     try {
       setLoadingVehicles(true);
       const all = await vehicleService.getAll();
-      // Mostrar solo los disponibles
-      setVehicles(all.filter((v) => v.estado === 'disponible'));
+      // Mostrar todos los vehículos operativos (no los de mantenimiento o fuera de servicio)
+      // Los reservados/en_curso aún se pueden seleccionar para reservar en otro horario
+      setVehicles(all.filter((v) => v.estado !== 'mantenimiento' && v.estado !== 'fuera_de_servicio'));
     } catch (err) {
-      Alert.alert('Error', 'No se pudo cargar la lista de vehículos.');
+      showAlert('Error', 'No se pudo cargar la lista de vehículos.');
     } finally {
       setLoadingVehicles(false);
     }
@@ -53,15 +56,15 @@ export default function CreateReservationScreen({ navigation }: any) {
 
   const handleConfirm = async () => {
     if (!selectedVehicle) {
-      Alert.alert('Falta vehículo', 'Debes seleccionar un vehículo.');
+      showAlert('Falta vehículo', 'Debes seleccionar un vehículo.');
       return;
     }
     if (!destino.trim()) {
-      Alert.alert('Falta destino', 'Debes ingresar el destino del viaje.');
+      showAlert('Falta destino', 'Debes ingresar el destino del viaje.');
       return;
     }
     if (!motive.trim()) {
-      Alert.alert('Falta motivo', 'Debes ingresar el motivo del viaje.');
+      showAlert('Falta motivo', 'Debes ingresar el motivo del viaje.');
       return;
     }
 
@@ -69,11 +72,11 @@ export default function CreateReservationScreen({ navigation }: any) {
     const fechaFin = buildDateTime(date, endTime);
 
     if (fechaFin <= fechaInicio) {
-      Alert.alert('Horario inválido', 'La hora de fin debe ser posterior a la de inicio.');
+      showAlert('Horario inválido', 'La hora de fin debe ser posterior a la de inicio.');
       return;
     }
     if (fechaInicio < new Date()) {
-      Alert.alert('Fecha inválida', 'La fecha de inicio no puede ser en el pasado.');
+      showAlert('Fecha inválida', 'La fecha de inicio no puede ser en el pasado.');
       return;
     }
 
@@ -86,12 +89,12 @@ export default function CreateReservationScreen({ navigation }: any) {
         destino: destino.trim(),
         motivo: motive.trim(),
       });
-      Alert.alert('✅ Reserva Enviada', 'Tu solicitud fue enviada y está pendiente de aprobación.', [
+      showAlert('✅ Reserva Enviada', 'Tu solicitud fue enviada y está pendiente de aprobación.', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (err: any) {
       const msg = err.response?.data?.message ?? 'No se pudo crear la reserva. Intenta de nuevo.';
-      Alert.alert('Error', msg);
+      showAlert('Error', msg);
     } finally {
       setSubmitting(false);
     }
@@ -125,20 +128,36 @@ export default function CreateReservationScreen({ navigation }: any) {
             {vehicles.map((v) => {
               const isSelected = selectedVehicle?._id === v._id;
               const icon = TIPO_ICON[v.tipo] ?? '🚗';
+              const enUso = v.estado === 'en_curso' || v.estado === 'reservado';
+              const estadoBadge = v.estado === 'en_curso'
+                ? { label: '🔴 En Uso', color: '#FFF0F0', border: '#FF4444' }
+                : v.estado === 'reservado'
+                ? { label: '🟡 Reservado', color: '#FFFBF0', border: '#FFA500' }
+                : { label: '🟢 Disponible', color: '#F0FFF0', border: '#28a745' };
               return (
                 <TouchableOpacity
                   key={v._id}
-                  style={[styles.vehicleOption, isSelected && styles.vehicleOptionSelected]}
+                  style={[styles.vehicleOption, isSelected && styles.vehicleOptionSelected, enUso && styles.vehicleOptionBusy]}
                   onPress={() => setSelectedVehicle(v)}
                 >
                   <Text style={styles.vehicleIcon}>{icon}</Text>
                   <View style={styles.vehicleInfo}>
-                    <Text style={[styles.vehicleOptionText, isSelected && styles.vehicleOptionTextSelected]}>
-                      {v.marca} {v.modelo} {v.anio}
-                    </Text>
+                    <View style={styles.vehicleNameRow}>
+                      <Text style={[styles.vehicleOptionText, isSelected && styles.vehicleOptionTextSelected]}>
+                        {v.marca} {v.modelo} {v.anio}
+                      </Text>
+                      <View style={[styles.estadoBadge, { backgroundColor: estadoBadge.color, borderColor: estadoBadge.border }]}>
+                        <Text style={[styles.estadoBadgeText, { color: estadoBadge.border }]}>{estadoBadge.label}</Text>
+                      </View>
+                    </View>
                     <Text style={styles.vehicleSubText}>
                       {v.color}  •  🪪 {v.placa}  •  🛞 {v.kilometraje.toLocaleString()} km
                     </Text>
+                    {enUso && (
+                      <Text style={styles.vehicleBusyHint}>
+                        Puedes reservarlo en otro horario — el backend validará disponibilidad
+                      </Text>
+                    )}
                   </View>
                   {isSelected && <Text style={styles.checkmark}>✓</Text>}
                 </TouchableOpacity>
@@ -239,6 +258,14 @@ const styles = StyleSheet.create({
   vehicleOptionTextSelected: { color: COLORS.primary },
   vehicleSubText: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
   checkmark: { color: COLORS.primary, fontSize: 18, fontWeight: 'bold' },
+  vehicleOptionBusy: { borderColor: '#FFA500', borderStyle: 'dashed' },
+  vehicleNameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 2 },
+  estadoBadge: {
+    paddingHorizontal: 7, paddingVertical: 2,
+    borderRadius: 6, borderWidth: 1,
+  },
+  estadoBadgeText: { fontSize: 10, fontWeight: '700' },
+  vehicleBusyHint: { fontSize: 11, color: '#FFA500', marginTop: 4, fontStyle: 'italic' },
   input: {
     backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.border,
     borderRadius: 8, padding: 14, fontSize: 15, marginBottom: 10, color: COLORS.text,

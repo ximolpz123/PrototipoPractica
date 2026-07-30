@@ -1,41 +1,70 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../constants';
+import { useAlert } from '../context/AlertContext';
 
 export default function PerfilScreen({ route }: any) {
+  const { showAlert } = useAlert();
   const handleLogout = route.params?.handleLogout || (() => {});
-  // Use passed user or a mock if it doesn't exist
   const user = route.params?.user || {
     nombre: 'Joaquín',
     apellido: 'López',
     email: 'joaquin@bitnets.cl',
-    departamento: 'Operaciones',
     rol: 'operario',
     licenciaAlDia: true,
     fechaVencimientoLicencia: '2026-08-15T00:00:00.000Z',
   };
 
+  const defaultAvatar = `https://ui-avatars.com/api/?name=${user.nombre}+${user.apellido}&background=3D9FD3&color=fff&size=256`;
+  const [avatarUri, setAvatarUri] = useState<string>(defaultAvatar);
+  const [uploading, setUploading] = useState(false);
+
   const isLicenciaValida = user.licenciaAlDia;
-  const avatarUrl = `https://ui-avatars.com/api/?name=${user.nombre}+${user.apellido}&background=3D9FD3&color=fff&size=128`;
+
+  const handleChangePhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      showAlert('Permiso denegado', 'Necesitamos acceso a tu galería para cambiar la foto.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      setUploading(true);
+      // Actualizamos la foto localmente (en un prototipo es suficiente)
+      setAvatarUri(result.assets[0].uri);
+      setUploading(false);
+    }
+  };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       {/* HEADER SECTION */}
       <View style={styles.header}>
-        <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+        <TouchableOpacity onPress={handleChangePhoto} style={styles.avatarContainer}>
+          {uploading ? (
+            <View style={styles.avatarLoading}>
+              <ActivityIndicator color={COLORS.white} />
+            </View>
+          ) : (
+            <Image source={{ uri: avatarUri }} style={styles.avatar} />
+          )}
+          <View style={styles.cameraOverlay}>
+            <Ionicons name="camera" size={16} color="#fff" />
+          </View>
+        </TouchableOpacity>
         <Text style={styles.name}>{user.nombre} {user.apellido}</Text>
         <Text style={styles.email}>{user.email}</Text>
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{user.rol.toUpperCase()}</Text>
-        </View>
-      </View>
-
-      {/* INFO SECTION */}
-      <View style={styles.infoCard}>
-        <View style={styles.infoRow}>
-          <Ionicons name="business" size={20} color={COLORS.textMuted} />
-          <Text style={styles.infoText}>Departamento: <Text style={styles.infoBold}>{user.departamento}</Text></Text>
         </View>
       </View>
 
@@ -64,15 +93,9 @@ export default function PerfilScreen({ route }: any) {
       </View>
 
       {/* ACTIONS SECTION */}
-      <TouchableOpacity style={styles.actionBtn}>
-        <Ionicons name="settings-outline" size={20} color={COLORS.text} />
-        <Text style={styles.actionBtnText}>Configuración de cuenta</Text>
-        <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} style={styles.actionIconRight} />
-      </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.actionBtn}>
-        <Ionicons name="help-circle-outline" size={20} color={COLORS.text} />
-        <Text style={styles.actionBtnText}>Soporte técnico</Text>
+      <TouchableOpacity style={styles.actionBtn} onPress={handleChangePhoto}>
+        <Ionicons name="image-outline" size={20} color={COLORS.text} />
+        <Text style={styles.actionBtnText}>Cambiar foto de perfil</Text>
         <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} style={styles.actionIconRight} />
       </TouchableOpacity>
 
@@ -95,16 +118,40 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
     width: '100%',
   },
+  avatarContainer: {
+    marginBottom: 12,
+    position: 'relative',
+  },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 10,
+    width: 110,
+    height: 110,
+    borderRadius: 55,
     borderWidth: 3,
     borderColor: COLORS.primary,
+  },
+  avatarLoading: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cameraOverlay: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    backgroundColor: COLORS.primary,
+    borderRadius: 14,
+    width: 28,
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.white,
   },
   name: {
     fontSize: 22,
@@ -117,7 +164,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   badge: {
-    backgroundColor: COLORS.primary + '20', // transparent primary
+    backgroundColor: COLORS.primary + '20',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
@@ -128,36 +175,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 12,
   },
-  infoCard: {
-    width: '100%',
-    backgroundColor: COLORS.white,
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  infoText: {
-    marginLeft: 10,
-    fontSize: 15,
-    color: COLORS.text,
-  },
-  infoBold: {
-    fontWeight: 'bold',
-  },
   licenseCard: {
     width: '100%',
     backgroundColor: COLORS.white,
     padding: 20,
     borderRadius: 12,
-    marginBottom: 25,
+    marginBottom: 20,
     borderLeftWidth: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -166,7 +189,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   licenseValid: {
-    borderColor: COLORS.success || '#28a745',
+    borderColor: COLORS.success,
   },
   licenseInvalid: {
     borderColor: COLORS.danger,

@@ -3,6 +3,7 @@ import Reservation from '../models/Reservation.js';
 import Vehicle from '../models/Vehicle.js';
 import Audit from '../models/Audit.js';
 import { AuthRequest } from '../middleware/auth.js';
+import { timeService } from '../services/time.service.js';
 
 // Obtener todas las reservas (admin ve todas, usuario solo las suyas)
 export const getReservations = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -53,17 +54,32 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
     }
 
     // ── Validación 4: El vehículo no tiene reservas solapadas ──────────────
+    // Aplicamos un margen de 30 minutos a la reserva solicitada
+    const BUFFER_MS = 30 * 60000; // 30 minutos en ms
+    const inicioBuffer = new Date(inicio.getTime() - BUFFER_MS);
+    const finBuffer = new Date(fin.getTime() + BUFFER_MS);
+
     const vehiculoSolapado = await Reservation.findOne({
       vehiculo,
       estado: { $in: ['pendiente', 'aprobada', 'en_curso'] },
-      fechaInicio: { $lt: fin },
-      fechaFin: { $gt: inicio },
+      fechaInicio: { $lt: finBuffer },
+      fechaFin: { $gt: inicioBuffer },
     });
 
     if (vehiculoSolapado) {
-      res.status(409).json({
-        message: 'El vehículo ya tiene una reserva en ese rango de fechas',
+      // Calcular cuándo queda libre el vehículo (fin de reserva solapada + 30 min buffer)
+      const fechaLibre = new Date(new Date(vehiculoSolapado.fechaFin).getTime() + BUFFER_MS);
+      const horaLibre = fechaLibre.toLocaleString('es-CL', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
       });
+
+      const estaEnCurso = vehiculoSolapado.estado === 'en_curso';
+      const msg = estaEnCurso
+        ? `Este vehículo está actualmente en uso. Podrás reservarlo a partir del ${horaLibre} (incluye margen de 30 minutos).`
+        : `Este vehículo ya tiene una reserva en ese horario. Estará disponible a partir del ${horaLibre} (incluye margen de 30 minutos).`;
+
+      res.status(409).json({ message: msg, fechaDisponibleDesde: fechaLibre });
       return;
     }
 
@@ -76,13 +92,22 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
     });
 
     if (usuarioSolapado) {
+      // Calcular desde cuándo el usuario queda libre
+      const fechaLibreUsuario = new Date(usuarioSolapado.fechaFin);
+      const horaLibreUsuario = fechaLibreUsuario.toLocaleString('es-CL', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      });
+
       res.status(409).json({
-        message: 'Ya tienes una reserva activa en ese rango de fechas. No puedes reservar más de un vehículo a la vez.',
+        message: `Ya tienes una reserva activa hasta el ${horaLibreUsuario}. No puedes tener dos reservas al mismo tiempo.`,
+        fechaDisponibleDesde: fechaLibreUsuario,
       });
       return;
     }
 
     // ── Crear la reserva (Estado: Pendiente) ───────────────────────────────────────
+    // ── Crear la reserva (Estado: Pendiente) ──────────────────────────────
     const reservation = await Reservation.create({
       usuario: req.userId,
       vehiculo,
@@ -100,6 +125,7 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
       entidad: 'Reservation',
       entidadId: reservation._id,
       detalles: `Reserva pendiente de aprobación desde ${inicio.toISOString()} hasta ${fin.toISOString()}`
+      detalles: `Reserva solicitada desde ${inicio.toISOString()} hasta ${fin.toISOString()}`
     });
 
     const populated = await reservation.populate([
@@ -133,6 +159,18 @@ export const startReservation = async (req: AuthRequest, res: Response): Promise
 
     if (reservation.estado !== 'aprobada') {
       res.status(400).json({ message: `No se puede iniciar: la reserva está en estado '${reservation.estado}'` });
+      return;
+    }
+
+    // Validar que no falten más de 10 minutos para iniciar
+    const currentTime = timeService.getCurrentTime();
+    const fechaInicioReserva = new Date(reservation.fechaInicio);
+    const maxTiempoAntes = new Date(fechaInicioReserva.getTime() - 10 * 60000); // 10 mins antes
+
+    if (currentTime < maxTiempoAntes) {
+      res.status(400).json({ 
+        message: `Aún es muy pronto para iniciar. Puedes iniciar el viaje a partir de las ${maxTiempoAntes.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}` 
+      });
       return;
     }
 
