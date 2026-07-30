@@ -55,8 +55,9 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
 
     // ── Validación 4: El vehículo no tiene reservas solapadas ──────────────
     // Aplicamos un margen de 30 minutos a la reserva solicitada
-    const inicioBuffer = new Date(inicio.getTime() - 30 * 60000);
-    const finBuffer = new Date(fin.getTime() + 30 * 60000);
+    const BUFFER_MS = 30 * 60000; // 30 minutos en ms
+    const inicioBuffer = new Date(inicio.getTime() - BUFFER_MS);
+    const finBuffer = new Date(fin.getTime() + BUFFER_MS);
 
     const vehiculoSolapado = await Reservation.findOne({
       vehiculo,
@@ -66,9 +67,19 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
     });
 
     if (vehiculoSolapado) {
-      res.status(409).json({
-        message: 'El vehículo ya tiene una reserva o un margen de mantenimiento en ese rango',
+      // Calcular cuándo queda libre el vehículo (fin de reserva solapada + 30 min buffer)
+      const fechaLibre = new Date(new Date(vehiculoSolapado.fechaFin).getTime() + BUFFER_MS);
+      const horaLibre = fechaLibre.toLocaleString('es-CL', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
       });
+
+      const estaEnCurso = vehiculoSolapado.estado === 'en_curso';
+      const msg = estaEnCurso
+        ? `Este vehículo está actualmente en uso. Podrás reservarlo a partir del ${horaLibre} (incluye margen de 30 minutos).`
+        : `Este vehículo ya tiene una reserva en ese horario. Estará disponible a partir del ${horaLibre} (incluye margen de 30 minutos).`;
+
+      res.status(409).json({ message: msg, fechaDisponibleDesde: fechaLibre });
       return;
     }
 
@@ -76,13 +87,21 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
     const usuarioSolapado = await Reservation.findOne({
       usuario: req.userId,
       estado: { $in: ['pendiente', 'aprobada', 'en_curso'] },
-      fechaInicio: { $lt: fin }, // Usuario no necesita buffer contra sí mismo
+      fechaInicio: { $lt: fin },
       fechaFin: { $gt: inicio },
     });
 
     if (usuarioSolapado) {
+      // Calcular desde cuándo el usuario queda libre
+      const fechaLibreUsuario = new Date(usuarioSolapado.fechaFin);
+      const horaLibreUsuario = fechaLibreUsuario.toLocaleString('es-CL', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      });
+
       res.status(409).json({
-        message: 'Ya tienes una reserva activa en ese rango de fechas. No puedes reservar más de un vehículo a la vez.',
+        message: `Ya tienes una reserva activa hasta el ${horaLibreUsuario}. No puedes tener dos reservas al mismo tiempo.`,
+        fechaDisponibleDesde: fechaLibreUsuario,
       });
       return;
     }
