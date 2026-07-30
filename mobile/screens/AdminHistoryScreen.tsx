@@ -158,7 +158,6 @@ export default function AdminHistoryScreen() {
   }, [vehiculos]);
 
   const tipoFotoOptions: { label: string; value: TipoFoto }[] = [
-    { label: 'Todas las fotos', value: 'todas' },
     { label: 'Fotos de Salida', value: 'salida' },
     { label: 'Fotos de Retorno', value: 'retorno' },
   ];

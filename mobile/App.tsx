@@ -102,7 +102,7 @@ function AdminTabNavigator({ route }: any) {
         name="Dashboard"
         component={AdminDashboardScreen}
         options={{
-          title: '🛡 Panel Admin',
+          title: 'Panel Admin',
           tabBarLabel: 'Solicitudes',
           headerRight: () => (
             <TouchableOpacity 

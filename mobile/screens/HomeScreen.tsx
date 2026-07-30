@@ -166,7 +166,6 @@ export default function HomeScreen({ route, navigation }: any) {
       <Text style={styles.welcomeTitle}>¡Bienvenido! 👋</Text>
       <Text style={styles.welcomeName}>{user.nombre} {user.apellido}</Text>
       <Text style={styles.welcomeRole}>Rol: {user.rol}</Text>
-      <Text style={styles.welcomeDept}>Departamento: {user.departamento}</Text>
 
       {/* Tarjeta de Viaje Activo */}
       {activeReserva ? (
