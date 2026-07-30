@@ -243,7 +243,9 @@ export default function AdminHistoryScreen() {
     return (
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {fotos.map((url, i) => (
-          <Image key={i} source={{ uri: url }} style={styles.photo} resizeMode="cover" />
+          <TouchableOpacity key={i} onPress={() => setExpandedImage(url)}>
+            <Image source={{ uri: url }} style={styles.photo} resizeMode="cover" />
+          </TouchableOpacity>
         ))}
       </ScrollView>
     );
@@ -400,6 +402,18 @@ export default function AdminHistoryScreen() {
           )}
         </View>
       </Modal>
+
+      {/* ─── Modal para ver imagen en pantalla completa ───────────────── */}
+      <Modal visible={!!expandedImage} transparent={true} animationType="fade">
+        <View style={styles.fullscreenModal}>
+          <TouchableOpacity style={styles.closeFullscreenBtn} onPress={() => setExpandedImage(null)}>
+            <Ionicons name="close" size={36} color="#fff" />
+          </TouchableOpacity>
+          {expandedImage && (
+            <Image source={{ uri: expandedImage }} style={styles.fullscreenImage} resizeMode="contain" />
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -456,4 +470,23 @@ const styles = StyleSheet.create({
   sectionText: { fontSize: 16, color: COLORS.text },
   photo: { width: 150, height: 200, borderRadius: 10, marginRight: 10, backgroundColor: '#eee' },
   noPhotos: { fontSize: 14, color: COLORS.textMuted, fontStyle: 'italic', marginTop: 5 },
+
+  // Fullscreen Image
+  fullscreenModal: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeFullscreenBtn: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    padding: 10,
+  },
+  fullscreenImage: {
+    width: '100%',
+    height: '100%',
+  },
 });
