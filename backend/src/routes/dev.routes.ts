@@ -3,6 +3,14 @@ import { timeService } from '../services/time.service.js';
 
 const router = Router();
 
+// GET /api/dev/time (Para que la app consulte el offset actual)
+router.get('/time', (req: Request, res: Response) => {
+  res.json({
+    offset: timeService.getOffset(),
+    simulatedTime: timeService.getCurrentTime(),
+  });
+});
+
 // POST /api/dev/time
 router.post('/time', (req: Request, res: Response) => {
   const { action, hours, days } = req.body;
