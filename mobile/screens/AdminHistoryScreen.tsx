@@ -115,6 +115,7 @@ export default function AdminHistoryScreen() {
   const [vehiculos, setVehiculos] = useState<IVehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [expandedImage, setExpandedImage] = useState<string | null>(null);
 
   // Filtros
   const [filtroVehiculo, setFiltroVehiculo] = useState('');
