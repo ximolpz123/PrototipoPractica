@@ -8,6 +8,7 @@ export interface IUser {
   departamento: string;
   rol: 'usuario' | 'admin';
   activo: boolean;
+  licenciaAlDia?: boolean;
   createdAt: string;
   updatedAt: string;
 }

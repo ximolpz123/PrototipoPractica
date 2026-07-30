@@ -123,7 +123,7 @@ function Dashboard() {
   const [errorRes, setErrorRes] = useState('');
   const [selectedReservation, setSelectedReservation] = useState<IReservation | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
-  
+
   // ── Filtros de Reservaciones ──
   const [resFilterVehicle, setResFilterVehicle] = useState('todos');
   const [resFilterDate, setResFilterDate] = useState('');
@@ -137,6 +137,7 @@ function Dashboard() {
   const [showCreateVehicle, setShowCreateVehicle] = useState(false);
   const [showEditVehicle, setShowEditVehicle] = useState<IVehicle | null>(null);
   const [vehicleForm, setVehicleForm] = useState(EMPTY_VEHICLE_FORM);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   // ── Cargar datos al cambiar tab ──
   useEffect(() => {
@@ -304,11 +305,12 @@ function Dashboard() {
   const approveReservation = async (id: string) => {
     setApprovingId(id);
     try {
-      await fetch(`http://localhost:5000/api/reservations/${id}`, {
-        method: 'PUT',
+      const response = await fetch(`http://localhost:5000/api/reservations/${id}/status`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ estado: 'aprobada' }),
       });
+      if (!response.ok) throw new Error('Falló la aprobación');
       await fetchReservations();
       setSelectedReservation(prev => prev && prev._id === id ? { ...prev, estado: 'aprobada' } : prev);
     } catch { alert('Error al aprobar reservación'); }
@@ -325,7 +327,7 @@ function Dashboard() {
   };
 
   // ────────── Helper: form vehículo compartido ──────────
-  const VehicleFormFields = () => (
+  const renderVehicleFormFields = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
       {([
         ['placa', 'Placa'], ['marca', 'Marca'], ['modelo', 'Modelo'],
@@ -337,8 +339,23 @@ function Dashboard() {
             className="reserv-input"
             style={{ width: '100%', boxSizing: 'border-box' }}
             value={String(vehicleForm[field])}
-            onChange={e => setVehicleForm(f => ({ ...f, [field]: e.target.value }))}
+            onChange={e => {
+              let val = e.target.value;
+              if (field === 'placa') {
+                val = val.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+                if (val.length === 4 && val[3] !== '-') {
+                  val = val.slice(0, 3) + '-' + val.slice(3);
+                }
+              }
+              setVehicleForm(f => ({ ...f, [field]: val }));
+            }}
             required={field !== 'imagenUrl'}
+            {...(field === 'placa' ? {
+              pattern: "[A-Z]{3}-[0-9]{3}",
+              maxLength: 7,
+              title: "Formato requerido: 3 letras, un guion y 3 números (ej: AAA-111)",
+              placeholder: "AAA-111"
+            } : {})}
           />
         </div>
       ))}
@@ -435,35 +452,35 @@ function Dashboard() {
             className={`sidebar-btn${activeTab === 'dashboard' ? ' active' : ''}`}
             onClick={() => setActiveTab('dashboard')}
           >
-            <span className="btn-icon">📊</span> Dashboard
+            <span className="btn-icon"></span> Dashboard
           </button>
           <button
             id="sidebar-btn-usuarios"
             className={`sidebar-btn${activeTab === 'usuarios' ? ' active' : ''}`}
             onClick={() => setActiveTab('usuarios')}
           >
-            <span className="btn-icon">👥</span> Ver Usuarios
+            <span className="btn-icon"></span> Ver Usuarios
           </button>
           <button
             id="sidebar-btn-reservaciones"
             className={`sidebar-btn${activeTab === 'reservaciones' ? ' active' : ''}`}
             onClick={() => setActiveTab('reservaciones')}
           >
-            <span className="btn-icon">📋</span> Ver Reservaciones
+            <span className="btn-icon"></span> Ver Reservaciones
           </button>
           <button
             id="sidebar-btn-vehiculos"
             className={`sidebar-btn${activeTab === 'vehiculos' ? ' active' : ''}`}
             onClick={() => setActiveTab('vehiculos')}
           >
-            <span className="btn-icon">🚗</span> Ver Vehículos
+            <span className="btn-icon"></span> Ver Vehículos
           </button>
         </nav>
 
         {/* Cerrar sesión */}
         <div className="sidebar-logout">
-          <button className="sidebar-logout-btn" onClick={handleLogout}>
-            🚪 Cerrar Sesión
+          <button className="sidebar-logout-btn" onClick={() => setShowLogoutModal(true)}>
+            Cerrar Sesión
           </button>
         </div>
       </aside>
@@ -487,34 +504,30 @@ function Dashboard() {
             {/* Tarjetas de estadísticas — los valores se llenarán con datos reales */}
             <div className="dash-stats-grid">
               <div className="dash-stat-card">
-                <span className="dash-stat-icon">📋</span>
+                <span className="dash-stat-icon"></span>
                 <span className="dash-stat-label">Reservas Activas</span>
                 <span className="dash-stat-value" id="stat-reservas-activas">—</span>
                 <span className="dash-stat-sub">Pendientes + En curso</span>
               </div>
               <div className="dash-stat-card">
-                <span className="dash-stat-icon">🚗</span>
+                <span className="dash-stat-icon"></span>
                 <span className="dash-stat-label">Vehículos Disponibles</span>
                 <span className="dash-stat-value" id="stat-vehiculos-disponibles">—</span>
                 <span className="dash-stat-sub">De la flota total</span>
               </div>
               <div className="dash-stat-card">
-                <span className="dash-stat-icon">👥</span>
+                <span className="dash-stat-icon"></span>
                 <span className="dash-stat-label">Usuarios Registrados</span>
                 <span className="dash-stat-value" id="stat-usuarios-total">—</span>
-                <span className="dash-stat-sub">Conductores y admins</span>
+                <span className="dash-stat-sub">Conductores y Admins</span>
               </div>
               <div className="dash-stat-card">
-                <span className="dash-stat-icon">🔧</span>
+                <span className="dash-stat-icon"></span>
                 <span className="dash-stat-label">En Mantenimiento</span>
                 <span className="dash-stat-value" id="stat-mantenimiento">—</span>
                 <span className="dash-stat-sub">Vehículos no disponibles</span>
               </div>
             </div>
-
-            <p style={{ color: '#9ca3af', fontSize: '0.9rem', marginTop: '8px' }}>
-              ℹ️ Los datos se cargarán cuando conectes el endpoint de estadísticas.
-            </p>
           </div>
         )}
 
@@ -543,9 +556,17 @@ function Dashboard() {
                       <td>{u.email}</td>
                       <td><span className="status-badge" style={{ backgroundColor: u.rol === 'admin' ? '#175fbd' : '#6b7280' }}>{u.rol}</span></td>
                       <td><span className="status-badge" style={{ backgroundColor: u.activo ? '#22c55e' : '#ef4444' }}>{u.activo ? 'Sí' : 'No'}</span></td>
-                      <td style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center' }}>
-                        <button className="btn btn-sm" onClick={() => openEdit(u)}>✏️ Editar</button>
-                        <button className="btn btn-sm" style={{ backgroundColor: 'red', color: 'black', border: '2px solid red' }} onClick={() => setShowDeleteUserConfirm(u.id)}>🗑️ Eliminar</button>
+                      <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                        <div style={{ display: 'inline-flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center' }}>
+                          {u.rol !== 'admin' ? (
+                            <button className="btn btn-sm" onClick={() => openEdit(u)}> Editar</button>
+                          ) : (
+                            <span style={{ fontSize: '0.8rem', color: '#888', fontStyle: 'italic', padding: '0.25rem 0.5rem' }}>Protegido</span>
+                          )}
+                          {u.rol !== 'admin' && (
+                            <button className="btn btn-sm" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black' }} onClick={() => setShowDeleteUserConfirm(u.id)}> Eliminar</button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -559,12 +580,12 @@ function Dashboard() {
         {activeTab === 'reservaciones' && (
           <div className="reservations-panel" style={{ maxWidth: '100%' }}>
             <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '700', color: '#000', marginBottom: '1rem' }}> Reservaciones</h2>
-            
+
             {user?.rol === 'admin' && (
-              <div className="filter-panel" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem', padding: '1rem', borderRadius: '8px', width: '100%', boxSizing: 'border-box' }}>
+              <div className="filter-panel" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem', padding: '1rem', borderRadius: '8px', width: '100%', boxSizing: 'border-box', alignItems: 'flex-end' }}>
                 <div style={{ flex: '1' }}>
                   <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>Vehículo</label>
-                  <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} value={resFilterVehicle} onChange={e => setResFilterVehicle(e.target.value)}>
+                  <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '44px' }} value={resFilterVehicle} onChange={e => setResFilterVehicle(e.target.value)}>
                     <option value="todos">Todos los Vehículos</option>
                     {vehicles.map(v => (
                       <option key={v._id} value={v._id}>{v.marca} {v.modelo} - {v.placa}</option>
@@ -573,15 +594,25 @@ function Dashboard() {
                 </div>
                 <div style={{ flex: '1' }}>
                   <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>Fecha de Creación</label>
-                  <input type="date" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} value={resFilterDate} onChange={e => setResFilterDate(e.target.value)} />
+                  <input type="date" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '44px' }} value={resFilterDate} onChange={e => setResFilterDate(e.target.value)} />
                 </div>
                 <div style={{ flex: '1' }}>
                   <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>Evidencia</label>
-                  <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} value={resFilterPhotos} onChange={e => setResFilterPhotos(e.target.value)}>
-                    <option value="todas">Toda la evidencia</option>
-                    <option value="inicio">Solo de inicio</option>
-                    <option value="fin">Solo de fin</option>
-                  </select>
+                  <div style={{ display: 'flex', gap: '0.5rem', height: '44px' }}>
+                    <select className="reserv-input" style={{ flex: '1', boxSizing: 'border-box', height: '100%' }} value={resFilterPhotos} onChange={e => setResFilterPhotos(e.target.value)}>
+                      <option value="todas">Toda la evidencia</option>
+                      <option value="inicio">Solo de inicio</option>
+                      <option value="fin">Solo de fin</option>
+                    </select>
+                    <button
+                      className="btn"
+                      style={{ background: '#3D9FD3', color: 'black', padding: 0, width: '58px', height: '44px', border: '2px solid black', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', borderRadius: '8px', cursor: 'pointer' }}
+                      onClick={fetchReservations}
+                      title="Recargar reservaciones"
+                    >
+                      ⟳
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -593,7 +624,7 @@ function Dashboard() {
               {filteredReservations.map(r => (
                 <div key={r._id} className="reservation-card">
                   <div className="reservation-card-header">
-                    <span className="res-vehicle-name">🚗 {getVehicleName(r.vehiculo)}</span>
+                    <span className="res-vehicle-name"> {getVehicleName(r.vehiculo)}</span>
                     <span className="status-badge" style={{ backgroundColor: ESTADO_RES_COLORS[r.estado] ?? '#6b7280' }}>
                       {r.estado.charAt(0).toUpperCase() + r.estado.slice(1).replace('_', ' ')}
                     </span>
@@ -657,7 +688,7 @@ function Dashboard() {
                         style={{ marginTop: '10px', width: '100%' }}
                         onClick={() => setSelectedVehicle(v)}
                       >
-                        🔍 Ver Vehículo
+                        Ver Vehículo
                       </button>
                     </div>
                   </div>
@@ -683,7 +714,7 @@ function Dashboard() {
             >X</button>
 
             <h2 style={{ marginTop: 0, marginBottom: '1.5rem', textAlign: 'center' }}>
-              🚗 {selectedVehicle.marca} {selectedVehicle.modelo}
+              {selectedVehicle.marca} {selectedVehicle.modelo}
             </h2>
 
             {/* Layout imagen + datos */}
@@ -728,14 +759,14 @@ function Dashboard() {
                   ¿Desea eliminar este Vehículo?
                 </p>
                 <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                  <button className="btn" style={{ backgroundColor: 'red', color: 'black', padding: '0.5rem 2rem' }} onClick={() => deleteVehicle(selectedVehicle._id)}>Sí</button>
+                  <button className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', padding: '0.5rem 2rem', border: '2px solid black' }} onClick={() => deleteVehicle(selectedVehicle._id)}>Sí</button>
                   <button className="btn" style={{ backgroundColor: '#175fbd', color: 'black', padding: '0.5rem 2rem' }} onClick={() => setShowDeleteVehicleConfirm(null)}>No</button>
                 </div>
               </div>
             ) : (
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', borderTop: '1px solid #e5e7eb', paddingTop: '1.25rem', flexWrap: 'wrap' }}>
-                <button className="btn" style={{ backgroundColor: '#175fbd', color: 'black', padding: '0.6rem 1.8rem' }} onClick={() => openEditVehicle(selectedVehicle)}>✏️ Editar Vehículo</button>
-                <button className="btn" style={{ backgroundColor: 'red', color: 'black', padding: '0.6rem 1.8rem' }} onClick={() => setShowDeleteVehicleConfirm(selectedVehicle._id)}>🗑️ Eliminar Vehículo</button>
+                <button className="btn" style={{ backgroundColor: '#175fbd', color: 'black', padding: '0.6rem 1.8rem' }} onClick={() => openEditVehicle(selectedVehicle)}> Editar Vehículo</button>
+                <button className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', padding: '0.6rem 1.8rem', border: '2px solid black' }} onClick={() => setShowDeleteVehicleConfirm(selectedVehicle._id)}> Eliminar Vehículo</button>
               </div>
             )}
           </div>
@@ -747,12 +778,12 @@ function Dashboard() {
         <div className="modal-overlay" onClick={() => setShowCreateVehicle(false)}>
           <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '520px', width: '95%', color: '#000', textAlign: 'left', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowCreateVehicle(false)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
-            <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}>➕ Agregar Vehículo</h2>
+            <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}> Agregar Vehículo</h2>
             <form onSubmit={createVehicle}>
-              <VehicleFormFields />
+              {renderVehicleFormFields()}
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'center' }}>
-                <button type="submit" className="btn" style={{ backgroundColor: '#175fbd', color: 'black' }}>💾 Crear</button>
-                <button type="button" className="btn" style={{ backgroundColor: '#e5e7eb', color: 'black' }} onClick={() => setShowCreateVehicle(false)}>Cancelar</button>
+                <button type="submit" className="btn" style={{ backgroundColor: '#175fbd', color: 'black' }}> Crear</button>
+                <button type="button" className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black' }} onClick={() => setShowCreateVehicle(false)}>Cancelar</button>
               </div>
             </form>
           </div>
@@ -764,11 +795,11 @@ function Dashboard() {
         <div className="modal-overlay" onClick={() => setShowEditVehicle(null)}>
           <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '520px', width: '95%', color: '#000', textAlign: 'left', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowEditVehicle(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
-            <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}>✏️ Editar Vehículo</h2>
-            <VehicleFormFields />
+            <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}> Editar Vehículo</h2>
+            {renderVehicleFormFields()}
             <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'center' }}>
-              <button className="btn" style={{ backgroundColor: '#175fbd', color: 'black' }} onClick={saveEditVehicle}>💾 Guardar</button>
-              <button className="btn" style={{ backgroundColor: '#e5e7eb', color: 'black' }} onClick={() => setShowEditVehicle(null)}>Cancelar</button>
+              <button className="btn" style={{ backgroundColor: '#175fbd', color: 'black' }} onClick={saveEditVehicle}> Guardar</button>
+              <button className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black' }} onClick={() => setShowEditVehicle(null)}>Cancelar</button>
             </div>
           </div>
         </div>
@@ -798,7 +829,7 @@ function Dashboard() {
               <p style={{ margin: 0 }}><strong>Fin:</strong>    {new Date(selectedReservation.fechaFin).toLocaleString('es-CL')}</p>
               {selectedReservation.destino && <p style={{ margin: 0 }}><strong>Destino:</strong> {selectedReservation.destino}</p>}
               {selectedReservation.motivo && <p style={{ margin: 0 }}><strong>Motivo:</strong>  {selectedReservation.motivo}</p>}
-              
+
               {selectedReservation.fotosSalida && selectedReservation.fotosSalida.length > 0 && (
                 <div style={{ marginTop: '1rem' }}>
                   <strong>Fotos de Inicio del Viaje:</strong>
@@ -865,8 +896,8 @@ function Dashboard() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'center' }}>
-              <button className="btn" style={{ backgroundColor: '#175fbd', color: 'black' }} onClick={saveEdit}>💾 Guardar</button>
-              <button className="btn" style={{ backgroundColor: '#e5e7eb', color: 'black' }} onClick={() => setEditUser(null)}>Cancelar</button>
+              <button className="btn" style={{ backgroundColor: '#175fbd', color: 'black' }} onClick={saveEdit}> Guardar</button>
+              <button className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black' }} onClick={() => setEditUser(null)}>Cancelar</button>
             </div>
           </div>
         </div>
@@ -880,7 +911,7 @@ function Dashboard() {
             <h2 style={{ marginTop: 0 }}>¿Eliminar usuario?</h2>
             <p style={{ color: '#555', marginBottom: '1.5rem' }}>Esta acción no se puede deshacer.</p>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-              <button className="btn" style={{ backgroundColor: 'red', color: 'black', padding: '0.5rem 2rem' }} onClick={() => deleteUser(showDeleteUserConfirm)}>Sí</button>
+              <button className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', padding: '0.5rem 2rem', border: '2px solid black' }} onClick={() => deleteUser(showDeleteUserConfirm)}>Sí</button>
               <button className="btn" style={{ backgroundColor: '#175fbd', color: 'black', padding: '0.5rem 2rem' }} onClick={() => setShowDeleteUserConfirm(null)}>No</button>
             </div>
           </div>
@@ -909,9 +940,50 @@ function Dashboard() {
               </div>
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', justifyContent: 'center' }}>
                 <button type="submit" className="btn" style={{ backgroundColor: '#175fbd', color: 'black' }}>➕ Crear</button>
-                <button type="button" className="btn" style={{ backgroundColor: '#e5e7eb', color: 'black' }} onClick={() => setShowCreateUser(false)}>Cancelar</button>
+                <button type="button" className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black' }} onClick={() => setShowCreateUser(false)}>Cancelar</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Logout ── */}
+      {showLogoutModal && (
+        <div
+          className="modal-overlay"
+          onClick={() => setShowLogoutModal(false)}
+        >
+          <div
+            className="modal-content"
+            style={{
+              backgroundColor: 'white',
+              padding: '2rem',
+              borderRadius: '8px',
+              maxWidth: '400px',
+              width: '90%',
+              color: '#000',
+              textAlign: 'center',
+              position: 'relative'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ marginTop: 0, marginBottom: '1.5rem', color: '#000', fontSize: '1.5rem' }}>¿Seguro que quiere Cerrar Sesión?</h2>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <button
+                className="btn"
+                style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', padding: '0.5rem 2rem', marginTop: 0 }}
+                onClick={handleLogout}
+              >
+                Sí
+              </button>
+              <button
+                className="btn"
+                style={{ background: '#478EC6', color: 'black', padding: '0.5rem 2rem', marginTop: 0 }}
+                onClick={() => setShowLogoutModal(false)}
+              >
+                No
+              </button>
+            </div>
           </div>
         </div>
       )}

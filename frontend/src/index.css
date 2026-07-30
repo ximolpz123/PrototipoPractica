@@ -146,8 +146,8 @@ code {
 }
 
 .btn.btn-back {
-  background: red;
-  color: black;
+  background: #dc2626;
+  color: white;
 }
 
 .btn:hover {
@@ -174,7 +174,7 @@ body::before {
   flex-direction: column;
   gap: 20px;
   width: 100%;
-  max-width: 400px;
+  max-width: 500px;
   background: #D6D7D9;
   padding: 30px;
   border-radius: 12px;
@@ -270,7 +270,6 @@ body::before {
   gap: 10px;
   padding: 0 12px 24px;
   width: 100%;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.4);
   margin-bottom: 18px;
 }
 
@@ -1062,19 +1061,30 @@ input:checked+.theme-slider:before {
 }
 
 .admin-table th {
-  background: linear-gradient(to right, #3D9FD3, #B5B8BE);
-  color: #000;
+  background: #175fbd;
+  color: #fff;
   font-weight: 700;
   padding: 12px 16px;
   text-align: left;
   border-bottom: 2px solid #e5e7eb;
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.admin-table th:last-child {
+  border-right: none;
 }
 
 .admin-table td {
   padding: 4px 16px;
   border-bottom: 1px solid #f0f0f0;
+  border-right: 1px solid #e5e7eb;
   color: #111;
   vertical-align: middle;
+  text-align: left;
+}
+
+.admin-table td:last-child {
+  border-right: none;
 }
 
 .admin-table tr:last-child td {
@@ -1127,7 +1137,7 @@ input:checked+.theme-slider:before {
 }
 
 :root.dark-mode .admin-table th {
-  background-color: #6b7280 !important;
+  background-color: #175fbd !important;
   color: #FFFFFF !important;
 }
 
@@ -1138,19 +1148,45 @@ input:checked+.theme-slider:before {
 :root.dark-mode .reserv-input,
 :root.dark-mode .reserv-select,
 :root.dark-mode .reserv-textarea {
-  background-color: #6b7280 !important;
+  background-color: #404040 !important;
   color: #FFFFFF !important;
-  border-color: #4b5563 !important;
+  border-color: #555 !important;
 }
 
 :root.dark-mode .reserv-input:focus,
 :root.dark-mode .reserv-select:focus,
 :root.dark-mode .reserv-textarea:focus {
-  background: #73777f !important;
-  border-color: #FFFFFF !important;
+  border-color: #3D9FD3 !important;
 }
 
 :root.dark-mode .reserv-input::placeholder,
 :root.dark-mode .reserv-textarea::placeholder {
   color: #d1d5db !important;
+}
+
+/* ── Estilos para todos los paneles/inputs de crear y editar (gris oscuro) ── */
+.reserv-input,
+.reserv-select,
+.reserv-textarea,
+.form-group input,
+.modal-content input,
+.modal-content select,
+.modal-content textarea,
+.filter-panel input,
+.filter-panel select {
+  background-color: #404040 !important;
+  color: #ffffff !important;
+  border: 1px solid #555 !important;
+}
+
+.reserv-input:focus,
+.reserv-select:focus,
+.reserv-textarea:focus,
+.form-group input:focus,
+.modal-content input:focus,
+.modal-content select:focus,
+.modal-content textarea:focus,
+.filter-panel input:focus,
+.filter-panel select:focus {
+  border-color: #3D9FD3 !important;
 }
