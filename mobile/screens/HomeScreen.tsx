@@ -23,6 +23,7 @@ export default function HomeScreen({ route, navigation }: any) {
 
   // Modal DEV para Máquina del Tiempo
   const [devModalVisible, setDevModalVisible] = useState(false);
+  const [manualMinutes, setManualMinutes] = useState('');
   const [serverOffset, setServerOffset] = useState(0);
   const [simulatedTime, setSimulatedTime] = useState(new Date());
 
@@ -42,9 +43,9 @@ export default function HomeScreen({ route, navigation }: any) {
     return () => clearInterval(interval);
   }, [serverOffset]);
 
-  const changeDevTime = async (hours: number, days: number) => {
+  const changeDevTime = async (hours: number, days: number, minutes: number = 0) => {
     try {
-      await api.post('/dev/time', { action: 'set', hours, days });
+      await api.post('/dev/time', { action: 'set', hours, days, minutes });
       showAlert('Éxito', 'Tiempo adelantado (simulado).');
       setDevModalVisible(false);
       await fetchTimeOffset();
@@ -369,7 +370,30 @@ export default function HomeScreen({ route, navigation }: any) {
               <Text style={styles.btnText}>Adelantar 1 Día</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.btnDanger, { marginTop: 20 }]} onPress={resetDevTime}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 20, marginBottom: 10 }}>
+              <TextInput
+                style={[styles.kmInput, { flex: 1, marginVertical: 0, marginRight: 10 }]}
+                value={manualMinutes}
+                onChangeText={setManualMinutes}
+                placeholder="Minutos..."
+                placeholderTextColor={COLORS.textMuted}
+                keyboardType="numeric"
+              />
+              <TouchableOpacity 
+                style={[styles.btnPrimary, { paddingVertical: 12 }]} 
+                onPress={() => {
+                  const mins = parseInt(manualMinutes, 10);
+                  if (!isNaN(mins) && mins > 0) {
+                    changeDevTime(0, 0, mins);
+                    setManualMinutes('');
+                  }
+                }}
+              >
+                <Text style={styles.btnText}>Adelantar</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity style={[styles.btnDanger, { marginTop: 10 }]} onPress={resetDevTime}>
               <Text style={styles.btnText}>Reiniciar Tiempo Real</Text>
             </TouchableOpacity>
 

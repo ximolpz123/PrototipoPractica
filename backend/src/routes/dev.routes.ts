@@ -13,7 +13,7 @@ router.get('/time', (req: Request, res: Response) => {
 
 // POST /api/dev/time
 router.post('/time', (req: Request, res: Response) => {
-  const { action, hours, days } = req.body;
+  const { action, hours, days, minutes } = req.body;
 
   try {
     if (action === 'reset') {
@@ -23,6 +23,7 @@ router.post('/time', (req: Request, res: Response) => {
     }
 
     let offset = timeService.getOffset();
+    if (minutes) offset += minutes * 60 * 1000;
     if (hours) offset += hours * 60 * 60 * 1000;
     if (days) offset += days * 24 * 60 * 60 * 1000;
 
