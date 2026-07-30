@@ -631,11 +631,11 @@ function Dashboard() {
                   </div>
                   <div className="reservation-card-info">
                     {user?.rol === 'admin' && (
-                      <span>👤 <strong>Usuario:</strong> {typeof r.usuario === 'object' && r.usuario !== null ? `${(r.usuario as any).nombre} ${(r.usuario as any).apellido}` : 'Desconocido'}</span>
+                      <span> <strong>Usuario:</strong> {typeof r.usuario === 'object' && r.usuario !== null ? `${(r.usuario as any).nombre} ${(r.usuario as any).apellido}` : 'Desconocido'}</span>
                     )}
-                    <span>📅 <strong>Inicio:</strong> {new Date(r.fechaInicio).toLocaleDateString('es-CL')}</span>
-                    <span>📅 <strong>Fin:</strong>    {new Date(r.fechaFin).toLocaleDateString('es-CL')}</span>
-                    {r.destino && <span>📍 <strong>Destino:</strong> {r.destino}</span>}
+                    <span> <strong>Inicio:</strong> {new Date(r.fechaInicio).toLocaleDateString('es-CL')}</span>
+                    <span> <strong>Fin:</strong>    {new Date(r.fechaFin).toLocaleDateString('es-CL')}</span>
+                    {r.destino && <span> <strong>Destino:</strong> {r.destino}</span>}
                   </div>
                   <button className="btn" style={{ marginTop: '1rem', width: '100%' }} onClick={() => setSelectedReservation(r)}>
                     Ver Reservación
@@ -835,7 +835,7 @@ function Dashboard() {
                   <strong>Fotos de Inicio del Viaje:</strong>
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
                     {selectedReservation.fotosSalida.map((foto, idx) => (
-                      <img key={idx} src={`http://localhost:5000${foto}`} alt={`Inicio ${idx}`} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc' }} />
+                      <img key={idx} src={foto.startsWith('http') ? foto : `http://localhost:5000${foto}`} alt={`Inicio ${idx}`} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc' }} />
                     ))}
                   </div>
                 </div>
@@ -846,7 +846,7 @@ function Dashboard() {
                   <strong>Fotos de Fin del Viaje:</strong>
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
                     {selectedReservation.fotosRetorno.map((foto, idx) => (
-                      <img key={idx} src={`http://localhost:5000${foto}`} alt={`Fin ${idx}`} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc' }} />
+                      <img key={idx} src={foto.startsWith('http') ? foto : `http://localhost:5000${foto}`} alt={`Fin ${idx}`} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc' }} />
                     ))}
                   </div>
                 </div>

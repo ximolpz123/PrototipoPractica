@@ -125,7 +125,6 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
       entidad: 'Reservation',
       entidadId: reservation._id,
       detalles: `Reserva pendiente de aprobación desde ${inicio.toISOString()} hasta ${fin.toISOString()}`
-      detalles: `Reserva solicitada desde ${inicio.toISOString()} hasta ${fin.toISOString()}`
     });
 
     const populated = await reservation.populate([
@@ -168,8 +167,8 @@ export const startReservation = async (req: AuthRequest, res: Response): Promise
     const maxTiempoAntes = new Date(fechaInicioReserva.getTime() - 10 * 60000); // 10 mins antes
 
     if (currentTime < maxTiempoAntes) {
-      res.status(400).json({ 
-        message: `Aún es muy pronto para iniciar. Puedes iniciar el viaje a partir de las ${maxTiempoAntes.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}` 
+      res.status(400).json({
+        message: `Aún es muy pronto para iniciar. Puedes iniciar el viaje a partir de las ${maxTiempoAntes.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`
       });
       return;
     }
