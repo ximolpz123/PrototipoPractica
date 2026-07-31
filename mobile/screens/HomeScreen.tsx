@@ -144,11 +144,11 @@ export default function HomeScreen({ route, navigation }: any) {
 
   const handleNavigate = async () => {
     if (!activeReserva?.destino) return;
-    
+
     const query = encodeURIComponent(activeReserva.destino);
     // URL universal que funciona en iOS y Android para abrir Google Maps
     const url = `https://www.google.com/maps/search/?api=1&query=${query}`;
-    
+
     const supported = await Linking.canOpenURL(url);
     if (supported) {
       await Linking.openURL(url);
@@ -206,7 +206,7 @@ export default function HomeScreen({ route, navigation }: any) {
   }
 
   return (
-    <ScrollView 
+    <ScrollView
       style={styles.container}
       contentContainerStyle={styles.scrollContent}
       refreshControl={
@@ -216,11 +216,11 @@ export default function HomeScreen({ route, navigation }: any) {
       {/* Bienvenida */}
       <View style={styles.headerRow}>
         <View>
-          <Text style={styles.welcomeTitle}>¡Bienvenido! 👋</Text>
+          <Text style={styles.welcomeTitle}>¡Bienvenido!👋</Text>
           <Text style={styles.welcomeName}>{user.nombre} {user.apellido}</Text>
           <Text style={styles.welcomeRole}>Rol: {user.rol}</Text>
         </View>
-        
+
         {/* Reloj visible */}
         <View style={styles.clockContainer}>
           <Text style={styles.clockTime}>
@@ -232,13 +232,13 @@ export default function HomeScreen({ route, navigation }: any) {
           {serverOffset !== 0 && <Text style={styles.clockDevBadge}>SIMULADO</Text>}
         </View>
       </View>
-      
+
       {/* Botón DEV (Visible solo para pruebas) */}
-      <TouchableOpacity 
-        style={{ backgroundColor: 'orange', padding: 10, borderRadius: 8, marginVertical: 10, alignItems: 'center' }} 
+      <TouchableOpacity
+        style={{ backgroundColor: 'orange', padding: 10, borderRadius: 8, marginVertical: 10, alignItems: 'center' }}
         onPress={() => setDevModalVisible(true)}
       >
-        <Text style={{ color: 'white', fontWeight: 'bold' }}>🕒 DEV: Cambiar Hora</Text>
+        <Text style={{ color: 'white', fontWeight: 'bold' }}>Cambiar Hora del simulador</Text>
       </TouchableOpacity>
 
       {/* Tarjeta de Viaje Activo */}
@@ -258,17 +258,17 @@ export default function HomeScreen({ route, navigation }: any) {
 
           {!isTracking && (
             <TouchableOpacity style={styles.btnPrimary} onPress={handleStartTrip}>
-              <Text style={styles.btnText}>▶ Reanudar GPS</Text>
+              <Text style={styles.btnText}>Reanudar GPS</Text>
             </TouchableOpacity>
           )}
 
           <View style={styles.activeActionsRow}>
             <TouchableOpacity style={styles.btnNav} onPress={handleNavigate}>
-              <Text style={styles.btnText}>🗺️ Navegar</Text>
+              <Text style={styles.btnText}>Navegar</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.btnDangerHalf} onPress={handleEndTrip}>
-              <Text style={styles.btnText}>⏹ Finalizar</Text>
+              <Text style={styles.btnText}>Finalizar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -357,11 +357,11 @@ export default function HomeScreen({ route, navigation }: any) {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>🕒 Máquina del Tiempo</Text>
             <Text style={{ marginBottom: 15, textAlign: 'center', color: COLORS.textMuted }}>Solo para pruebas. Afecta al backend.</Text>
-            
+
             <TouchableOpacity style={styles.btnPrimary} onPress={() => changeDevTime(1, 0)}>
               <Text style={styles.btnText}>Adelantar 1 Hora</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity style={[styles.btnPrimary, { marginTop: 10 }]} onPress={() => changeDevTime(3, 0)}>
               <Text style={styles.btnText}>Adelantar 3 Horas</Text>
             </TouchableOpacity>
@@ -379,8 +379,8 @@ export default function HomeScreen({ route, navigation }: any) {
                 placeholderTextColor={COLORS.textMuted}
                 keyboardType="numeric"
               />
-              <TouchableOpacity 
-                style={[styles.btnPrimary, { paddingVertical: 12 }]} 
+              <TouchableOpacity
+                style={[styles.btnPrimary, { paddingVertical: 12 }]}
                 onPress={() => {
                   const mins = parseInt(manualMinutes, 10);
                   if (!isNaN(mins) && mins > 0) {
