@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../constants';
 import { reservationService, IReservation } from '../services/reservation.service';
@@ -28,6 +29,7 @@ export default function MisReservasScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedReserva, setSelectedReserva] = useState<IReservation | null>(null);
 
   const fetchReservations = async () => {
     try {
@@ -62,7 +64,7 @@ export default function MisReservasScreen({ navigation }: any) {
       : 'Vehículo desconocido';
 
     return (
-      <View style={styles.card}>
+      <TouchableOpacity style={styles.card} onPress={() => setSelectedReserva(item)}>
         <View style={styles.cardHeader}>
           <Text style={styles.vehicleTitle}>{vehiculo}</Text>
           <Text style={[styles.statusBadge, { color: estado.color }]}>{estado.label}</Text>
@@ -74,12 +76,12 @@ export default function MisReservasScreen({ navigation }: any) {
           {item.motivo ? <Text style={styles.infoText} numberOfLines={1}>📝 {item.motivo}</Text> : null}
           {item.estado === 'cancelada' && item.motivoRechazo ? (
             <View style={styles.rejectBox}>
-              <Text style={styles.rejectLabel}>❌ Motivo de rechazo:</Text>
-              <Text style={styles.rejectText}>{item.motivoRechazo}</Text>
+              <Text style={styles.rejectLabel}>❌ Motivo de rechazo (Toca para ver más):</Text>
+              <Text style={styles.rejectText} numberOfLines={2}>{item.motivoRechazo}</Text>
             </View>
           ) : null}
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -133,6 +135,57 @@ export default function MisReservasScreen({ navigation }: any) {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}
         />
       )}
+
+      {/* Modal de Detalle */}
+      <Modal visible={!!selectedReserva} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Detalle de Reserva</Text>
+              <TouchableOpacity onPress={() => setSelectedReserva(null)}>
+                <Ionicons name="close" size={28} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+
+            {selectedReserva && (
+              <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+                <View style={styles.modalSection}>
+                  <Text style={styles.modalSectionTitle}>Vehículo</Text>
+                  <Text style={styles.modalSectionText}>
+                    {selectedReserva.vehiculo ? `${selectedReserva.vehiculo.marca} ${selectedReserva.vehiculo.modelo}` : 'Vehículo desconocido'}
+                  </Text>
+                </View>
+
+                <View style={styles.modalSection}>
+                  <Text style={styles.modalSectionTitle}>Destino</Text>
+                  <Text style={styles.modalSectionText}>{selectedReserva.destino}</Text>
+                </View>
+
+                {selectedReserva.motivo ? (
+                  <View style={styles.modalSection}>
+                    <Text style={styles.modalSectionTitle}>Motivo del viaje</Text>
+                    <Text style={styles.modalSectionText}>{selectedReserva.motivo}</Text>
+                  </View>
+                ) : null}
+
+                {selectedReserva.estado === 'cancelada' && selectedReserva.motivoRechazo ? (
+                  <View style={styles.modalSection}>
+                    <Text style={[styles.modalSectionTitle, { color: COLORS.danger }]}>Motivo de Rechazo</Text>
+                    <Text style={styles.modalSectionText}>{selectedReserva.motivoRechazo}</Text>
+                  </View>
+                ) : null}
+
+                {selectedReserva.observaciones && (
+                  <View style={styles.modalSection}>
+                    <Text style={styles.modalSectionTitle}>Observaciones (Retorno)</Text>
+                    <Text style={styles.modalSectionText}>{selectedReserva.observaciones}</Text>
+                  </View>
+                )}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -269,6 +322,49 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#C0392B',
     lineHeight: 18,
+  },
+  // Modal de Detalles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 40,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  modalScroll: {
+    paddingBottom: 20,
+  },
+  modalSection: {
+    marginBottom: 16,
+  },
+  modalSectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: COLORS.textMuted,
+    marginBottom: 4,
+  },
+  modalSectionText: {
+    fontSize: 16,
+    color: COLORS.text,
+    lineHeight: 22,
   },
 });
 

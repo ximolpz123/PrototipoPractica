@@ -363,6 +363,13 @@ export default function AdminHistoryScreen() {
                 </View>
               )}
 
+              {selectedReserva.estado === 'cancelada' && selectedReserva.motivoRechazo ? (
+                <View style={styles.section}>
+                  <Text style={[styles.sectionTitle, { color: COLORS.danger }]}>Motivo de Rechazo</Text>
+                  <Text style={styles.sectionText}>{selectedReserva.motivoRechazo}</Text>
+                </View>
+              ) : null}
+
               <View style={styles.section}>
                 <View style={styles.sectionTitleRow}>
                   <Ionicons name="camera" size={16} color={COLORS.primary} />
