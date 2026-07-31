@@ -70,6 +70,7 @@ function Vehicles() {
   const [reservations, setReservations] = useState<IReservation[]>([]);
   const [loadingRes, setLoadingRes] = useState(false);
   const [errorRes, setErrorRes] = useState('');
+  const [resFilterStatus, setResFilterStatus] = useState('todos');
   const [selectedReservation, setSelectedReservation] = useState<IReservation | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -154,6 +155,22 @@ function Vehicles() {
       console.error('Error al eliminar reservación', error);
     }
   };
+
+  const ESTADO_PRIORITY: Record<string, number> = {
+    en_curso: 1,
+    aprobada: 2,
+    pendiente: 3,
+    completada: 4,
+    cancelada: 5,
+  };
+
+  const filteredReservations = reservations
+    .filter((r) => resFilterStatus === 'todos' || r.estado === resFilterStatus)
+    .sort((a, b) => {
+      const pA = ESTADO_PRIORITY[a.estado] || 99;
+      const pB = ESTADO_PRIORITY[b.estado] || 99;
+      return pA - pB;
+    });
 
   return (
     <div className="dashboard-layout">
@@ -266,23 +283,37 @@ function Vehicles() {
         {/* ── Panel: Reservaciones ── */}
         {activeTab === 'reservaciones' && (
           <div className="reservations-panel">
-            <button
-              id="btn-crear-reservacion"
-              className="btn btn-create"
-              onClick={() => navigate('/reservations')}
-            >
-              ➕ Crear Reservación
-            </button>
+            <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-end', flexWrap: 'wrap', width: '100%', marginBottom: '1rem' }}>
+              <button
+                id="btn-crear-reservacion"
+                className="btn btn-create"
+                onClick={() => navigate('/reservations')}
+                style={{ margin: 0, height: '44px', display: 'flex', alignItems: 'center' }}
+              >
+                ➕ Crear Reservación
+              </button>
+
+              <div className="filter-panel" style={{ flex: 'none', width: '240px', boxSizing: 'border-box' }}>
+                <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '44px' }} value={resFilterStatus} onChange={e => setResFilterStatus(e.target.value)}>
+                  <option value="todos">Todos los Estados</option>
+                  <option value="en_curso">En Curso</option>
+                  <option value="aprobada">Aprobada</option>
+                  <option value="pendiente">Pendiente</option>
+                  <option value="completada">Completada</option>
+                  <option value="cancelada">Cancelada</option>
+                </select>
+              </div>
+            </div>
 
             {loadingRes && <p className="res-status">Cargando reservaciones…</p>}
             {errorRes && <p className="res-status res-error">{errorRes}</p>}
 
-            {!loadingRes && !errorRes && reservations.length === 0 && (
-              <p className="res-status">No tiene ninguna reservación</p>
+            {!loadingRes && !errorRes && filteredReservations.length === 0 && (
+              <p className="res-status">No se encontraron reservaciones.</p>
             )}
 
             <div className="reservations-list">
-              {reservations.map((r) => (
+              {filteredReservations.map((r) => (
                 <div key={r._id} className="reservation-card">
                   <div className="reservation-card-header">
                     <span className="res-vehicle-name"> {getVehicleName(r.vehiculo)}</span>
@@ -323,6 +354,7 @@ function Vehicles() {
           <div
             id="modal-overlay"
             className="modal-overlay"
+            style={{ zIndex: 1100 }}
             onClick={() => setModalImg(null)}
           >
             <img
@@ -390,39 +422,40 @@ function Vehicles() {
                 <p style={{ margin: 0 }}><strong>Fin:</strong> {new Date(selectedReservation.fechaFin).toLocaleString('es-CL')}</p>
                 {selectedReservation.destino && <p style={{ margin: 0 }}><strong>Destino:</strong> {selectedReservation.destino}</p>}
                 {selectedReservation.motivo && <p style={{ margin: 0 }}><strong>Motivo:</strong> {selectedReservation.motivo}</p>}
-              </div>
+                {selectedReservation.motivoRechazo && (
+                  <p style={{ margin: 0, marginTop: '0.5rem', color: '#ef4444' }}>
+                    <strong>Motivo del Rechazo:</strong> {selectedReservation.motivoRechazo}
+                  </p>
+                )}
 
-              {showDeleteConfirm ? (
-                <div style={{ borderTop: '1px solid #ccc', paddingTop: '1.5rem' }}>
-                  <p style={{ fontWeight: 'bold', marginBottom: '1.5rem', fontSize: '1.2rem', color: '#000' }}>¿Quiere eliminar esta Reservación?</p>
-                  <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                    <button
-                      className="btn"
-                      style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', padding: '0.5rem 2rem', border: '2px solid black' }}
-                      onClick={() => handleDeleteReservation(selectedReservation._id)}
-                    >
-                      Si
-                    </button>
-                    <button
-                      className="btn"
-                      style={{ backgroundColor: '#175fbd', color: 'black', padding: '0.5rem 2rem' }}
-                      onClick={() => setShowDeleteConfirm(false)}
-                    >
-                      No
-                    </button>
+                {['aprobada', 'en_curso', 'completada'].includes(selectedReservation.estado) && selectedReservation.fotosSalida && selectedReservation.fotosSalida.length > 0 && (
+                  <div style={{ marginTop: '1rem' }}>
+                    <strong>Fotos de Inicio del Viaje:</strong>
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
+                      {selectedReservation.fotosSalida.map((foto, idx) => {
+                        const imgSrc = foto.startsWith('http') ? foto : `http://localhost:5000${foto}`;
+                        return (
+                          <img key={idx} src={imgSrc} alt={`Inicio ${idx}`} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer' }} onClick={() => setModalImg(imgSrc)} />
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                  <button
-                    className="btn"
-                    style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black' }}
-                    onClick={() => setShowDeleteConfirm(true)}
-                  >
-                    Eliminar Reservación
-                  </button>
-                </div>
-              )}
+                )}
+
+                {['aprobada', 'en_curso', 'completada'].includes(selectedReservation.estado) && selectedReservation.fotosRetorno && selectedReservation.fotosRetorno.length > 0 && (
+                  <div style={{ marginTop: '1rem' }}>
+                    <strong>Fotos de Fin del Viaje:</strong>
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
+                      {selectedReservation.fotosRetorno.map((foto, idx) => {
+                        const imgSrc = foto.startsWith('http') ? foto : `http://localhost:5000${foto}`;
+                        return (
+                          <img key={idx} src={imgSrc} alt={`Fin ${idx}`} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer' }} onClick={() => setModalImg(imgSrc)} />
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

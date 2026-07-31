@@ -1190,3 +1190,20 @@ input:checked+.theme-slider:before {
 .filter-panel select:focus {
   border-color: #3D9FD3 !important;
 }
+
+/* ── Estilos para botones de zoom del mapa (Leaflet) ── */
+.leaflet-bar {
+  border: 2px solid #333 !important;
+}
+
+.leaflet-bar a,
+.leaflet-bar a:hover {
+  background-color: #525252 !important;
+  color: #ffffff !important;
+  border-bottom: 1px solid #333 !important;
+}
+
+.leaflet-bar a.leaflet-disabled {
+  background-color: #222 !important;
+  color: #777 !important;
+}

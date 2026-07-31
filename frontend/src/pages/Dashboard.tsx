@@ -124,11 +124,15 @@ function Dashboard() {
   const [errorRes, setErrorRes] = useState('');
   const [selectedReservation, setSelectedReservation] = useState<IReservation | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [showRejectForm, setShowRejectForm] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [isRejecting, setIsRejecting] = useState(false);
 
   // ── Filtros de Reservaciones ──
   const [resFilterVehicle, setResFilterVehicle] = useState('todos');
   const [resFilterDate, setResFilterDate] = useState('');
   const [resFilterPhotos, setResFilterPhotos] = useState('todas');
+  const [resFilterStatus, setResFilterStatus] = useState('todos');
 
   // ── Estado Vehículos ──
   const [vehicles, setVehicles] = useState<IVehicle[]>([]);
@@ -357,6 +361,28 @@ function Dashboard() {
     finally { setApprovingId(null); }
   };
 
+  // ── Rechazar Reservación ──
+  const rejectReservation = async (id: string) => {
+    if (!rejectReason.trim()) {
+      alert('Por favor, escriba el motivo del rechazo.');
+      return;
+    }
+    setIsRejecting(true);
+    try {
+      const response = await fetch(`http://localhost:5000/api/reservations/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ estado: 'rechazada', motivoRechazo: rejectReason }),
+      });
+      if (!response.ok) throw new Error('Falló el rechazo');
+      await fetchReservations();
+      setSelectedReservation(prev => prev && prev._id === id ? { ...prev, estado: 'rechazada', motivoRechazo: rejectReason } : prev);
+      setShowRejectForm(false);
+      setRejectReason('');
+    } catch { alert('Error al rechazar reservación'); }
+    finally { setIsRejecting(false); }
+  };
+
   // ────────── Helper nombre vehículo en reservaciones ──────────
   const getVehicleName = (vehiculo: IReservation['vehiculo']) => {
     if (typeof vehiculo === 'object' && vehiculo !== null) {
@@ -473,7 +499,16 @@ function Dashboard() {
   );
 
   // ────────── Helper: filter reservations ──────────
+  const ESTADO_PRIORITY: Record<string, number> = {
+    en_curso: 1,
+    aprobada: 2,
+    pendiente: 3,
+    completada: 4,
+    cancelada: 5,
+  };
+
   const filteredReservations = reservations.filter(r => {
+    if (resFilterStatus !== 'todos' && r.estado !== resFilterStatus) return false;
     if (resFilterVehicle !== 'todos') {
       const vId = typeof r.vehiculo === 'object' && r.vehiculo !== null ? (r.vehiculo as any)._id : r.vehiculo;
       if (vId !== resFilterVehicle) return false;
@@ -488,6 +523,10 @@ function Dashboard() {
       if (!r.fotosRetorno || r.fotosRetorno.length === 0) return false;
     }
     return true;
+  }).sort((a, b) => {
+    const pA = ESTADO_PRIORITY[a.estado] || 99;
+    const pB = ESTADO_PRIORITY[b.estado] || 99;
+    return pA - pB;
   });
 
   // ──────────────────── RENDER ────────────────────
@@ -663,6 +702,17 @@ function Dashboard() {
 
             {user?.rol === 'admin' && (
               <div className="filter-panel" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem', padding: '1rem', borderRadius: '8px', width: '100%', boxSizing: 'border-box', alignItems: 'flex-end' }}>
+                <div style={{ flex: '1' }}>
+                  <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>Filtro de Estado de las Reservas</label>
+                  <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '44px' }} value={resFilterStatus} onChange={e => setResFilterStatus(e.target.value)}>
+                    <option value="todos">Todos los Estados</option>
+                    <option value="en_curso">En Curso</option>
+                    <option value="aprobada">Aprobada</option>
+                    <option value="pendiente">Pendiente</option>
+                    <option value="completada">Completada</option>
+                    <option value="cancelada">Cancelada</option>
+                  </select>
+                </div>
                 <div style={{ flex: '1' }}>
                   <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>Vehículo</label>
                   <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '44px' }} value={resFilterVehicle} onChange={e => setResFilterVehicle(e.target.value)}>
@@ -894,9 +944,9 @@ function Dashboard() {
 
       {/* ══════════ MODAL: DETALLE RESERVACIÓN ══════════ */}
       {selectedReservation && (
-        <div className="modal-overlay" onClick={() => setSelectedReservation(null)}>
+        <div className="modal-overlay" onClick={() => { setSelectedReservation(null); setShowRejectForm(false); setRejectReason(''); }}>
           <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '520px', width: '90%', color: '#000', textAlign: 'center', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-            <button onClick={() => setSelectedReservation(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
+            <button onClick={() => { setSelectedReservation(null); setShowRejectForm(false); setRejectReason(''); }} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1.5rem' }}>Detalles de Reservación</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem', textAlign: 'left', fontSize: '1.05rem' }}>
               {user?.rol === 'admin' && typeof selectedReservation.usuario === 'object' && selectedReservation.usuario !== null && (
@@ -916,6 +966,11 @@ function Dashboard() {
               <p style={{ margin: 0 }}><strong>Fin:</strong>    {new Date(selectedReservation.fechaFin).toLocaleString('es-CL')}</p>
               {selectedReservation.destino && <p style={{ margin: 0 }}><strong>Destino:</strong> {selectedReservation.destino}</p>}
               {selectedReservation.motivo && <p style={{ margin: 0 }}><strong>Motivo:</strong>  {selectedReservation.motivo}</p>}
+              {selectedReservation.motivoRechazo && (
+                <p style={{ margin: 0, marginTop: '0.5rem', color: '#ef4444' }}>
+                  <strong>Motivo del Rechazo:</strong> {selectedReservation.motivoRechazo}
+                </p>
+              )}
 
               {selectedReservation.fotosSalida && selectedReservation.fotosSalida.length > 0 && (
                 <div style={{ marginTop: '1rem' }}>
@@ -946,14 +1001,56 @@ function Dashboard() {
               )}
             </div>
             {selectedReservation.estado === 'pendiente' ? (
-              <button
-                className="btn"
-                style={{ backgroundColor: '#22c55e', color: 'black', width: '100%', fontSize: '1rem', padding: '0.7rem' }}
-                disabled={approvingId === selectedReservation._id}
-                onClick={() => approveReservation(selectedReservation._id)}
-              >
-                {approvingId === selectedReservation._id ? 'Aprobando…' : '✅ Aprobar Reservación'}
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {!showRejectForm && (
+                  <button
+                    className="btn"
+                    style={{ backgroundColor: '#22c55e', color: 'black', width: '100%', fontSize: '1rem', padding: '0.7rem' }}
+                    disabled={approvingId === selectedReservation._id || isRejecting}
+                    onClick={() => approveReservation(selectedReservation._id)}
+                  >
+                    {approvingId === selectedReservation._id ? 'Aprobando…' : '✅ Aprobar Reservación'}
+                  </button>
+                )}
+
+                {showRejectForm ? (
+                  <div style={{ marginTop: '10px', textAlign: 'left', borderTop: '1px solid #ccc', paddingTop: '10px' }}>
+                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Escriba el motivo del Rechazo:</label>
+                    <textarea 
+                      style={{ width: '100%', padding: '8px', boxSizing: 'border-box', minHeight: '60px', borderRadius: '4px', border: '1px solid #ccc' }}
+                      value={rejectReason}
+                      onChange={(e) => setRejectReason(e.target.value)}
+                      placeholder="Motivo del rechazo..."
+                    />
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                      <button 
+                        className="btn"
+                        style={{ backgroundColor: '#3b82f6', color: 'black', border: '2px solid black', flex: 1, padding: '0.7rem' }}
+                        onClick={() => rejectReservation(selectedReservation._id)}
+                        disabled={isRejecting}
+                      >
+                        {isRejecting ? 'Enviando...' : 'Enviar Rechazo'}
+                      </button>
+                      <button 
+                        className="btn"
+                        style={{ backgroundColor: '#ef4444', color: 'black', border: '2px solid black', flex: 1, padding: '0.7rem' }}
+                        onClick={() => { setShowRejectForm(false); setRejectReason(''); }}
+                        disabled={isRejecting}
+                      >
+                        Cancelar Rechazo
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    className="btn"
+                    style={{ backgroundColor: '#ef4444', color: 'black', width: '100%', fontSize: '1rem', padding: '0.7rem', border: '2px solid black' }}
+                    onClick={() => setShowRejectForm(true)}
+                  >
+                    ❌ Rechazar Aprobación
+                  </button>
+                )}
+              </div>
             ) : (
               <p style={{ color: '#6b7280', fontStyle: 'italic', fontSize: '0.95rem' }}>
                 Esta reservación ya no está pendiente de aprobación.
