@@ -106,3 +106,18 @@ export const setVehicleMaintenance = async (req: AuthRequest, res: Response): Pr
     res.status(500).json({ message: 'Error al poner vehículo en mantenimiento', error });
   }
 };
+
+// Subir imagen de vehículo
+export const uploadVehicleImage = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const file = req.file;
+    if (!file) {
+      res.status(400).json({ message: 'No se proporcionó imagen' });
+      return;
+    }
+    // Cloudinary multer storage sets the url in req.file.path
+    res.json({ url: file.path });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al subir imagen de vehículo', error });
+  }
+};
