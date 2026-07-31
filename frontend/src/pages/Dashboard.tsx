@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ActiveVehiclesMap } from '../components/ActiveVehiclesMap';
 import type { IUser, IReservation, IVehicle } from '../types';
 import camionetaBlancaImg from '../assets/camioneta-blanca.png';
 import autoCafeImg from '../assets/auto-cafe.png';
@@ -33,7 +34,7 @@ const ESTADO_RES_COLORS: Record<string, string> = {
   cancelada: '#ef4444',
 };
 
-type DashTab = 'dashboard' | 'usuarios' | 'reservaciones' | 'vehiculos';
+type DashTab = 'dashboard' | 'usuarios' | 'reservaciones' | 'vehiculos-activos' | 'vehiculos';
 
 // ─── Formulario vacío de vehículo ────────────────────────────────────────────
 const EMPTY_VEHICLE_FORM = {
@@ -137,7 +138,9 @@ function Dashboard() {
   const [showCreateVehicle, setShowCreateVehicle] = useState(false);
   const [showEditVehicle, setShowEditVehicle] = useState<IVehicle | null>(null);
   const [vehicleForm, setVehicleForm] = useState(EMPTY_VEHICLE_FORM);
+  const [vehicleImageFile, setVehicleImageFile] = useState<File | null>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
 
   // ── Cargar datos al cambiar tab ──
   useEffect(() => {
@@ -248,7 +251,24 @@ function Dashboard() {
   const createVehicle = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const body = { ...vehicleForm, ultimoMantenimiento: vehicleForm.ultimoMantenimiento || undefined };
+      let finalImageUrl = vehicleForm.imagenUrl;
+      if (vehicleImageFile) {
+        const formData = new FormData();
+        formData.append('imagen', vehicleImageFile);
+        const uploadRes = await fetch('http://localhost:5000/api/vehicles/upload-image', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          finalImageUrl = uploadData.url;
+        } else {
+          throw new Error('Error al subir imagen');
+        }
+      }
+
+      const body = { ...vehicleForm, imagenUrl: finalImageUrl, ultimoMantenimiento: vehicleForm.ultimoMantenimiento || undefined };
       await fetch('http://localhost:5000/api/vehicles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -256,6 +276,7 @@ function Dashboard() {
       });
       setShowCreateVehicle(false);
       setVehicleForm(EMPTY_VEHICLE_FORM);
+      setVehicleImageFile(null);
       fetchVehicles();
     } catch { alert('Error al crear vehículo'); }
   };
@@ -263,6 +284,7 @@ function Dashboard() {
   const openEditVehicle = (v: IVehicle) => {
     setShowEditVehicle(v);
     setSelectedVehicle(null);
+    setVehicleImageFile(null);
     setVehicleForm({
       placa: v.placa,
       marca: v.marca,
@@ -280,7 +302,24 @@ function Dashboard() {
   const saveEditVehicle = async () => {
     if (!showEditVehicle) return;
     try {
-      const body = { ...vehicleForm, ultimoMantenimiento: vehicleForm.ultimoMantenimiento || undefined };
+      let finalImageUrl = vehicleForm.imagenUrl;
+      if (vehicleImageFile) {
+        const formData = new FormData();
+        formData.append('imagen', vehicleImageFile);
+        const uploadRes = await fetch('http://localhost:5000/api/vehicles/upload-image', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          finalImageUrl = uploadData.url;
+        } else {
+          throw new Error('Error al subir imagen');
+        }
+      }
+
+      const body = { ...vehicleForm, imagenUrl: finalImageUrl, ultimoMantenimiento: vehicleForm.ultimoMantenimiento || undefined };
       await fetch(`http://localhost:5000/api/vehicles/${showEditVehicle._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -288,6 +327,7 @@ function Dashboard() {
       });
       setShowEditVehicle(null);
       setVehicleForm(EMPTY_VEHICLE_FORM);
+      setVehicleImageFile(null);
       fetchVehicles();
     } catch { alert('Error al actualizar vehículo'); }
   };
@@ -331,7 +371,7 @@ function Dashboard() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
       {([
         ['placa', 'Placa'], ['marca', 'Marca'], ['modelo', 'Modelo'],
-        ['color', 'Color'], ['imagenUrl', 'URL de Imagen'],
+        ['color', 'Color'],
       ] as [keyof typeof vehicleForm, string][]).map(([field, label]) => (
         <div key={field}>
           <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>{label}:</label>
@@ -359,6 +399,39 @@ function Dashboard() {
           />
         </div>
       ))}
+      <div>
+        <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>URL de Imagen:</label>
+        <input
+          className="reserv-input"
+          style={{ width: '100%', boxSizing: 'border-box' }}
+          value={String(vehicleForm.imagenUrl)}
+          onChange={e => setVehicleForm(f => ({ ...f, imagenUrl: e.target.value }))}
+          placeholder="Ej: https://... (o sube una imagen abajo)"
+        />
+      </div>
+      <div>
+        <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>O Subir Imagen (.png):</label>
+        <input
+          type="file"
+          accept=".png"
+          className="reserv-input"
+          style={{ width: '100%', boxSizing: 'border-box', padding: '0.4rem' }}
+          onChange={e => {
+            if (e.target.files && e.target.files[0]) {
+              const file = e.target.files[0];
+              if (file.type !== 'image/png' && !file.name.toLowerCase().endsWith('.png')) {
+                alert('Solo se permiten imágenes en formato .png');
+                e.target.value = '';
+                return;
+              }
+              setVehicleImageFile(file);
+            } else {
+              setVehicleImageFile(null);
+            }
+          }}
+        />
+        {vehicleImageFile && <div style={{ fontSize: '0.85rem', color: '#10b981', marginTop: '0.25rem' }}>Archivo seleccionado: {vehicleImageFile.name}</div>}
+      </div>
       <div style={{ display: 'flex', gap: '1rem' }}>
         <div style={{ flex: 1 }}>
           <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Año:</label>
@@ -467,6 +540,13 @@ function Dashboard() {
             onClick={() => setActiveTab('reservaciones')}
           >
             <span className="btn-icon"></span> Ver Reservaciones
+          </button>
+          <button
+            id="sidebar-btn-vehiculos-activos"
+            className={`sidebar-btn${activeTab === 'vehiculos-activos' ? ' active' : ''}`}
+            onClick={() => setActiveTab('vehiculos-activos')}
+          >
+            <span className="btn-icon"></span> Vehículos Activos
           </button>
           <button
             id="sidebar-btn-vehiculos"
@@ -643,6 +723,13 @@ function Dashboard() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* ══════════ TAB: VEHÍCULOS ACTIVOS ══════════ */}
+        {activeTab === 'vehiculos-activos' && (
+          <div style={{ width: '100%' }}>
+            <ActiveVehiclesMap token={token} isAdmin={user?.rol === 'admin'} />
           </div>
         )}
 
@@ -834,9 +921,12 @@ function Dashboard() {
                 <div style={{ marginTop: '1rem' }}>
                   <strong>Fotos de Inicio del Viaje:</strong>
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
-                    {selectedReservation.fotosSalida.map((foto, idx) => (
-                      <img key={idx} src={foto.startsWith('http') ? foto : `http://localhost:5000${foto}`} alt={`Inicio ${idx}`} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc' }} />
-                    ))}
+                    {selectedReservation.fotosSalida.map((foto, idx) => {
+                      const imgSrc = foto.startsWith('http') ? foto : `http://localhost:5000${foto}`;
+                      return (
+                        <img key={idx} src={imgSrc} alt={`Inicio ${idx}`} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer' }} onClick={() => setFullScreenImage(imgSrc)} />
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -845,9 +935,12 @@ function Dashboard() {
                 <div style={{ marginTop: '1rem' }}>
                   <strong>Fotos de Fin del Viaje:</strong>
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
-                    {selectedReservation.fotosRetorno.map((foto, idx) => (
-                      <img key={idx} src={foto.startsWith('http') ? foto : `http://localhost:5000${foto}`} alt={`Fin ${idx}`} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc' }} />
-                    ))}
+                    {selectedReservation.fotosRetorno.map((foto, idx) => {
+                      const imgSrc = foto.startsWith('http') ? foto : `http://localhost:5000${foto}`;
+                      return (
+                        <img key={idx} src={imgSrc} alt={`Fin ${idx}`} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer' }} onClick={() => setFullScreenImage(imgSrc)} />
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -984,6 +1077,25 @@ function Dashboard() {
                 No
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Imagen Full Screen ── */}
+      {fullScreenImage && (
+        <div
+          className="modal-overlay"
+          style={{ zIndex: 9999, padding: '2rem' }}
+          onClick={() => setFullScreenImage(null)}
+        >
+          <div style={{ position: 'relative', maxWidth: '90%', maxHeight: '90%' }} onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setFullScreenImage(null)}
+              style={{ position: 'absolute', top: '-15px', right: '-15px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+            >
+              X
+            </button>
+            <img src={fullScreenImage} alt="Vista ampliada" style={{ maxWidth: '100%', maxHeight: '85vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }} />
           </div>
         </div>
       )}
