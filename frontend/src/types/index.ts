@@ -37,12 +37,13 @@ export interface IReservation {
   fechaFin: string;
   destino: string;
   motivo: string;
-  estado: 'pendiente' | 'aprobada' | 'en_curso' | 'completada' | 'cancelada';
+  estado: 'pendiente' | 'aprobada' | 'en_curso' | 'completada' | 'cancelada' | 'rechazada';
   kmSalida?: number;
   kmRetorno?: number;
   fotosSalida?: string[];
   fotosRetorno?: string[];
   observaciones?: string;
+  motivoRechazo?: string;
   createdAt: string;
   updatedAt: string;
 }

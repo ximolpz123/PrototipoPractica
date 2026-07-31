@@ -121,11 +121,11 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
           setLocationError(null);
         },
         () => {
-          setLocationError('No se pudo obtener tu ubicación. Asegúrate de permitir el acceso en el navegador.');
+          setLocationError('Para ver a los vehiculos activos debe activar la Ubicacion de su dispositivo');
         }
       );
     } else {
-      setLocationError('Tu navegador no soporta geolocalización.');
+      setLocationError('Para ver a los vehiculos activos debe activar la Ubicacion de su dispositivo');
     }
 
     return () => {
@@ -225,12 +225,13 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
           Vehículos Activos
         </h2>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          {isAdmin && (
+          {!locationError && isAdmin && (
             <span style={{
-              fontSize: '0.85rem', color: '#ffffffff', background: '#629effff',
-              padding: '0.2rem 0.75rem', borderRadius: '8px', border: '2px solid #000000ff'
+              fontSize: '0.9rem', fontWeight: '600', color: '#ffffffff', background: '#629effff',
+              padding: '0.2rem 1rem', borderRadius: '8px', border: '2px solid #000000ff',
+              display: 'inline-flex', alignItems: 'center', boxSizing: 'border-box'
             }}>
-              Actualización en: <strong>{formatCountdown(countdown)}</strong>
+              Actualización en:&nbsp;<strong>{formatCountdown(countdown)}</strong>
             </span>
           )}
           {userLocation && (
@@ -238,22 +239,24 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
               onClick={centerOnUser}
               style={{
                 background: '#3b82f6', color: 'white', border: '2px solid #000000ff', borderRadius: '8px',
-                padding: '0.2 rem 1rem', cursor: 'pointer', fontWeight: '600', fontSize: '0.9rem'
+                padding: '0.4rem 1rem', cursor: 'pointer', fontWeight: '600', fontSize: '0.9rem',
+                display: 'inline-flex', alignItems: 'center', boxSizing: 'border-box'
               }}
             >
               Mi Ubicación
             </button>
           )}
-          {isAdmin && (
+          {!locationError && isAdmin && (
             <button
               onClick={handleManualRefresh}
               disabled={loadingVehicles}
               style={{
                 background: loadingVehicles ? '#9ca3af' : '#175fbd',
                 color: 'white', border: '2px solid #000000ff', borderRadius: '8px',
-                padding: '0.40rem 1rem',
+                padding: '0.4rem 1rem',
                 cursor: loadingVehicles ? 'not-allowed' : 'pointer',
-                fontWeight: '600', fontSize: '0.9rem'
+                fontWeight: '600', fontSize: '0.9rem',
+                display: 'inline-flex', alignItems: 'center', boxSizing: 'border-box'
               }}
             >
               {loadingVehicles ? ' Actualizando…' : '⟳ Actualizar ahora'}
@@ -273,7 +276,7 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
       )}
 
       {/* Info cards (admin) */}
-      {isAdmin && (
+      {!locationError && isAdmin && (
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
           <div style={{
             flex: 1, minWidth: '140px', background: '#f0f9ff', border: '1px solid #bae6fd',
@@ -314,6 +317,7 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
 
       {/* Map */}
       <div style={{
+        display: locationError ? 'none' : 'block',
         borderRadius: '12px', overflow: 'hidden',
         border: '2px solid #e5e7eb',
         boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
@@ -323,25 +327,25 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
       </div>
 
       {/* Vehicle table (admin + vehicles exist) */}
-      {isAdmin && activeVehicles.length > 0 && (
-        <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e5e7eb', overflow: 'hidden' }}>
-          <div style={{ background: '#175fbd', color: 'white', padding: '0.75rem 1.25rem', fontWeight: '700', fontSize: '1rem' }}>
+      {!locationError && isAdmin && activeVehicles.length > 0 && (
+        <div style={{ borderRadius: '12px', overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
+          <div style={{ background: '#033a83ff', color: 'white', padding: '0.75rem 1.25rem', fontWeight: '700', fontSize: '1rem', textAlign: 'center' }}>
             Detalle de Vehículos en Curso
           </div>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+            <table className="admin-table" style={{ borderRadius: 0, boxShadow: 'none', fontSize: '0.95rem' }}>
               <thead>
-                <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                  <th style={{ padding: '0.6rem 1rem', textAlign: 'left', color: '#374151', fontWeight: '600' }}>Vehículo</th>
-                  <th style={{ padding: '0.6rem 1rem', textAlign: 'left', color: '#374151', fontWeight: '600' }}>Patente</th>
-                  <th style={{ padding: '0.6rem 1rem', textAlign: 'left', color: '#374151', fontWeight: '600' }}>Última señal GPS</th>
-                  <th style={{ padding: '0.6rem 1rem', textAlign: 'center', color: '#374151', fontWeight: '600' }}>Acción</th>
+                <tr>
+                  <th style={{ padding: '0.6rem 1rem' }}>Vehículo</th>
+                  <th style={{ padding: '0.6rem 1rem' }}>Patente</th>
+                  <th style={{ padding: '0.6rem 1rem' }}>Última señal GPS</th>
+                  <th style={{ padding: '0.6rem 1rem', textAlign: 'center' }}>Acción</th>
                 </tr>
               </thead>
               <tbody>
                 {activeVehicles.map((v) => (
-                  <tr key={v._id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <td style={{ padding: '0.6rem 1rem', color: '#111' }}>{v.marca} {v.modelo}</td>
+                  <tr key={v._id}>
+                    <td style={{ padding: '0.6rem 1rem' }}>{v.marca} {v.modelo}</td>
                     <td style={{ padding: '0.6rem 1rem' }}>
                       <span style={{
                         background: '#f59e0b', color: 'white', padding: '0.2rem 0.6rem',
@@ -350,7 +354,7 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
                         {v.placa}
                       </span>
                     </td>
-                    <td style={{ padding: '0.6rem 1rem', color: '#6b7280', fontSize: '0.85rem' }}>
+                    <td style={{ padding: '0.6rem 1rem' }}>
                       {v.ubicacionActual
                         ? new Date(v.ubicacionActual.timestamp).toLocaleString('es-CL')
                         : <span style={{ color: '#ef4444' }}>Sin señal GPS</span>}

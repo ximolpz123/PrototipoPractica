@@ -193,10 +193,14 @@ export const startReservation = async (req: AuthRequest, res: Response): Promise
 // Actualizar estado de una reserva (admin)
 export const updateReservationStatus = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { estado } = req.body;
+    const { estado, motivoRechazo } = req.body;
+    
+    const updateData: any = { estado };
+    if (motivoRechazo) updateData.motivoRechazo = motivoRechazo;
+
     const reservation = await Reservation.findByIdAndUpdate(
       req.params.id,
-      { estado },
+      updateData,
       { new: true, runValidators: true }
     )
       .populate('usuario', 'nombre apellido email')
