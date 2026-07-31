@@ -14,6 +14,7 @@ const ESTADO_COLOR: Record<string, string> = {
   en_curso: COLORS.success,
   completada: COLORS.textMuted,
   cancelada: COLORS.danger,
+  rechazada: COLORS.danger,
 };
 
 function formatFecha(dateStr: string) {
@@ -363,7 +364,7 @@ export default function AdminHistoryScreen() {
                 </View>
               )}
 
-              {selectedReserva.estado === 'cancelada' && selectedReserva.motivoRechazo ? (
+              {(selectedReserva.estado === 'cancelada' || selectedReserva.estado === 'rechazada') && selectedReserva.motivoRechazo ? (
                 <View style={styles.section}>
                   <Text style={[styles.sectionTitle, { color: COLORS.danger }]}>Motivo de Rechazo</Text>
                   <Text style={styles.sectionText}>{selectedReserva.motivoRechazo}</Text>

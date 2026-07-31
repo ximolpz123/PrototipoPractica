@@ -15,6 +15,7 @@ const ESTADO_COLOR: Record<string, string> = {
   en_curso: COLORS.success,
   completada: COLORS.textMuted,
   cancelada: COLORS.danger,
+  rechazada: COLORS.danger,
 };
 
 function formatFecha(dateStr: string) {
@@ -95,7 +96,7 @@ export default function AdminDashboardScreen({ navigation }: any) {
   };
 
   // Confirmar rechazo con motivo
-  const handleConfirmReject = async () => {
+    const handleConfirmReject = async () => {
     if (!pendingRejectId) return;
     if (!rejectMotivo.trim()) {
       showAlert('Motivo requerido', 'Por favor escribe el motivo del rechazo antes de confirmar.');
@@ -104,7 +105,8 @@ export default function AdminDashboardScreen({ navigation }: any) {
     setRejectModalVisible(false);
     setActionLoading(pendingRejectId);
     try {
-      await reservationService.cancel(pendingRejectId, rejectMotivo.trim());
+      // Usamos el mismo endpoint updateStatus pasando estado rechazada y el motivo
+      await reservationService.updateStatus(pendingRejectId, 'rechazada', rejectMotivo.trim());
       await cargarReservas(true);
     } catch (err: any) {
       showAlert('Error', err.response?.data?.message ?? 'No se pudo rechazar la reserva.');

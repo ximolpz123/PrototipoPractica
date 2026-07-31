@@ -11,6 +11,7 @@ const ESTADO_MAP: Record<string, { label: string; color: string }> = {
   en_curso: { label: 'En Curso', color: COLORS.success },
   completada: { label: 'Completada', color: COLORS.textMuted },
   cancelada: { label: 'Cancelada', color: COLORS.danger },
+  rechazada: { label: 'Rechazada', color: COLORS.danger },
 };
 
 
@@ -74,7 +75,7 @@ export default function MisReservasScreen({ navigation }: any) {
           <Text style={styles.infoText}>⏱ {formatTime(item.fechaInicio)} - {formatTime(item.fechaFin)}</Text>
           <Text style={styles.infoText}>📍 {item.destino}</Text>
           {item.motivo ? <Text style={styles.infoText} numberOfLines={1}>📝 {item.motivo}</Text> : null}
-          {item.estado === 'cancelada' && item.motivoRechazo ? (
+          {(item.estado === 'cancelada' || item.estado === 'rechazada') && item.motivoRechazo ? (
             <View style={styles.rejectBox}>
               <Text style={styles.rejectLabel}>❌ Motivo de rechazo (Toca para ver más):</Text>
               <Text style={styles.rejectText} numberOfLines={2}>{item.motivoRechazo}</Text>
@@ -168,7 +169,7 @@ export default function MisReservasScreen({ navigation }: any) {
                   </View>
                 ) : null}
 
-                {selectedReserva.estado === 'cancelada' && selectedReserva.motivoRechazo ? (
+                {(selectedReserva.estado === 'cancelada' || selectedReserva.estado === 'rechazada') && selectedReserva.motivoRechazo ? (
                   <View style={styles.modalSection}>
                     <Text style={[styles.modalSectionTitle, { color: COLORS.danger }]}>Motivo de Rechazo</Text>
                     <Text style={styles.modalSectionText}>{selectedReserva.motivoRechazo}</Text>

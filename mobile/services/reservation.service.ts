@@ -20,7 +20,7 @@ export interface IReservation {
   fechaFin: string;
   destino: string;
   motivo: string;
-  estado: 'pendiente' | 'aprobada' | 'en_curso' | 'completada' | 'cancelada';
+  estado: 'pendiente' | 'aprobada' | 'en_curso' | 'completada' | 'cancelada' | 'rechazada';
   kmSalida?: number;
   kmRetorno?: number;
   fotosSalida?: string[];
@@ -43,9 +43,8 @@ export const reservationService = {
     return response.data;
   },
 
-  // Admin: aprobar, rechazar, etc.
-  updateStatus: async (id: string, estado: string): Promise<IReservation> => {
-    const response = await api.patch(`/reservations/${id}/status`, { estado });
+  updateStatus: async (id: string, estado: string, motivoRechazo?: string): Promise<IReservation> => {
+    const response = await api.patch(`/reservations/${id}/status`, { estado, motivoRechazo });
     return response.data.reservation;
   },
 
