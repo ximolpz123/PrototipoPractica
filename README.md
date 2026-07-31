@@ -1,97 +1,90 @@
 # 🚗 PrototipoPractica — Sistema de Reserva de Vehículos (Bitnets)
 
-Sistema prototipo para gestionar la reserva de la flota de vehículos de la empresa, integrando una plataforma web de administración y una aplicación móvil para los conductores.
+Sistema funcional integral para gestionar y auditar la flota de vehículos corporativos, proporcionando control en tiempo real al administrador y una herramienta fácil de usar para los conductores.
+
+## 🌟 Características Principales
+
+### 📱 App Móvil (Conductores y Administradores)
+- **Control de Viajes:** Solicita reservas, inicia y finaliza viajes desde el teléfono.
+- **Evidencia Fotográfica:** Captura fotos obligatorias del vehículo al salir y al regresar. Las fotos se suben directamente a Cloudinary.
+- **Rastreo GPS:** Transmisión de ubicación en segundo plano cada 3 minutos mientras el viaje está en curso.
+- **Kilometraje Automatizado:** Registra el odómetro de salida y retorno, actualizando automáticamente la base de datos central.
+- **Panel Administrador Móvil:** Permite aprobar o rechazar reservas directamente desde la app, incluyendo motivos de rechazo detallados.
+
+### 💻 Plataforma Web (Administración Global)
+- **Mapa en Tiempo Real:** Visualiza la posición GPS exacta y en vivo de los vehículos que están en ruta.
+- **Gestión de Reservas:** Sistema robusto para aprobar o rechazar solicitudes. Incluye validación de superposición de fechas (anti-conflictos).
+- **Control de Flota:** Mantenimiento y registro de los vehículos de la empresa.
+- **Auditoría Completa:** Historial inmutable de quién usó qué vehículo, cuándo y cuántos kilómetros recorrió.
 
 ## 🛠️ Tech Stack
 
 | Capa | Tecnología | Detalles |
 |------|-----------|-----------|
-| **Backend** | Node.js + Express + TypeScript | Rutas protegidas, controladores para Vehículos, Reservas y Usuarios. Lógica anti-conflictos, estadísticas y auditoría. |
-| **App Móvil** | React Native + Expo (TypeScript) | Aplicación para usuarios/conductores. Flujos de reserva, subida de evidencia a Cloudinary, tracking GPS y validación de licencias. |
-| **Frontend Web** | React 19 + TypeScript + Vite | Plataforma administrativa para gestionar la flota, ver reportes y auditar reservas. |
-| **Base de datos** | MongoDB Atlas + Mongoose | Modelos estrictos, colección de auditoría y conexión en la nube. |
-| **Autenticación** | JWT (JSON Web Tokens) | Contraseñas encriptadas con `bcryptjs`, protección por roles (Admin/User). |
-| **Almacenamiento** | Cloudinary | Guardado en la nube de fotografías de evidencia (estado del auto antes y después del viaje). |
-
-## 👥 Equipo de Desarrollo
-
-Este proyecto sigue una división de responsabilidades estricta:
-- **Joaquín (Backend y Móvil)**: Lógica de negocio, API REST, Base de Datos, Autenticación, validaciones de choque de fechas, app móvil completa e integración de cámara/GPS.
-- **Gustavo (Frontend Web)**: Interfaz de usuario administrativa, consumo de API, gestión de estados y navegación en la web.
+| **Backend** | Node.js + Express + TypeScript | API REST con lógica de negocio, validaciones anti-conflictos, cálculo de distancias y rastreo GPS. |
+| **App Móvil** | React Native + Expo (TypeScript) | UI fluida, integración de `expo-location` (Background tasks), `expo-camera` y mapas nativos. |
+| **Frontend Web** | React 19 + Vite (TypeScript) | Dashboard administrativo con diseño *Glassmorphism*, mapas con `Leaflet.js` y gráficas en vivo. |
+| **Base de datos** | MongoDB Atlas + Mongoose | Base de datos NoSQL alojada en la nube con validación estricta de esquemas. |
+| **Seguridad** | JWT + bcryptjs | Autenticación y cifrado de contraseñas, validación por roles (Usuario/Admin). |
 
 ---
 
-## 🚀 Instalación y Configuración Local
+## 👥 Equipo de Desarrollo
 
-### 1. Clonar el repositorio
+Proyecto desarrollado con roles especializados para garantizar la mejor calidad en cada capa tecnológica:
+- **Joaquín (Backend y App Móvil)**: Diseño de la arquitectura de la API, persistencia de datos en MongoDB, algoritmos de validación de reservas y desarrollo completo de la aplicación en React Native.
+- **Gustavo (Frontend Web)**: Desarrollo de la plataforma administrativa web en React, integración de mapas Leaflet y consumo de los endpoints del backend.
 
+---
+
+## 🚀 Instalación y Ejecución Local
+
+### 1. Clonar e Instalar
 ```bash
 git clone https://github.com/ximolpz123/PrototipoPractica.git
 cd PrototipoPractica
-```
 
-### 2. Instalar todas las dependencias
-
-```bash
-# Instalar dependencias raíz (para levantar backend y frontend web a la vez)
+# Instalar dependencias concurrentes (para Web y Backend)
 npm install
 
-# Instalar dependencias individuales
+# Instalar dependencias individuales de cada entorno
 cd backend && npm install && cd ..
 cd frontend && npm install && cd ..
 cd mobile && npm install && cd ..
 ```
 
-### 3. Configurar variables de entorno
+### 2. Configurar Variables de Entorno (`.env`)
+En la carpeta `backend`, crea tu archivo `.env` tomando como base `.env.example`:
+- `MONGODB_URI`: Tu string de conexión de Atlas.
+- `JWT_SECRET`: Tu secreto para los tokens.
+- `CLOUDINARY_*`: Tus credenciales para subir imágenes.
 
-**Backend:** Copia `.env.example` a `.env` en la carpeta `backend` y configura la cadena de MongoDB Atlas, el puerto (5000), tu JWT Secret y las llaves de tu cuenta de Cloudinary.
+En la carpeta `mobile/constants/index.ts`, actualiza `API_URL` con tu **Dirección IPv4 local** para probar en un dispositivo físico.
 
-**App Móvil:** Modifica el archivo `mobile/constants/index.ts` y asegúrate de que la variable `API_URL` apunte a la **IP IPv4 de tu computadora actual** para poder probarla en el celular físico.
+### 3. Levantar el Proyecto
 
-### 4. Cargar datos de prueba (Seed)
-
-Para poblar la base de datos con los autos y el administrador:
-
+**Para la Web y el Backend simultáneamente:**
 ```bash
-cd backend
-npm run seed
-```
-*(Se limpiarán las colecciones y se creará 1 usuario Administrador y los 4 vehículos de la flota).*
-
-### 5. Ejecutar el proyecto
-
-Para la **Web y el Backend** (se levantan juntos en la raíz):
-```bash
+# En la raíz del proyecto
 npm run dev
 ```
 
-Para la **App Móvil** (abre una terminal nueva):
+**Para la App Móvil:**
 ```bash
-cd mobile
+# En otra terminal, dentro de la carpeta mobile
 npm start -- --clear
 ```
+*(Escanea el código QR con la app Expo Go en tu teléfono).*
 
 ---
 
-## 🔑 Credenciales de Prueba (DB Actualizada)
+## 🔑 Credenciales de Prueba
 
-Se ha limpiado la base de datos para pruebas. Usa esta cuenta maestra:
+La base de datos contiene datos "semilla" (seed) para pruebas inmediatas del sistema completo:
 
-| Rol | Correo | Contraseña |
-|-----|--------|------------|
-| **Administrador** | `admin@empresa.com` | `password123` |
+| Rol | Correo | Contraseña | Funciones |
+|-----|--------|------------|-----------|
+| **Administrador** | `admin@empresa.com` | `password123` | Acceso al panel web y vista admin en la app móvil. |
+| **Conductor** | `usuario@empresa.com` | `password123` | Solicitud y ejecución de viajes en la app móvil. |
 
-Los usuarios normales podrán ser registrados o integrados posteriormente.
-
----
-
-## 📁 Estructura del Proyecto
-
-```
-PrototipoPractica/
-├── mobile/            # App Móvil (Expo/React Native)
-├── backend/           # Lógica y API Node.js
-├── frontend/          # Plataforma Administrativa Web
-├── Tareas_actividades del Proyecto.xlsx # Plan de acción
-└── README.md          # Este archivo
-```
+> 💡 **Tip:** Usa el "Reloj Simulado" (Máquina del Tiempo) incluido en la App Móvil (solo en desarrollo) para adelantar las horas y probar el flujo completo (Solicitar → Aprobar → Iniciar → *Adelantar 3 horas* → Finalizar) sin tener que esperar.
