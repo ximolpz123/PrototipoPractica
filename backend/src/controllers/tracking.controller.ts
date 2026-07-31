@@ -58,14 +58,32 @@ export const updateLocation = async (req: AuthRequest, res: Response): Promise<v
 // Obtener la ubicación en tiempo real de todos los vehículos en reservas activas (Para el dashboard web)
 export const getActiveLocations = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    // Buscamos todos los vehículos que tienen estado 'reservado' y sacamos su ubicación
-    // (En nuestro modelo el auto en curso está como reservado o se puede filtrar por los que tienen ubicacionActual reciente)
-    const vehicles = await Vehicle.find({
-      'ubicacionActual': { $exists: true },
-      estado: 'reservado'
-    }).select('placa marca modelo ubicacionActual');
+    // Buscamos todas las reservas en curso y populamos vehiculo y usuario
+    const activeReservations = await Reservation.find({ estado: 'en_curso' })
+      .populate('vehiculo', 'placa marca modelo ubicacionActual')
+      .populate('usuario', 'nombre apellido email');
 
-    res.json(vehicles);
+    // Mapeamos para devolver un formato amigable para el mapa
+    const locations = activeReservations
+      .filter((res) => res.vehiculo && (res.vehiculo as any).ubicacionActual)
+      .map((res) => {
+        const v = res.vehiculo as any;
+        const u = res.usuario as any;
+        return {
+          _id: v._id,
+          placa: v.placa,
+          marca: v.marca,
+          modelo: v.modelo,
+          ubicacionActual: v.ubicacionActual,
+          conductor: {
+            nombre: u.nombre,
+            apellido: u.apellido,
+            email: u.email
+          }
+        };
+      });
+
+    res.json(locations);
   } catch (error) {
     res.status(500).json({ message: 'Error al obtener ubicaciones', error });
   }

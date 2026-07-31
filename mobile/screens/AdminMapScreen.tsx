@@ -18,6 +18,11 @@ interface IVehicleLocation {
     longitud: number;
     timestamp: string;
   };
+  conductor?: {
+    nombre: string;
+    apellido: string;
+    email: string;
+  };
 }
 
 export default function AdminMapScreen() {
@@ -100,7 +105,13 @@ export default function AdminMapScreen() {
             <Callout tooltip>
               <View style={styles.callout}>
                 <Text style={styles.calloutTitle}>{v.marca} {v.modelo}</Text>
-                <Text style={styles.calloutText}>{v.placa}</Text>
+                <Text style={styles.calloutText}>Placa: {v.placa}</Text>
+                {v.conductor && (
+                  <View style={styles.driverInfo}>
+                    <Ionicons name="person" size={12} color={COLORS.textMuted} />
+                    <Text style={styles.calloutDriver}>{v.conductor.nombre} {v.conductor.apellido}</Text>
+                  </View>
+                )}
                 <Text style={styles.calloutTime}>
                   Actualizado: {new Date(v.ubicacionActual!.timestamp).toLocaleTimeString()}
                 </Text>
@@ -152,7 +163,9 @@ const styles = StyleSheet.create({
   },
   calloutTitle: { fontWeight: 'bold', fontSize: 14, color: COLORS.text },
   calloutText: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
-  calloutTime: { fontSize: 10, color: COLORS.primary, marginTop: 4 },
+  driverInfo: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+  calloutDriver: { fontSize: 12, color: COLORS.text, marginLeft: 4, fontWeight: '600' },
+  calloutTime: { fontSize: 10, color: COLORS.primary, marginTop: 6, fontStyle: 'italic' },
   refreshBtn: {
     position: 'absolute',
     top: 20,
