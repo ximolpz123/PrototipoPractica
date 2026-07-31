@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl, ScrollView,
+  ActivityIndicator, RefreshControl, ScrollView, Modal, TextInput,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,6 +32,11 @@ export default function AdminDashboardScreen({ navigation }: any) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<'pendiente' | 'todas'>('pendiente');
 
+  // Estado modal de rechazo
+  const [rejectModalVisible, setRejectModalVisible] = useState(false);
+  const [rejectMotivo, setRejectMotivo] = useState('');
+  const [pendingRejectId, setPendingRejectId] = useState<string | null>(null);
+
   const cargarReservas = async (isRefresh = false) => {
     try {
       if (!isRefresh) setLoading(true);
@@ -56,23 +61,23 @@ export default function AdminDashboardScreen({ navigation }: any) {
     cargarReservas(true);
   }, []);
 
-  const handleUpdateEstado = async (id: string, nuevoEstado: 'aprobada' | 'cancelada') => {
-    const accion = nuevoEstado === 'aprobada' ? 'aprobar' : 'rechazar';
+  // Aprobar: confirmación directa
+  const handleApprove = async (id: string) => {
     showAlert(
-      `¿${nuevoEstado === 'aprobada' ? 'Aprobar' : 'Rechazar'} reserva?`,
-      `¿Seguro que deseas ${accion} esta solicitud?`,
+      '¿Aprobar reserva?',
+      '¿Seguro que deseas aprobar esta solicitud?',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Confirmar',
-          style: nuevoEstado === 'cancelada' ? 'destructive' : 'default',
+          text: 'Aprobar',
+          style: 'default',
           onPress: async () => {
             setActionLoading(id);
             try {
-              await reservationService.updateStatus(id, nuevoEstado);
+              await reservationService.updateStatus(id, 'aprobada');
               await cargarReservas(true);
             } catch (err: any) {
-              showAlert('Error', err.response?.data?.message ?? 'No se pudo actualizar el estado.');
+              showAlert('Error', err.response?.data?.message ?? 'No se pudo aprobar la reserva.');
             } finally {
               setActionLoading(null);
             }
@@ -80,6 +85,33 @@ export default function AdminDashboardScreen({ navigation }: any) {
         },
       ]
     );
+  };
+
+  // Rechazar: abrir modal para ingresar motivo
+  const handleReject = (id: string) => {
+    setPendingRejectId(id);
+    setRejectMotivo('');
+    setRejectModalVisible(true);
+  };
+
+  // Confirmar rechazo con motivo
+  const handleConfirmReject = async () => {
+    if (!pendingRejectId) return;
+    if (!rejectMotivo.trim()) {
+      showAlert('Motivo requerido', 'Por favor escribe el motivo del rechazo antes de confirmar.');
+      return;
+    }
+    setRejectModalVisible(false);
+    setActionLoading(pendingRejectId);
+    try {
+      await reservationService.cancel(pendingRejectId, rejectMotivo.trim());
+      await cargarReservas(true);
+    } catch (err: any) {
+      showAlert('Error', err.response?.data?.message ?? 'No se pudo rechazar la reserva.');
+    } finally {
+      setActionLoading(null);
+      setPendingRejectId(null);
+    }
   };
 
   // KPIs
@@ -119,6 +151,15 @@ export default function AdminDashboardScreen({ navigation }: any) {
           <Text style={styles.infoLine}>📅 {formatFecha(item.fechaInicio)} → {formatFecha(item.fechaFin)}</Text>
           <Text style={styles.infoLine}>📍 {item.destino}</Text>
           {item.motivo ? <Text style={styles.infoLine}>📝 {item.motivo}</Text> : null}
+          {/* Motivo de rechazo visible para el admin */}
+          {item.motivoRechazo ? (
+            <View style={styles.rejectReasonBox}>
+              <Ionicons name="alert-circle-outline" size={14} color={COLORS.danger} />
+              <Text style={styles.rejectReasonText}>
+                Motivo de rechazo: {item.motivoRechazo}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         {item.estado === 'pendiente' && (
@@ -129,14 +170,14 @@ export default function AdminDashboardScreen({ navigation }: any) {
               <>
                 <TouchableOpacity
                   style={[styles.actionBtn, styles.approveBtn]}
-                  onPress={() => handleUpdateEstado(item._id, 'aprobada')}
+                  onPress={() => handleApprove(item._id)}
                 >
                   <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
                   <Text style={styles.actionBtnText}>Aprobar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionBtn, styles.rejectBtn]}
-                  onPress={() => handleUpdateEstado(item._id, 'cancelada')}
+                  onPress={() => handleReject(item._id)}
                 >
                   <Ionicons name="close-circle-outline" size={16} color="#fff" />
                   <Text style={styles.actionBtnText}>Rechazar</Text>
@@ -151,6 +192,50 @@ export default function AdminDashboardScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
+      {/* Modal de motivo de rechazo */}
+      <Modal
+        visible={rejectModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setRejectModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="close-circle" size={28} color={COLORS.danger} />
+              <Text style={styles.modalTitle}>Motivo de Rechazo</Text>
+            </View>
+            <Text style={styles.modalSubtitle}>
+              Por favor indica el motivo por el que se rechaza esta solicitud. El conductor podrá verlo.
+            </Text>
+            <TextInput
+              style={styles.motivoInput}
+              value={rejectMotivo}
+              onChangeText={setRejectMotivo}
+              placeholder="Ej: El vehículo ya está reservado para esa fecha..."
+              placeholderTextColor={COLORS.textMuted}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.cancelModalBtn]}
+                onPress={() => setRejectModalVisible(false)}
+              >
+                <Text style={styles.cancelModalBtnText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.confirmRejectBtn]}
+                onPress={handleConfirmReject}
+              >
+                <Text style={styles.confirmRejectBtnText}>Confirmar Rechazo</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* KPIs */}
       <ScrollView
         horizontal
@@ -183,7 +268,7 @@ export default function AdminDashboardScreen({ navigation }: any) {
           onPress={() => setFiltro('pendiente')}
         >
           <Text style={[styles.filtroBtnText, filtro === 'pendiente' && styles.filtroBtnTextActive]}>
-            Pendientes ({pendientes.length})
+            Pendientes
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -280,6 +365,18 @@ const styles = StyleSheet.create({
   estadoText: { fontSize: 10, fontWeight: 'bold' },
   cardBody: { backgroundColor: '#F8FAFC', borderRadius: 8, padding: 10, gap: 4 },
   infoLine: { fontSize: 13, color: COLORS.textMuted },
+
+  rejectReasonBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 6,
+    backgroundColor: '#FFF0F0',
+    borderRadius: 6,
+    padding: 8,
+    gap: 6,
+  },
+  rejectReasonText: { fontSize: 12, color: COLORS.danger, flex: 1 },
+
   actionRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
   actionBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
@@ -288,4 +385,72 @@ const styles = StyleSheet.create({
   approveBtn: { backgroundColor: COLORS.success },
   rejectBtn: { backgroundColor: COLORS.danger },
   actionBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 13 },
+
+  // Modal de rechazo
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  motivoInput: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 14,
+    color: COLORS.text,
+    backgroundColor: '#F8FAFC',
+    minHeight: 110,
+    marginBottom: 20,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  cancelModalBtn: {
+    backgroundColor: '#F1F5F9',
+  },
+  cancelModalBtnText: {
+    color: COLORS.textMuted,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  confirmRejectBtn: {
+    backgroundColor: COLORS.danger,
+  },
+  confirmRejectBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
+  },
 });

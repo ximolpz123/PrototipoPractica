@@ -72,6 +72,12 @@ export default function MisReservasScreen({ navigation }: any) {
           <Text style={styles.infoText}>⏱ {formatTime(item.fechaInicio)} - {formatTime(item.fechaFin)}</Text>
           <Text style={styles.infoText}>📍 {item.destino}</Text>
           {item.motivo ? <Text style={styles.infoText} numberOfLines={1}>📝 {item.motivo}</Text> : null}
+          {item.estado === 'cancelada' && item.motivoRechazo ? (
+            <View style={styles.rejectBox}>
+              <Text style={styles.rejectLabel}>❌ Motivo de rechazo:</Text>
+              <Text style={styles.rejectText}>{item.motivoRechazo}</Text>
+            </View>
+          ) : null}
         </View>
       </View>
     );
@@ -244,6 +250,25 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 14,
     color: COLORS.textMuted,
+  },
+  rejectBox: {
+    marginTop: 8,
+    backgroundColor: '#FFF0F0',
+    borderRadius: 8,
+    padding: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.danger,
+  },
+  rejectLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.danger,
+    marginBottom: 3,
+  },
+  rejectText: {
+    fontSize: 13,
+    color: '#C0392B',
+    lineHeight: 18,
   },
 });
 

@@ -26,6 +26,7 @@ export interface IReservation {
   fotosSalida?: string[];
   fotosRetorno?: string[];
   observaciones?: string;
+  motivoRechazo?: string;
   createdAt: string;
 }
 
@@ -69,7 +70,7 @@ export const reservationService = {
     return response.data.reservation;
   },
 
-  cancel: async (id: string): Promise<void> => {
-    await api.patch(`/reservations/${id}/cancel`);
+  cancel: async (id: string, motivoRechazo?: string): Promise<void> => {
+    await api.patch(`/reservations/${id}/cancel`, { motivoRechazo });
   },
 };

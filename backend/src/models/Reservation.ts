@@ -13,6 +13,7 @@ export interface IReservation extends Document {
   fotosSalida?: string[];
   fotosRetorno?: string[];
   observaciones?: string;
+  motivoRechazo?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -63,6 +64,7 @@ const reservationSchema = new Schema<IReservation>(
     fotosSalida: [{ type: String }],
     fotosRetorno: [{ type: String }],
     observaciones: { type: String, trim: true },
+    motivoRechazo: { type: String, trim: true },
   },
   { timestamps: true }
 );

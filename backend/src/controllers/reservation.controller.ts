@@ -229,7 +229,13 @@ export const cancelReservation = async (req: AuthRequest, res: Response): Promis
       return;
     }
 
+    const { motivoRechazo } = req.body;
+
     reservation.estado = 'cancelada';
+    // Si es un admin rechazando, guarda el motivo
+    if (motivoRechazo && req.userRol === 'admin') {
+      reservation.motivoRechazo = motivoRechazo;
+    }
     await reservation.save();
 
     // Actualizar el estado del vehículo a 'disponible'
