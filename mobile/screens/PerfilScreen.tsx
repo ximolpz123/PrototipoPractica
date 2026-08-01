@@ -140,34 +140,15 @@ export default function PerfilScreen({ route }: any) {
       <View style={styles.dataCard}>
         <Text style={styles.sectionTitle}>Datos Personales</Text>
         
-        <Text style={styles.label}>Departamento</Text>
-        <TextInput
-          style={styles.input}
-          value={departamento}
-          onChangeText={setDepartamento}
-          placeholder="Ej. Gerencia, Operaciones..."
-        />
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Departamento:</Text>
+          <Text style={styles.infoValue}>{user.departamento || 'No asignado'}</Text>
+        </View>
 
-        <Text style={styles.label}>Teléfono</Text>
-        <TextInput
-          style={styles.input}
-          value={telefono}
-          onChangeText={setTelefono}
-          placeholder="+56 9 1234 5678"
-          keyboardType="phone-pad"
-        />
-
-        <TouchableOpacity 
-          style={[styles.saveBtn, savingProfile && { opacity: 0.7 }]} 
-          onPress={handleSaveProfile}
-          disabled={savingProfile}
-        >
-          {savingProfile ? (
-            <ActivityIndicator color={COLORS.white} />
-          ) : (
-            <Text style={styles.saveBtnText}>Guardar Perfil</Text>
-          )}
-        </TouchableOpacity>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Teléfono:</Text>
+          <Text style={styles.infoValue}>{user.telefono || 'No asignado'}</Text>
+        </View>
       </View>
 
       {/* LICENSE STATUS SECTION */}
@@ -368,9 +349,9 @@ const styles = StyleSheet.create({
   dataCard: {
     width: '100%',
     backgroundColor: COLORS.white,
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 20,
+    marginHorizontal: 15,
+    marginTop: 15,
+    borderRadius: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -379,9 +360,25 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: COLORS.text,
     marginBottom: 15,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  infoLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  infoValue: {
+    fontSize: 16,
+    color: COLORS.textMuted,
   },
   label: {
     fontSize: 14,

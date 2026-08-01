@@ -48,8 +48,7 @@ const userSchema = new Schema<IUser>(
     departamento: {
       type: String,
       required: true,
-      trim: true,
-      // Ya no es enum cerrado para permitir departamentos personalizados
+      enum: ['Operaciones', 'Jefatura'],
     },
     telefono: {
       type: String,
