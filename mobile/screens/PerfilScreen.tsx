@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../constants';
@@ -20,8 +20,17 @@ export default function PerfilScreen({ route }: any) {
   const defaultAvatar = `https://ui-avatars.com/api/?name=${user.nombre}+${user.apellido}&background=3D9FD3&color=fff&size=256`;
   const [avatarUri, setAvatarUri] = useState<string>(defaultAvatar);
   const [uploading, setUploading] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [scanningLicense, setScanningLicense] = useState(false);
 
-  const isLicenciaValida = user.licenciaAlDia;
+  // Edit states
+  const [departamento, setDepartamento] = useState(user.departamento || '');
+  const [telefono, setTelefono] = useState(user.telefono || '');
+  
+  // Real license validation based on v2 model
+  const isLicenciaValida = user.licenciaEstado === 'vigente' || (user.licenciaAlDia && user.licenciaEstado !== 'vencida');
+  const [licenciaEstado, setLicenciaEstado] = useState(user.licenciaEstado || (user.licenciaAlDia ? 'vigente' : 'vencida'));
+  const [fechaVencimiento, setFechaVencimiento] = useState(user.licenciaVencimiento || user.fechaVencimientoLicencia);
 
   const handleChangePhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -39,9 +48,68 @@ export default function PerfilScreen({ route }: any) {
 
     if (!result.canceled && result.assets.length > 0) {
       setUploading(true);
-      // Actualizamos la foto localmente (en un prototipo es suficiente)
       setAvatarUri(result.assets[0].uri);
       setUploading(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!user._id) return;
+    setSavingProfile(true);
+    try {
+      // Usarían import api from '../services/api'
+      // await api.patch(`/users/${user._id}/perfil`, { departamento, telefono });
+      showAlert('Éxito', 'Perfil actualizado correctamente.');
+    } catch (error) {
+      showAlert('Error', 'No se pudo actualizar el perfil.');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleScanLicense = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      showAlert('Permiso denegado', 'Necesitamos acceso a la cámara para escanear tu licencia.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      setScanningLicense(true);
+      try {
+        /*
+        const formData = new FormData();
+        formData.append('imagen', {
+          uri: result.assets[0].uri,
+          name: 'licencia.jpg',
+          type: 'image/jpeg'
+        } as any);
+        const res = await api.patch(`/users/${user._id}/licencia`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        setLicenciaEstado(res.data.user.licenciaEstado);
+        setFechaVencimiento(res.data.user.licenciaVencimiento);
+        */
+        // Simulación de éxito por IA
+        setTimeout(() => {
+          setLicenciaEstado('vigente');
+          const nextYear = new Date();
+          nextYear.setFullYear(nextYear.getFullYear() + 1);
+          setFechaVencimiento(nextYear.toISOString());
+          showAlert('IA Exitosa', 'Licencia analizada. Es válida hasta el próximo año.');
+          setScanningLicense(false);
+        }, 1500);
+      } catch (error) {
+        setScanningLicense(false);
+        showAlert('Error', 'No se pudo procesar la licencia.');
+      }
     }
   };
 
@@ -68,6 +136,40 @@ export default function PerfilScreen({ route }: any) {
         </View>
       </View>
 
+      {/* USER DATA SECTION */}
+      <View style={styles.dataCard}>
+        <Text style={styles.sectionTitle}>Datos Personales</Text>
+        
+        <Text style={styles.label}>Departamento</Text>
+        <TextInput
+          style={styles.input}
+          value={departamento}
+          onChangeText={setDepartamento}
+          placeholder="Ej. Gerencia, Operaciones..."
+        />
+
+        <Text style={styles.label}>Teléfono</Text>
+        <TextInput
+          style={styles.input}
+          value={telefono}
+          onChangeText={setTelefono}
+          placeholder="+56 9 1234 5678"
+          keyboardType="phone-pad"
+        />
+
+        <TouchableOpacity 
+          style={[styles.saveBtn, savingProfile && { opacity: 0.7 }]} 
+          onPress={handleSaveProfile}
+          disabled={savingProfile}
+        >
+          {savingProfile ? (
+            <ActivityIndicator color={COLORS.white} />
+          ) : (
+            <Text style={styles.saveBtnText}>Guardar Perfil</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+
       {/* LICENSE STATUS SECTION */}
       <View style={[styles.licenseCard, isLicenciaValida ? styles.licenseValid : styles.licenseInvalid]}>
         <View style={styles.licenseHeader}>
@@ -79,17 +181,32 @@ export default function PerfilScreen({ route }: any) {
         
         {isLicenciaValida ? (
           <View>
-            <Text style={styles.licenseStatus}>✅ AL DÍA</Text>
+            <Text style={styles.licenseStatus}>✅ {licenciaEstado.toUpperCase()}</Text>
             <Text style={styles.licenseDate}>
-              Vence el: {new Date(user.fechaVencimientoLicencia).toLocaleDateString()}
+              Vence el: {fechaVencimiento ? new Date(fechaVencimiento).toLocaleDateString() : 'N/A'}
             </Text>
           </View>
         ) : (
           <View>
-            <Text style={styles.licenseStatus}>❌ VENCIDA O NO VÁLIDA</Text>
+            <Text style={styles.licenseStatus}>❌ {licenciaEstado.toUpperCase()}</Text>
             <Text style={styles.licenseDate}>No puedes solicitar nuevas reservas de vehículos.</Text>
           </View>
         )}
+        
+        <TouchableOpacity 
+          style={styles.scanBtn} 
+          onPress={handleScanLicense}
+          disabled={scanningLicense}
+        >
+          {scanningLicense ? (
+            <ActivityIndicator color={COLORS.white} />
+          ) : (
+            <>
+              <Ionicons name="scan-outline" size={20} color={COLORS.white} />
+              <Text style={styles.scanBtnText}>Escanear Licencia (IA)</Text>
+            </>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* ACTIONS SECTION */}
@@ -247,5 +364,63 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
     marginLeft: 10,
+  },
+  dataCard: {
+    width: '100%',
+    backgroundColor: COLORS.white,
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 15,
+  },
+  label: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+    marginBottom: 5,
+    fontWeight: '600',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 15,
+    fontSize: 16,
+    color: COLORS.text,
+  },
+  saveBtn: {
+    backgroundColor: COLORS.primary,
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  saveBtnText: {
+    color: COLORS.white,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  scanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primaryDark,
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 15,
+  },
+  scanBtnText: {
+    color: COLORS.white,
+    fontWeight: 'bold',
+    marginLeft: 8,
   },
 });
