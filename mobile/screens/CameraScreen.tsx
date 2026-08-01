@@ -11,12 +11,12 @@ import { locationService } from '../services/location.service';
 export default function CameraScreen({ route, navigation }: any) {
   const { showAlert } = useAlert();
   const { reservaId, tipo, kmRetorno } = route.params; // 'salida' o 'retorno'
-  
+
   const [permission, requestPermission] = useCameraPermissions();
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [canGoBack, setCanGoBack] = useState(false);
-  
+
   const cameraRef = useRef<CameraView>(null);
 
   React.useEffect(() => {
@@ -32,7 +32,7 @@ export default function CameraScreen({ route, navigation }: any) {
           'Fotos Obligatorias',
           'Debes tomar fotos de evidencia para iniciar tu viaje. Si retrocedes, tu viaje será cancelado automáticamente.',
           [
-            { text: 'Tomar fotos', style: 'cancel', onPress: () => {} },
+            { text: 'Tomar fotos', style: 'cancel', onPress: () => { } },
             {
               text: 'Cancelar Viaje',
               style: 'destructive',
@@ -54,7 +54,7 @@ export default function CameraScreen({ route, navigation }: any) {
           'Atención',
           'Aún no has completado tu viaje. Si retrocedes, tu viaje seguirá "En Curso" y deberás finalizarlo más tarde.',
           [
-            { text: 'Subir fotos ahora', style: 'cancel', onPress: () => {} },
+            { text: 'Subir fotos ahora', style: 'cancel', onPress: () => { } },
             {
               text: 'Volver al Inicio',
               style: 'default',
@@ -90,7 +90,7 @@ export default function CameraScreen({ route, navigation }: any) {
   const takePicture = async () => {
     if (cameraRef.current && photos.length < 4) {
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.7, // Reduce quality a bit to save bandwidth
+        quality: 0.7, // Reduccion de calidad para evitar gastar creditos de momento
         base64: false,
       });
       if (photo) {
@@ -115,7 +115,7 @@ export default function CameraScreen({ route, navigation }: any) {
     try {
       const formData = new FormData();
       formData.append('tipo', tipo);
-      
+
       photos.forEach((photoUri, index) => {
         const filename = photoUri.split('/').pop() || `foto_${index}.jpg`;
         const match = /\.(\w+)$/.exec(filename);
@@ -133,7 +133,7 @@ export default function CameraScreen({ route, navigation }: any) {
 
       // Realizar la petición real al backend
       await axios.post(`${API_URL}/reservations/${reservaId}/upload`, formData, {
-        headers: { 
+        headers: {
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${token}`
         }
@@ -186,8 +186,8 @@ export default function CameraScreen({ route, navigation }: any) {
         ))}
       </View>
 
-      <TouchableOpacity 
-        style={[styles.uploadBtn, (photos.length === 0 || uploading) && styles.disabledBtn]} 
+      <TouchableOpacity
+        style={[styles.uploadBtn, (photos.length === 0 || uploading) && styles.disabledBtn]}
         onPress={uploadPhotos}
         disabled={photos.length === 0 || uploading}
       >
