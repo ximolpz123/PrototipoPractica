@@ -72,7 +72,6 @@ function Vehicles() {
   const [errorRes, setErrorRes] = useState('');
   const [resFilterStatus, setResFilterStatus] = useState('todos');
   const [selectedReservation, setSelectedReservation] = useState<IReservation | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   // Leer usuario del localStorage
@@ -139,21 +138,6 @@ function Vehicles() {
     }
     const found = vehiclesList.find((v) => v._id === vehiculo);
     return found ? `${found.marca} ${found.modelo}` : `Vehículo #${vehiculo}`;
-  };
-
-  const handleDeleteReservation = async (id: string) => {
-    try {
-      const token = localStorage.getItem('token');
-      await fetch(`http://localhost:5000/api/reservations/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setReservations((prev) => prev.filter((r) => r._id !== id));
-      setSelectedReservation(null);
-      setShowDeleteConfirm(false);
-    } catch (error) {
-      console.error('Error al eliminar reservación', error);
-    }
   };
 
   const ESTADO_PRIORITY: Record<string, number> = {
@@ -372,7 +356,6 @@ function Vehicles() {
             className="modal-overlay"
             onClick={() => {
               setSelectedReservation(null);
-              setShowDeleteConfirm(false);
             }}
           >
             <div
@@ -392,7 +375,6 @@ function Vehicles() {
               <button
                 onClick={() => {
                   setSelectedReservation(null);
-                  setShowDeleteConfirm(false);
                 }}
                 style={{
                   position: 'absolute',
