@@ -34,10 +34,12 @@ const seedData = async () => {
         email: 'admin@empresa.com',
         password: hashedPassword,
         departamento: 'TI',
+        telefono: '+56911112222',
         rol: 'admin',
         activo: true,
         licenciaAlDia: true,
         fechaVencimientoLicencia: new Date('2027-12-31'),
+        licenciaEstado: 'vigente',
       },
       {
         nombre: 'Juan',
@@ -45,10 +47,12 @@ const seedData = async () => {
         email: 'usuario@empresa.com',
         password: hashedPassword,
         departamento: 'Operaciones',
+        telefono: '+56933334444',
         rol: 'usuario',
         activo: true,
         licenciaAlDia: true,
         fechaVencimientoLicencia: new Date('2027-06-30'),
+        licenciaEstado: 'vigente',
       },
     ]);
 
@@ -66,6 +70,8 @@ const seedData = async () => {
         estado: 'disponible',
         kilometraje: 12000,
         ultimoMantenimiento: new Date('2026-06-01'),
+        nivelBencina: 100,
+        tipoIndicador: 'digital',
       },
       {
         placa: 'AMK-2025',
@@ -77,6 +83,8 @@ const seedData = async () => {
         estado: 'disponible',
         kilometraje: 2500,
         ultimoMantenimiento: new Date('2026-07-15'),
+        nivelBencina: 80,
+        tipoIndicador: 'digital',
       },
       {
         placa: 'HLX-2024',
@@ -88,6 +96,8 @@ const seedData = async () => {
         estado: 'disponible',
         kilometraje: 15500,
         ultimoMantenimiento: new Date('2026-05-10'),
+        nivelBencina: 50,
+        tipoIndicador: 'analogico',
       },
       {
         placa: 'HLX-2025',
@@ -99,6 +109,8 @@ const seedData = async () => {
         estado: 'disponible',
         kilometraje: 1800,
         ultimoMantenimiento: new Date('2026-07-20'),
+        nivelBencina: 90,
+        tipoIndicador: 'analogico',
       },
       {
         placa: 'NSN-2024',
@@ -110,6 +122,8 @@ const seedData = async () => {
         estado: 'disponible',
         kilometraje: 9000,
         ultimoMantenimiento: new Date('2026-06-25'),
+        nivelBencina: 100,
+        tipoIndicador: 'digital',
       },
     ]);
 
