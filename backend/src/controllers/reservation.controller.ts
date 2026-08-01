@@ -359,9 +359,9 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
     const photoUrls = files.map((file) => file.path); // Cloudinary devuelve la URL en path
 
     if (tipo === 'salida') {
-      reservation.fotosSalida = [...(reservation.fotosSalida || []), ...photoUrls];
+      reservation.fotosSalidaLegacy = [...(reservation.fotosSalidaLegacy || []), ...photoUrls];
     } else {
-      reservation.fotosRetorno = [...(reservation.fotosRetorno || []), ...photoUrls];
+      reservation.fotosRetornoLegacy = [...(reservation.fotosRetornoLegacy || []), ...photoUrls];
     }
 
     await reservation.save();

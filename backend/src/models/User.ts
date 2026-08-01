@@ -6,10 +6,16 @@ export interface IUser extends Document {
   email: string;
   password: string;
   departamento: string;
+  telefono?: string;
   rol: 'usuario' | 'admin';
   activo: boolean;
+  // ── Licencia (sistema antiguo — se mantiene por compatibilidad) ──
   licenciaAlDia: boolean;
   fechaVencimientoLicencia?: Date;
+  // ── Licencia v2 (con foto e IA) ──
+  licenciaFotoUrl?: string;
+  licenciaVencimiento?: Date;
+  licenciaEstado: 'vigente' | 'vencida' | 'pendiente';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -42,7 +48,12 @@ const userSchema = new Schema<IUser>(
     departamento: {
       type: String,
       required: true,
-      enum: ['Gerencia', 'Ventas', 'Operaciones', 'TI', 'RRHH', 'Finanzas'],
+      trim: true,
+      // Ya no es enum cerrado para permitir departamentos personalizados
+    },
+    telefono: {
+      type: String,
+      trim: true,
     },
     rol: {
       type: String,
@@ -53,13 +64,26 @@ const userSchema = new Schema<IUser>(
       type: Boolean,
       default: true,
     },
+    // ── Licencia (sistema antiguo — se mantiene por compatibilidad) ──
     licenciaAlDia: {
       type: Boolean,
-      default: true, // Por defecto se asume al día, RRHH puede cambiarlo
+      default: true,
     },
     fechaVencimientoLicencia: {
       type: Date,
       default: null,
+    },
+    // ── Licencia v2 (con foto e IA) ──
+    licenciaFotoUrl: {
+      type: String,
+    },
+    licenciaVencimiento: {
+      type: Date,
+    },
+    licenciaEstado: {
+      type: String,
+      enum: ['vigente', 'vencida', 'pendiente'],
+      default: 'pendiente',
     },
   },
   { timestamps: true }

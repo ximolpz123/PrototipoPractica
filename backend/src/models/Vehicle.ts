@@ -16,6 +16,9 @@ export interface IVehicle extends Document {
     longitud: number;
     timestamp: Date;
   };
+  // ── v2: Bencina ──
+  nivelBencina: number;          // 0–100 (porcentaje)
+  tipoIndicador: 'digital' | 'analogico';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -72,6 +75,18 @@ const vehicleSchema = new Schema<IVehicle>(
       latitud: Number,
       longitud: Number,
       timestamp: Date,
+    },
+    // ── v2: Bencina ──
+    nivelBencina: {
+      type: Number,
+      default: 100,
+      min: 0,
+      max: 100,
+    },
+    tipoIndicador: {
+      type: String,
+      enum: ['digital', 'analogico'],
+      default: 'digital',
     },
   },
   { timestamps: true }
