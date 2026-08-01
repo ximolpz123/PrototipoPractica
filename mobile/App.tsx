@@ -62,6 +62,13 @@ function MainTabNavigator({ route }: any) {
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textMuted,
         headerShown: true,
+        headerLeft: () => (
+          <Image 
+            source={require('./assets/logo.png')} 
+            style={{ width: 30, height: 30, marginLeft: 15 }} 
+            resizeMode="contain" 
+          />
+        ),
       })}
     >
       <Tab.Screen name="Inicio" component={HomeScreen} initialParams={{ user }} />
@@ -97,6 +104,13 @@ function AdminTabNavigator({ route }: any) {
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textMuted,
         headerShown: true,
+        headerLeft: () => (
+          <Image 
+            source={require('./assets/logo.png')} 
+            style={{ width: 30, height: 30, marginLeft: 15 }} 
+            resizeMode="contain" 
+          />
+        ),
       })}
     >
       <Tab.Screen
