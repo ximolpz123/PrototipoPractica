@@ -45,10 +45,10 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
 // PUT /api/users/:id
 export const updateUser = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nombre, apellido, email, departamento, rol, activo } = req.body;
+    const { nombre, apellido, email, departamento, telefono, rol, activo } = req.body;
     const user = await User.findByIdAndUpdate(
       req.params.id,
-      { nombre, apellido, email, departamento, rol, activo },
+      { nombre, apellido, email, departamento, telefono, rol, activo },
       { new: true }
     ).select('-password');
     
@@ -59,6 +59,75 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Error al actualizar usuario', error });
+  }
+};
+
+// PATCH /api/users/:id/perfil
+export const updatePerfil = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Un usuario solo puede actualizar su propio perfil a menos que sea admin
+    // La protección de ID la manejaremos aquí o en middleware
+    if (req.params.id !== (req as any).userId && (req as any).userRol !== 'admin') {
+      res.status(403).json({ message: 'No tienes permiso para actualizar este perfil' });
+      return;
+    }
+
+    const { departamento, telefono } = req.body;
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { departamento, telefono },
+      { new: true }
+    ).select('-password');
+
+    if (!user) {
+      res.status(404).json({ message: 'Usuario no encontrado' });
+      return;
+    }
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Error al actualizar perfil', error });
+  }
+};
+
+// PATCH /api/users/:id/licencia
+export const updateLicencia = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (req.params.id !== (req as any).userId && (req as any).userRol !== 'admin') {
+      res.status(403).json({ message: 'No tienes permiso para actualizar esta licencia' });
+      return;
+    }
+
+    const file = req.file;
+    if (!file) {
+      res.status(400).json({ message: 'Debe proporcionar una imagen de la licencia' });
+      return;
+    }
+
+    const fotoUrl = file.path; // Cloudinary
+    
+    // AQUÍ IRÍA LA LLAMADA A LA IA (OpenAI Vision o Google Vision)
+    // Para efectos del prototipo y si no hay API KEY, simulamos una respuesta exitosa
+    // asumiendo que la licencia vence en 1 año más:
+    const fechaSimulada = new Date();
+    fechaSimulada.setFullYear(fechaSimulada.getFullYear() + 1);
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { 
+        licenciaFotoUrl: fotoUrl,
+        licenciaVencimiento: fechaSimulada,
+        licenciaEstado: 'vigente',
+        licenciaAlDia: true // legacy
+      },
+      { new: true }
+    ).select('-password');
+
+    res.json({
+      message: 'Licencia procesada exitosamente con IA (Simulado)',
+      user
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al actualizar licencia', error });
   }
 };
 

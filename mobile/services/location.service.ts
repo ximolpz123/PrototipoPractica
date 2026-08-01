@@ -55,6 +55,13 @@ export const locationService = {
     // Guardar el ID de reserva para que el task de segundo plano lo pueda leer
     await AsyncStorage.setItem(ACTIVE_RESERVA_KEY, reservaId);
 
+    const servicesEnabled = await Location.hasServicesEnabledAsync();
+    if (!servicesEnabled) {
+      console.log('Servicios de ubicación (GPS) apagados en el dispositivo');
+      await AsyncStorage.removeItem(ACTIVE_RESERVA_KEY);
+      return false; // Debe indicar a la UI que falló
+    }
+
     const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
     if (foregroundStatus !== 'granted') {
       console.log('Permiso de ubicación en primer plano denegado');
@@ -77,19 +84,19 @@ export const locationService = {
 
     await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
       accuracy: Location.Accuracy.Balanced, // Balanceado: buen equilibrio entre precisión y batería
-      timeInterval: 3 * 60 * 1000,          // Cada 3 minutos (180,000 ms)
+      timeInterval: 1 * 60 * 1000,          // Cada 1 minuto (60,000 ms)
       distanceInterval: 150,                 // O cada 150 metros (lo que ocurra primero)
       showsBackgroundLocationIndicator: true, // Ícono en iOS para avisar al usuario
       foregroundService: {
         // Notificación persistente en Android (obligatoria para background)
         notificationTitle: '📍 Rastreo Activo — Bitnets Flota',
-        notificationBody: 'Tu posición se actualiza cada 3 minutos.',
+        notificationBody: 'Tu posición se actualiza cada 1 minuto.',
         notificationColor: '#3D9FD3',
       },
       pausesUpdatesAutomatically: false,     // No pausar automáticamente
     });
 
-    console.log('▶️ Rastreo GPS iniciado (intervalo: 3 minutos)');
+    console.log('▶️ Rastreo GPS iniciado (intervalo: 1 minuto)');
     return true;
   },
 

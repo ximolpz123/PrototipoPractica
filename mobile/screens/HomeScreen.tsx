@@ -132,8 +132,8 @@ export default function HomeScreen({ route, navigation }: any) {
         navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'salida' });
       } else {
         showAlert(
-          'Permiso requerido',
-          'Necesitas dar permiso de ubicación "Todo el tiempo" (Always) para que el GPS funcione en segundo plano.\n\nVe a Ajustes > Aplicaciones > Expo Go > Permisos > Ubicación > Siempre.'
+          'GPS Requerido',
+          'Debes activar el GPS y dar permiso de ubicación "Todo el tiempo" (Always) para iniciar el viaje.\n\nPor favor, enciende el GPS de tu teléfono.'
         );
       }
     } catch (err: any) {
