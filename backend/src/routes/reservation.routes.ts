@@ -33,12 +33,21 @@ router.patch('/:id/complete', authMiddleware, completeReservation);
 
 // POST /api/reservations/:id/upload
 // Sube hasta 4 fotos y las asocia a la reserva (tipo: 'salida' o 'retorno')
-import { uploadPhotos } from '../controllers/reservation.controller.js';
+import { uploadPhotos, uploadFotoTablero } from '../controllers/reservation.controller.js';
 router.post(
   '/:id/upload',
   authMiddleware,
   upload.array('fotos', 4),
   uploadPhotos
+);
+
+// POST /api/reservations/:id/foto-tablero
+// Recibe la imagen del tablero y usa IA (simulada) para extraer el KM de retorno
+router.post(
+  '/:id/foto-tablero',
+  authMiddleware,
+  upload.single('foto'),
+  uploadFotoTablero
 );
 
 export default router;

@@ -283,6 +283,18 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
       return;
     }
 
+    // Validar que fotosSalida y fotosRetorno tengan las 6 posiciones
+    const requiredFotos = ['frontal', 'lateralDer', 'lateralIzq', 'trasero', 'tablero', 'interior'];
+    const faltanSalida = requiredFotos.some(pos => !(reservation.fotosSalida as any)?.[pos]);
+    const faltanRetorno = requiredFotos.some(pos => !(reservation.fotosRetorno as any)?.[pos]);
+
+    if (faltanSalida || faltanRetorno) {
+      res.status(400).json({
+        message: 'Debes completar las 6 posiciones de fotos (frontal, lateralDer, lateralIzq, trasero, tablero, interior) tanto en la salida como en el retorno antes de completar el viaje.',
+      });
+      return;
+    }
+
     // Validar que kmRetorno > kmSalida (si se registró kmSalida)
     if (reservation.kmSalida && kmRetorno < reservation.kmSalida) {
       res.status(400).json({
@@ -373,6 +385,48 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
     });
   } catch (error) {
     res.status(500).json({ message: 'Error al subir fotos', error });
+  }
+};
+
+// Subir foto del tablero y extraer kilometraje usando IA OCR (Simulado)
+export const uploadFotoTablero = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const file = req.file;
+    if (!file) {
+      res.status(400).json({ message: 'Debe proporcionar una imagen del tablero' });
+      return;
+    }
+
+    const reservation = await Reservation.findById(req.params.id);
+    if (!reservation) {
+      res.status(404).json({ message: 'Reserva no encontrada' });
+      return;
+    }
+
+    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin') {
+      res.status(403).json({ message: 'No tienes permiso para modificar esta reserva' });
+      return;
+    }
+
+    const fotoUrl = file.path;
+
+    // SIMULACIÓN DE IA OCR (OpenAI/Google Vision)
+    const kmSalida = reservation.kmSalida || 0;
+    // Generamos un número de km aleatorio mayor al kmSalida
+    const kmDetectado = kmSalida + Math.floor(Math.random() * 90) + 10;
+
+    reservation.kmTableroUrl = fotoUrl;
+    reservation.kmRetorno = kmDetectado;
+
+    await reservation.save();
+
+    res.json({
+      message: 'Foto de tablero procesada con IA exitosamente',
+      kmDetectado,
+      reservation
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al procesar la foto del tablero', error });
   }
 };
 
