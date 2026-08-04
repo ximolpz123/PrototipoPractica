@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import OpenAI from 'openai';
 import Reservation from '../models/Reservation.js';
 import Vehicle from '../models/Vehicle.js';
 import Audit from '../models/Audit.js';
@@ -11,7 +12,7 @@ export const getReservations = async (req: AuthRequest, res: Response): Promise<
     const filter = req.userRol === 'admin' ? {} : { usuario: req.userId };
     const reservations = await Reservation.find(filter)
       .populate('usuario', 'nombre apellido email departamento')
-      .populate('vehiculo', 'placa marca modelo color tipo')
+      .populate('vehiculo', 'placa marca modelo color tipo tipoIndicador')
       .sort({ fechaInicio: -1 });
     res.json(reservations);
   } catch (error) {
@@ -254,7 +255,7 @@ export const cancelReservation = async (req: AuthRequest, res: Response): Promis
 // Completar una reserva y registrar kilometraje de retorno
 export const completeReservation = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { kmRetorno, observaciones } = req.body;
+    const { kmRetorno, observaciones, nivelBencinaRetorno } = req.body;
 
     // Validar que kmRetorno es un número positivo
     if (typeof kmRetorno !== 'number' || kmRetorno < 0) {
@@ -308,6 +309,9 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
 
     // Actualizar la reserva
     reservation.kmRetorno = kmRetorno;
+    if (nivelBencinaRetorno !== undefined) {
+      reservation.nivelBencinaRetorno = nivelBencinaRetorno;
+    }
     reservation.estado = 'completada';
     if (observaciones) reservation.observaciones = observaciones;
     await reservation.save();
@@ -344,7 +348,7 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
 // Subir fotos de evidencia para una reserva
 export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { tipo } = req.body; // 'salida' o 'retorno'
+    const { tipo, posiciones } = req.body; // 'salida' o 'retorno', y un array JSON de posiciones
     const files = req.files as Express.Multer.File[];
 
     if (!files || files.length === 0) {
@@ -368,19 +372,45 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
+    let parsedPosiciones: string[] = [];
+    try {
+      parsedPosiciones = JSON.parse(posiciones || '[]');
+    } catch (e) {
+      console.warn("No se pudieron parsear las posiciones", posiciones);
+    }
+
     const photoUrls = files.map((file) => file.path); // Cloudinary devuelve la URL en path
 
+    // Initialize if undefined
     if (tipo === 'salida') {
-      reservation.fotosSalidaLegacy = [...(reservation.fotosSalidaLegacy || []), ...photoUrls];
+      if (!reservation.fotosSalida) reservation.fotosSalida = {};
     } else {
-      reservation.fotosRetornoLegacy = [...(reservation.fotosRetornoLegacy || []), ...photoUrls];
+      if (!reservation.fotosRetorno) reservation.fotosRetorno = {};
     }
+
+    // Map files to positions
+    files.forEach((file, index) => {
+      const pos = parsedPosiciones[index];
+      if (pos) {
+        if (tipo === 'salida') {
+          (reservation.fotosSalida as any)[pos] = file.path;
+        } else {
+          (reservation.fotosRetorno as any)[pos] = file.path;
+        }
+      } else {
+        // Fallback for legacy app versions
+        if (tipo === 'salida') {
+          reservation.fotosSalidaLegacy = [...(reservation.fotosSalidaLegacy || []), file.path];
+        } else {
+          reservation.fotosRetornoLegacy = [...(reservation.fotosRetornoLegacy || []), file.path];
+        }
+      }
+    });
 
     await reservation.save();
 
     res.json({
       message: `Fotos de ${tipo} subidas exitosamente`,
-      urls: photoUrls,
       reservation,
     });
   } catch (error) {
@@ -410,13 +440,53 @@ export const uploadFotoTablero = async (req: AuthRequest, res: Response): Promis
 
     const fotoUrl = file.path;
 
-    // SIMULACIÓN DE IA OCR (OpenAI/Google Vision)
-    const kmSalida = reservation.kmSalida || 0;
-    // Generamos un número de km aleatorio mayor al kmSalida
-    const kmDetectado = kmSalida + Math.floor(Math.random() * 90) + 10;
+    let kmDetectado = reservation.kmSalida || 0;
+    
+    // Si tenemos API Key, usamos IA Real. Si no, fallback a simulador.
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        const aiResponse = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "Extrae SOLO el número de kilometraje (odómetro) del tablero en esta foto. Devuelve EXCLUSIVAMENTE los dígitos sin texto, sin puntos ni comas (ej. si es 12.345 km, devuelve 12345). Si no logras verlo con claridad, devuelve -1." },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: fotoUrl,
+                  },
+                },
+              ],
+            },
+          ],
+        });
+        
+        const kmText = aiResponse.choices[0]?.message?.content?.trim() || "-1";
+        const parsedKm = parseInt(kmText, 10);
+        
+        if (!isNaN(parsedKm) && parsedKm > 0) {
+          kmDetectado = parsedKm;
+        } else {
+          console.warn("IA no pudo leer el odómetro. Devolvió:", kmText);
+          kmDetectado = -1; // Bandera de fallo
+        }
+      } catch (aiError) {
+        console.error("Error en OpenAI:", aiError);
+        kmDetectado = -1;
+      }
+    } else {
+      // Fallback si no hay API Key configurada
+      kmDetectado = kmDetectado + Math.floor(Math.random() * 90) + 10;
+    }
 
     reservation.kmTableroUrl = fotoUrl;
-    reservation.kmRetorno = kmDetectado;
+    // Solo actualizamos el kmRetorno si la lectura fue válida (> 0)
+    if (kmDetectado > 0) {
+      reservation.kmRetorno = kmDetectado;
+    }
 
     await reservation.save();
 

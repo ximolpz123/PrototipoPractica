@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Modal, TextInput } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { COLORS, API_URL } from '../constants';
 import { useAlert } from '../context/AlertContext';
@@ -8,64 +8,62 @@ import { authService } from '../services/auth.service';
 import { reservationService } from '../services/reservation.service';
 import { locationService } from '../services/location.service';
 
+const POSITIONS = ['frontal', 'lateralDer', 'lateralIzq', 'trasero', 'tablero', 'interior'];
+const LABELS = ['Frontal', 'Lateral Derecho', 'Lateral Izquierdo', 'Trasero', 'Tablero', 'Interior'];
+
 export default function CameraScreen({ route, navigation }: any) {
   const { showAlert } = useAlert();
-  const { reservaId, tipo, kmRetorno } = route.params; // 'salida' o 'retorno'
+  const { reservaId, tipo, tipoIndicador } = route.params;
 
   const [permission, requestPermission] = useCameraPermissions();
-  const [photos, setPhotos] = useState<string[]>([]);
+  const cameraRef = useRef<CameraView>(null);
+
+  const [currentStep, setCurrentStep] = useState(0);
+  const [photos, setPhotos] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
   const [canGoBack, setCanGoBack] = useState(false);
 
-  const cameraRef = useRef<CameraView>(null);
+  // IA Odometer states
+  const [uploadingIA, setUploadingIA] = useState(false);
+  const [showOdometerModal, setShowOdometerModal] = useState(false);
+  const [kmDetectado, setKmDetectado] = useState(-1);
+  const [manualKm, setManualKm] = useState('');
+  const [finalKmRetorno, setFinalKmRetorno] = useState<number | null>(null);
+  const [isEditingKm, setIsEditingKm] = useState(false);
 
-  React.useEffect(() => {
+  // Gas level states
+  const [bencinaLevel, setBencinaLevel] = useState<number>(100); // 0 to 100
+
+  useEffect(() => {
     const handleBeforeRemove = (e: any) => {
-      if (canGoBack) {
-        return;
-      }
-
+      if (canGoBack) return;
       e.preventDefault();
 
-      if (tipo === 'salida') {
-        showAlert(
-          'Fotos Obligatorias',
-          'Debes tomar fotos de evidencia para iniciar tu viaje. Si retrocedes, tu viaje será cancelado automáticamente.',
-          [
-            { text: 'Tomar fotos', style: 'cancel', onPress: () => { } },
-            {
-              text: 'Cancelar Viaje',
-              style: 'destructive',
-              onPress: async () => {
-                try {
-                  await reservationService.cancel(reservaId);
-                  await locationService.stopTracking();
-                  setCanGoBack(true);
-                  navigation.dispatch(e.data.action);
-                } catch (error) {
-                  showAlert('Error', 'No se pudo cancelar el viaje.');
-                }
-              },
-            },
-          ]
-        );
-      } else if (tipo === 'retorno') {
-        showAlert(
-          'Atención',
-          'Aún no has completado tu viaje. Si retrocedes, tu viaje seguirá "En Curso" y deberás finalizarlo más tarde.',
-          [
-            { text: 'Subir fotos ahora', style: 'cancel', onPress: () => { } },
-            {
-              text: 'Volver al Inicio',
-              style: 'default',
-              onPress: () => {
-                setCanGoBack(true);
-                navigation.dispatch(e.data.action);
-              },
-            },
-          ]
-        );
-      }
+      const title = tipo === 'salida' ? 'Fotos Obligatorias' : 'Atención';
+      const msg = tipo === 'salida'
+        ? 'Debes tomar fotos de evidencia para iniciar tu viaje. Si retrocedes, tu viaje será cancelado automáticamente.'
+        : 'Aún no has completado tu viaje. Si retrocedes, tu viaje seguirá "En Curso" y deberás finalizarlo más tarde.';
+
+      showAlert(title, msg, [
+        { text: 'Tomar fotos', style: 'cancel', onPress: () => { } },
+        {
+          text: tipo === 'salida' ? 'Cancelar Viaje' : 'Volver al Inicio',
+          style: tipo === 'salida' ? 'destructive' : 'default',
+          onPress: async () => {
+            if (tipo === 'salida') {
+              try {
+                await reservationService.cancel(reservaId);
+                await locationService.stopTracking();
+              } catch (error) {
+                showAlert('Error', 'No se pudo cancelar el viaje.');
+                return;
+              }
+            }
+            setCanGoBack(true);
+            navigation.dispatch(e.data.action);
+          },
+        },
+      ]);
     };
 
     navigation.addListener('beforeRemove', handleBeforeRemove);
@@ -73,7 +71,7 @@ export default function CameraScreen({ route, navigation }: any) {
   }, [navigation, canGoBack, tipo, reservaId]);
 
   if (!permission) {
-    return <View style={styles.container}><ActivityIndicator size="large" /></View>;
+    return <View style={styles.container}><ActivityIndicator size="large" color={COLORS.primary} /></View>;
   }
 
   if (!permission.granted) {
@@ -87,51 +85,95 @@ export default function CameraScreen({ route, navigation }: any) {
     );
   }
 
-  const takePicture = async () => {
-    if (cameraRef.current && photos.length < 4) {
-      const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.7, // Reduccion de calidad para evitar gastar creditos de momento
-        base64: false,
+  const procesarFotoIA = async (uri: string) => {
+    setUploadingIA(true);
+    try {
+      const formData = new FormData();
+      formData.append('foto', {
+        uri,
+        name: 'tablero.jpg',
+        type: 'image/jpeg',
+      } as any);
+
+      const token = await authService.getToken();
+      const res = await axios.post(`${API_URL}/reservations/${reservaId}/foto-tablero`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}`
+        }
       });
-      if (photo) {
-        setPhotos([...photos, photo.uri]);
-      }
+      
+      const detectado = res.data.kmDetectado;
+      setKmDetectado(detectado);
+      setManualKm(detectado > 0 ? String(detectado) : '');
+      setIsEditingKm(detectado <= 0);
+      setShowOdometerModal(true);
+    } catch (error: any) {
+      console.error(error);
+      showAlert('Error IA', 'No se pudo procesar la foto del tablero. Deberás ingresar el KM manualmente.');
+      setKmDetectado(-1);
+      setIsEditingKm(true);
+      setShowOdometerModal(true);
+    } finally {
+      setUploadingIA(false);
     }
   };
 
-  const removePhoto = (index: number) => {
-    const newPhotos = [...photos];
-    newPhotos.splice(index, 1);
+  const takePicture = async () => {
+    if (!cameraRef.current) return;
+    if (uploadingIA) return;
+    
+    const photo = await cameraRef.current.takePictureAsync({
+      quality: 0.5,
+      base64: false,
+    });
+    
+    if (!photo) return;
+
+    const pos = POSITIONS[currentStep];
+    const newPhotos = { ...photos, [pos]: photo.uri };
     setPhotos(newPhotos);
+
+    if (pos === 'tablero' && tipo === 'retorno') {
+      await procesarFotoIA(photo.uri);
+    } else {
+      setCurrentStep(currentStep + 1);
+    }
   };
 
-  const uploadPhotos = async () => {
-    if (photos.length === 0) {
-      showAlert('Error', 'Debes tomar al menos 1 foto');
+  const retakePhoto = (stepIndex: number) => {
+    setCurrentStep(stepIndex);
+  };
+
+  const confirmarOdometro = () => {
+    const kmNum = parseInt(manualKm, 10);
+    if (isNaN(kmNum) || kmNum < 0) {
+      showAlert('Error', 'Ingresa un número válido para el kilometraje.');
       return;
     }
+    
+    setFinalKmRetorno(kmNum);
+    setShowOdometerModal(false);
+    setCurrentStep(currentStep + 1);
+  };
 
+  const uploadFinal = async () => {
     setUploading(true);
     try {
       const formData = new FormData();
       formData.append('tipo', tipo);
+      formData.append('posiciones', JSON.stringify(POSITIONS));
 
-      photos.forEach((photoUri, index) => {
-        const filename = photoUri.split('/').pop() || `foto_${index}.jpg`;
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : `image`;
-
+      POSITIONS.forEach((pos) => {
         formData.append('fotos', {
-          uri: photoUri,
-          name: filename,
-          type,
+          uri: photos[pos],
+          name: `${pos}.jpg`,
+          type: 'image/jpeg',
         } as any);
       });
 
-      // Obtener token para la petición
       const token = await authService.getToken();
-
-      // Realizar la petición real al backend
+      
       await axios.post(`${API_URL}/reservations/${reservaId}/upload`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -139,66 +181,174 @@ export default function CameraScreen({ route, navigation }: any) {
         }
       });
 
-      // Si es retorno, completamos la reserva después de subir las fotos exitosamente
-      if (tipo === 'retorno' && kmRetorno !== undefined) {
-        await reservationService.completeReservation(reservaId, kmRetorno);
+      if (tipo === 'retorno') {
+        await axios.patch(`${API_URL}/reservations/${reservaId}/complete`, {
+          kmRetorno: finalKmRetorno,
+          nivelBencinaRetorno: bencinaLevel
+        }, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         await locationService.stopTracking();
       }
 
-      showAlert('Éxito', 'Las fotos han sido subidas correctamente a Cloudinary y guardadas en la base de datos.');
+      showAlert('Éxito', tipo === 'salida' ? 'Viaje iniciado exitosamente.' : 'Viaje finalizado exitosamente.');
       setCanGoBack(true);
       navigation.navigate('MainTabs');
     } catch (error: any) {
       console.error(error.response?.data || error);
-      showAlert('Error', 'No se pudieron subir las fotos. Verifica la consola.');
+      showAlert('Error', 'Hubo un error al procesar el viaje. Verifica tu conexión.');
     } finally {
       setUploading(false);
     }
   };
 
+  const renderBencinaSelector = () => {
+    if (tipo !== 'retorno') return null;
+
+    if (tipoIndicador === 'analogico') {
+      const options = [
+        { label: 'E', value: 0 },
+        { label: '1/4', value: 25 },
+        { label: '1/2', value: 50 },
+        { label: '3/4', value: 75 },
+        { label: 'F', value: 100 },
+      ];
+      return (
+        <View style={styles.bencinaContainer}>
+          <Text style={styles.bencinaTitle}>Nivel de Bencina de Retorno</Text>
+          <View style={styles.analogRow}>
+            {options.map((opt) => (
+              <TouchableOpacity
+                key={opt.label}
+                style={[styles.analogBtn, bencinaLevel === opt.value && styles.analogBtnActive]}
+                onPress={() => setBencinaLevel(opt.value)}
+              >
+                <Text style={[styles.analogText, bencinaLevel === opt.value && styles.analogTextActive]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      );
+    } else {
+      const options = [0, 25, 50, 75, 100];
+      return (
+        <View style={styles.bencinaContainer}>
+          <Text style={styles.bencinaTitle}>Porcentaje de Bencina de Retorno</Text>
+          <View style={styles.analogRow}>
+            {options.map((opt) => (
+              <TouchableOpacity
+                key={opt}
+                style={[styles.analogBtn, bencinaLevel === opt && styles.analogBtnActive]}
+                onPress={() => setBencinaLevel(opt)}
+              >
+                <Text style={[styles.analogText, bencinaLevel === opt && styles.analogTextActive]}>
+                  {opt}%
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      );
+    }
+  };
+
   return (
     <View style={styles.container}>
-      {photos.length < 4 ? (
+      {currentStep < 6 ? (
         <CameraView style={styles.camera} ref={cameraRef}>
           <View style={styles.overlay}>
-            <Text style={styles.instruction}>
-              Toma foto de evidencia ({photos.length}/4)
-            </Text>
-            <TouchableOpacity style={styles.captureBtn} onPress={takePicture}>
-              <View style={styles.captureInner} />
-            </TouchableOpacity>
+            <View style={styles.header}>
+              <Text style={styles.stepText}>Paso {currentStep + 1} de 6</Text>
+              <Text style={styles.instruction}>
+                Toma foto: {LABELS[currentStep]}
+              </Text>
+            </View>
+            
+            {uploadingIA ? (
+              <View style={styles.aiLoading}>
+                <ActivityIndicator size="large" color="#fff" />
+                <Text style={styles.aiLoadingText}>Leyendo Odómetro con IA...</Text>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.captureBtn} onPress={takePicture}>
+                <View style={styles.captureInner} />
+              </TouchableOpacity>
+            )}
           </View>
         </CameraView>
       ) : (
-        <View style={styles.cameraPlaceholder}>
-          <Text style={styles.text}>¡Límite de 4 fotos alcanzado!</Text>
+        <View style={styles.finalView}>
+          <Text style={styles.finalTitle}>Resumen de Evidencia</Text>
+          <View style={styles.gallery}>
+            {POSITIONS.map((pos, index) => (
+              <TouchableOpacity key={pos} style={styles.galleryItem} onPress={() => retakePhoto(index)}>
+                <Image source={{ uri: photos[pos] }} style={styles.thumbnail} />
+                <Text style={styles.thumbnailLabel}>{LABELS[index]}</Text>
+                <View style={styles.retakeBadge}><Text style={styles.retakeText}>↺</Text></View>
+              </TouchableOpacity>
+            ))}
+          </View>
+          
+          {renderBencinaSelector()}
+
+          <TouchableOpacity
+            style={[styles.uploadBtn, uploading && styles.disabledBtn]}
+            onPress={uploadFinal}
+            disabled={uploading}
+          >
+            {uploading ? (
+              <ActivityIndicator color={COLORS.white} />
+            ) : (
+              <Text style={styles.uploadBtnText}>
+                {tipo === 'salida' ? 'Subir e Iniciar Viaje' : 'Subir y Finalizar Viaje'}
+              </Text>
+            )}
+          </TouchableOpacity>
         </View>
       )}
 
-      <View style={styles.gallery}>
-        {photos.map((uri, index) => (
-          <TouchableOpacity key={index} onPress={() => removePhoto(index)}>
-            <Image source={{ uri }} style={styles.thumbnail} />
-            <View style={styles.deleteBadge}>
-              <Text style={styles.deleteText}>X</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <TouchableOpacity
-        style={[styles.uploadBtn, (photos.length === 0 || uploading) && styles.disabledBtn]}
-        onPress={uploadPhotos}
-        disabled={photos.length === 0 || uploading}
-      >
-        {uploading ? (
-          <ActivityIndicator color={COLORS.white} />
-        ) : (
-          <Text style={styles.uploadBtnText}>
-            Subir Fotos ({photos.length})
-          </Text>
-        )}
-      </TouchableOpacity>
+      {/* IA Modal */}
+      <Modal visible={showOdometerModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>🤖 IA Odómetro</Text>
+            
+            {!isEditingKm ? (
+              <>
+                <Text style={styles.modalText}>
+                  El odómetro marca <Text style={styles.boldKm}>{kmDetectado} km</Text>.
+                </Text>
+                <Text style={styles.modalQuestion}>¿Es esto correcto?</Text>
+                <View style={styles.modalBtns}>
+                  <TouchableOpacity style={[styles.modalBtn, styles.btnNo]} onPress={() => setIsEditingKm(true)}>
+                    <Text style={styles.btnNoText}>No, editar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.modalBtn, styles.btnYes]} onPress={confirmarOdometro}>
+                    <Text style={styles.btnYesText}>Sí, es correcto</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalText}>Ingresa el kilometraje correcto:</Text>
+                <TextInput
+                  style={styles.kmInput}
+                  keyboardType="numeric"
+                  value={manualKm}
+                  onChangeText={setManualKm}
+                  placeholder="Ej: 12345"
+                  autoFocus
+                />
+                <TouchableOpacity style={[styles.modalBtn, styles.btnYes, { width: '100%', marginTop: 15 }]} onPress={confirmarOdometro}>
+                  <Text style={styles.btnYesText}>Guardar Odómetro</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -214,67 +364,222 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
+  header: {
+    marginTop: 40,
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 15,
+    borderRadius: 10,
+  },
+  stepText: {
+    color: COLORS.primary,
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginBottom: 5,
+  },
   instruction: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: 'bold',
-    textAlign: 'center',
-    marginTop: 40,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
   },
   captureBtn: {
     alignSelf: 'center',
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     backgroundColor: 'rgba(255,255,255,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   captureInner: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: '#fff',
   },
-  cameraPlaceholder: {
+  aiLoading: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 20,
+  },
+  aiLoadingText: {
+    color: '#fff',
+    marginTop: 10,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  finalView: {
     flex: 1,
+    paddingTop: 50,
+    paddingHorizontal: 15,
+  },
+  finalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  gallery: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 20,
+  },
+  galleryItem: {
+    width: '30%',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  thumbnail: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+  },
+  thumbnailLabel: {
+    color: COLORS.text,
+    fontSize: 11,
+    marginTop: 5,
+    textAlign: 'center',
+  },
+  retakeBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: COLORS.primary,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#000',
+  },
+  retakeText: { color: '#fff', fontWeight: 'bold' },
+  bencinaContainer: {
+    backgroundColor: COLORS.white,
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 20,
+  },
+  bencinaTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  analogRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  analogBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  analogBtnActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  analogText: {
+    color: COLORS.text,
+    fontWeight: 'bold',
+  },
+  analogTextActive: {
+    color: '#fff',
+  },
+  uploadBtn: {
+    backgroundColor: COLORS.success,
+    padding: 18,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 'auto',
+    marginBottom: 30,
+  },
+  disabledBtn: { opacity: 0.7 },
+  uploadBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: COLORS.white,
+    width: '100%',
+    borderRadius: 12,
+    padding: 25,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    marginBottom: 15,
+  },
+  modalText: {
+    fontSize: 16,
+    color: COLORS.text,
+    textAlign: 'center',
+  },
+  boldKm: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: COLORS.text,
+  },
+  modalQuestion: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 15,
+    marginBottom: 25,
+    color: COLORS.text,
+  },
+  modalBtns: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
+    gap: 15,
+  },
+  modalBtn: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  btnNo: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  btnNoText: {
+    color: COLORS.text,
+    fontWeight: 'bold',
+  },
+  btnYes: {
+    backgroundColor: COLORS.primary,
+  },
+  btnYesText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  kmInput: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    width: '100%',
+    padding: 15,
+    fontSize: 20,
+    marginTop: 15,
+    textAlign: 'center',
+    color: COLORS.text,
   },
   text: { color: COLORS.text, fontSize: 16, marginBottom: 20 },
   btn: { backgroundColor: COLORS.primary, padding: 12, borderRadius: 8 },
   btnText: { color: '#fff', fontWeight: 'bold' },
-  gallery: {
-    flexDirection: 'row',
-    padding: 10,
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  thumbnail: { width: 70, height: 70, borderRadius: 8 },
-  deleteBadge: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: 'red',
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  deleteText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
-  uploadBtn: {
-    backgroundColor: COLORS.success,
-    padding: 16,
-    margin: 20,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  disabledBtn: { opacity: 0.5 },
-  uploadBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });

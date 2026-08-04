@@ -16,10 +16,6 @@ export default function HomeScreen({ route, navigation }: any) {
   const [isTracking, setIsTracking] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  // Estado para el modal de kilometraje de retorno
-  const [showKmModal, setShowKmModal] = useState(false);
-  const [kmRetornoInput, setKmRetornoInput] = useState('');
-  const [completingTrip, setCompletingTrip] = useState(false);
 
   // Modal DEV para Máquina del Tiempo
   const [devModalVisible, setDevModalVisible] = useState(false);
@@ -129,7 +125,7 @@ export default function HomeScreen({ route, navigation }: any) {
       const started = await locationService.startTracking(reserva._id);
       if (started) {
         setIsTracking(true);
-        navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'salida' });
+        navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'salida', tipoIndicador: reserva.vehiculo?.tipoIndicador });
       } else {
         showAlert(
           'GPS Requerido',
@@ -158,38 +154,12 @@ export default function HomeScreen({ route, navigation }: any) {
   };
 
   const handleEndTrip = () => {
-    // Abrir modal para ingresar kmRetorno
-    setKmRetornoInput('');
-    setShowKmModal(true);
-  };
-
-  const handleConfirmEndTrip = async () => {
     const reserva = activeReserva;
     if (!reserva) return;
-
-    const km = parseInt(kmRetornoInput, 10);
-    if (isNaN(km) || km < 0) {
-      showAlert('Kilometraje inválido', 'Ingresa un número válido de kilómetros.');
-      return;
-    }
-    if (reserva.kmSalida !== undefined && km < reserva.kmSalida) {
-      showAlert(
-        'Kilometraje inválido',
-        `El odómetro de retorno (${km} km) no puede ser menor al de salida (${reserva.kmSalida} km).`
-      );
-      return;
-    }
-
-    try {
-      // Navegamos a la cámara y pasamos el kilometraje ingresado.
-      // La llamada real al backend (completeReservation) y stopTracking se harán dentro de CameraScreen tras subir las fotos.
-      setShowKmModal(false);
-      navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'retorno', kmRetorno: km });
-    } catch (err: any) {
-      const msg = err.response?.data?.message ?? 'Error al iniciar el proceso de finalizar viaje.';
-      showAlert('Error', msg);
-    }
+    navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'retorno', tipoIndicador: reserva.vehiculo?.tipoIndicador });
   };
+
+
 
   const vehiculoNombre = (r: IReservation) =>
     r.vehiculo ? `${r.vehiculo.marca} ${r.vehiculo.modelo}` : 'Vehículo';
@@ -300,56 +270,6 @@ export default function HomeScreen({ route, navigation }: any) {
           <Text style={styles.gpsStatusText}>📡 GPS enviando posición cada 3 min • segundo plano activo</Text>
         </View>
       )}
-
-      {/* Modal: Ingresar km de retorno al finalizar viaje */}
-      <Modal visible={showKmModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>🛞 Odómetro de Retorno</Text>
-            <Text style={styles.modalSubtitle}>
-              Ingresa los kilómetros que marca el vehículo en este momento.
-            </Text>
-            {activeReserva?.kmSalida !== undefined && (
-              <Text style={styles.modalHint}>
-                📤 Al salir: {activeReserva.kmSalida.toLocaleString()} km
-              </Text>
-            )}
-            <TextInput
-              style={styles.kmInput}
-              value={kmRetornoInput}
-              onChangeText={setKmRetornoInput}
-              placeholder="Ej: 12450"
-              placeholderTextColor={COLORS.textMuted}
-              keyboardType="numeric"
-              autoFocus
-            />
-            {kmRetornoInput && activeReserva?.kmSalida !== undefined && (
-              <Text style={styles.kmCalculated}>
-                📏 Km recorridos: {Math.max(0, parseInt(kmRetornoInput || '0', 10) - activeReserva.kmSalida).toLocaleString()} km
-              </Text>
-            )}
-            <View style={styles.modalBtns}>
-              <TouchableOpacity
-                style={styles.modalBtnCancel}
-                onPress={() => setShowKmModal(false)}
-                disabled={completingTrip}
-              >
-                <Text style={styles.modalBtnCancelText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalBtnConfirm, completingTrip && { opacity: 0.6 }]}
-                onPress={handleConfirmEndTrip}
-                disabled={completingTrip}
-              >
-                {completingTrip
-                  ? <ActivityIndicator color={COLORS.white} />
-                  : <Text style={styles.modalBtnConfirmText}>Finalizar Viaje</Text>
-                }
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       {/* ─── Modal DEV Time Machine ─── */}
       <Modal visible={devModalVisible} transparent animationType="slide">

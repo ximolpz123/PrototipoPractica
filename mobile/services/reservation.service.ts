@@ -9,6 +9,7 @@ export interface IReservation {
     modelo: string;
     color: string;
     tipo: string;
+    tipoIndicador?: string;
   };
   usuario: {
     _id: string;

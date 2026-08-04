@@ -37,7 +37,7 @@ import { uploadPhotos, uploadFotoTablero } from '../controllers/reservation.cont
 router.post(
   '/:id/upload',
   authMiddleware,
-  upload.array('fotos', 4),
+  upload.array('fotos', 6),
   uploadPhotos
 );
 

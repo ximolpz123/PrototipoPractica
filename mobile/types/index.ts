@@ -22,6 +22,7 @@ export interface IVehicle {
   kilometraje: number;
   ultimoMantenimiento?: string;
   imagenUrl?: string;
+  tipoIndicador?: 'digital' | 'analogico';
 }
 
 export interface IReservation {
