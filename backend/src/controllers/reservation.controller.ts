@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import Reservation from '../models/Reservation.js';
 import Vehicle from '../models/Vehicle.js';
 import Audit from '../models/Audit.js';
@@ -443,28 +443,27 @@ export const uploadFotoTablero = async (req: AuthRequest, res: Response): Promis
     let kmDetectado = reservation.kmSalida || 0;
     
     // Si tenemos API Key, usamos IA Real. Si no, fallback a simulador.
-    if (process.env.OPENAI_API_KEY) {
+    if (process.env.GEMINI_API_KEY) {
       try {
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-        const aiResponse = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: "Extrae SOLO el número de kilometraje (odómetro) del tablero en esta foto. Devuelve EXCLUSIVAMENTE los dígitos sin texto, sin puntos ni comas (ej. si es 12.345 km, devuelve 12345). Si no logras verlo con claridad, devuelve -1." },
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: fotoUrl,
-                  },
-                },
-              ],
-            },
-          ],
-        });
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         
-        const kmText = aiResponse.choices[0]?.message?.content?.trim() || "-1";
+        // Fetch image to pass as base64 to Gemini
+        const imgResponse = await fetch(fotoUrl);
+        const arrayBuffer = await imgResponse.arrayBuffer();
+        const base64Img = Buffer.from(arrayBuffer).toString("base64");
+        
+        const prompt = "Extrae SOLO el número de kilometraje (odómetro) del tablero en esta foto. Devuelve EXCLUSIVAMENTE los dígitos sin texto, sin puntos ni comas (ej. si es 12.345 km, devuelve 12345). Si no logras verlo con claridad, devuelve -1.";
+        const image = {
+          inlineData: {
+            data: base64Img,
+            mimeType: "image/jpeg"
+          },
+        };
+        
+        const aiResponse = await model.generateContent([prompt, image]);
+        const kmText = aiResponse.response.text().trim() || "-1";
+        
         const parsedKm = parseInt(kmText, 10);
         
         if (!isNaN(parsedKm) && parsedKm > 0) {
@@ -474,7 +473,7 @@ export const uploadFotoTablero = async (req: AuthRequest, res: Response): Promis
           kmDetectado = -1; // Bandera de fallo
         }
       } catch (aiError) {
-        console.error("Error en OpenAI:", aiError);
+        console.error("Error en Gemini:", aiError);
         kmDetectado = -1;
       }
     } else {
