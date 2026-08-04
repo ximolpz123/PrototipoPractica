@@ -76,6 +76,25 @@ export default function FlotaScreen() {
           <View style={[styles.statusBadge, { backgroundColor: estado.bg }]}>
             <Text style={[styles.statusText, { color: estado.text }]}>{estado.label}</Text>
           </View>
+          
+          {item.historialHoy && item.historialHoy.length > 0 && (
+            <View style={styles.historyContainer}>
+              <Text style={styles.historyTitle}>Historial de Hoy:</Text>
+              {item.historialHoy.map((res, index) => {
+                const horaIni = new Date(res.fechaInicio).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+                const horaFin = new Date(res.fechaFin).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+                return (
+                  <View key={index} style={styles.historyItem}>
+                    <Text style={styles.historyTime}>{horaIni} - {horaFin}</Text>
+                    <Text style={styles.historyUser} numberOfLines={1}>
+                      {res.usuario?.nombre} {res.usuario?.apellido}
+                    </Text>
+                    <Text style={styles.historyState}>({res.estado})</Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
         </View>
       </View>
     );
@@ -275,5 +294,38 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 11,
     fontWeight: '700',
+  },
+  historyContainer: {
+    marginTop: 15,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  historyTitle: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#555',
+    marginBottom: 5,
+  },
+  historyItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  historyTime: {
+    fontSize: 12,
+    color: COLORS.primary,
+    fontWeight: '600',
+    width: 90,
+  },
+  historyUser: {
+    fontSize: 12,
+    color: '#333',
+    flex: 1,
+  },
+  historyState: {
+    fontSize: 10,
+    color: '#888',
+    textTransform: 'capitalize',
   },
 });

@@ -14,14 +14,34 @@ export const getVehicles = async (_req: Request, res: Response): Promise<void> =
       .populate('usuario', 'nombre apellido departamento')
       .lean();
     
+    const hoyInicio = new Date();
+    hoyInicio.setHours(0, 0, 0, 0);
+    const hoyFin = new Date();
+    hoyFin.setHours(23, 59, 59, 999);
+
+    const todayReservations = await Reservation.find({
+      fechaInicio: { $lte: hoyFin },
+      fechaFin: { $gte: hoyInicio },
+      estado: { $in: ['aprobada', 'en_curso', 'completada'] }
+    }).populate('usuario', 'nombre apellido departamento').lean();
+    
     const vehiclesWithInfo = vehicles.map(v => {
+      let extra = {};
       if (v.estado === 'reservado') {
         const activeRes = activeReservations.find(r => r.vehiculo.toString() === v._id.toString());
-        if (activeRes) {
-          return { ...v, conductorActual: activeRes.usuario };
-        }
+        if (activeRes) extra = { conductorActual: activeRes.usuario };
       }
-      return v;
+
+      const historialHoy = todayReservations
+        .filter(r => r.vehiculo.toString() === v._id.toString())
+        .map(r => ({
+          usuario: r.usuario,
+          estado: r.estado,
+          fechaInicio: r.fechaInicio,
+          fechaFin: r.fechaFin,
+        }));
+
+      return { ...v, ...extra, historialHoy };
     });
 
     res.json(vehiclesWithInfo);
