@@ -32,6 +32,7 @@ import CreateReservationScreen from './screens/CreateReservationScreen';
 import AdminDashboardScreen from './screens/AdminDashboardScreen';
 import AdminHistoryScreen from './screens/AdminHistoryScreen';
 import AdminMapScreen from './screens/AdminMapScreen';
+import AddVehicleAIScreen from './screens/AddVehicleAIScreen';
 import { AlertProvider, useAlert } from './context/AlertContext';
 
 const Stack = createNativeStackNavigator();
@@ -249,6 +250,15 @@ function MainApp() {
                 name="CreateReservation"
                 component={CreateReservationScreen}
                 options={{ title: 'Crear Reserva' }}
+              />
+            </>
+          )}
+          {isAdmin && (
+            <>
+              <Stack.Screen
+                name="AddVehicleAI"
+                component={AddVehicleAIScreen}
+                options={{ title: 'Crear Vehículo con IA' }}
               />
             </>
           )}

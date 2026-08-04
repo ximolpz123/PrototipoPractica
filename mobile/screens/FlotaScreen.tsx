@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { authService } from '../services/auth.service';
 import { COLORS } from '../constants';
 import { vehicleService, IVehicle } from '../services/vehicle.service';
 
@@ -22,6 +24,8 @@ export default function FlotaScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const navigation = useNavigation<any>();
 
   const fetchVehicles = async () => {
     try {
@@ -38,6 +42,9 @@ export default function FlotaScreen() {
 
   useEffect(() => {
     fetchVehicles();
+    authService.getCurrentUser().then(u => {
+      if (u && u.rol === 'admin') setIsAdmin(true);
+    });
   }, []);
 
   const onRefresh = () => {
@@ -99,7 +106,20 @@ export default function FlotaScreen() {
         renderItem={renderItem}
         contentContainerStyle={styles.listContainer}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No hay vehículos registrados en la flota.</Text>
+          </View>
+        }
       />
+      {isAdmin && (
+        <TouchableOpacity 
+          style={styles.fab} 
+          onPress={() => navigation.navigate('AddVehicleAI')}
+        >
+          <Text style={styles.fabIcon}>🤖</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -154,6 +174,33 @@ const styles = StyleSheet.create({
   listContainer: {
     paddingHorizontal: 20,
     paddingBottom: 20,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    backgroundColor: '#8B5CF6',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
+  },
+  fabIcon: { fontSize: 24 },
+  emptyContainer: {
+    padding: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: COLORS.textMuted,
+    fontSize: 16,
+    textAlign: 'center',
   },
   card: {
     backgroundColor: COLORS.white,
