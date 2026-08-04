@@ -5,6 +5,7 @@ export interface IUser {
   nombre: string;
   apellido: string;
   email: string;
+  telefono?: string;
   departamento: string;
   rol: 'usuario' | 'admin';
   activo: boolean;

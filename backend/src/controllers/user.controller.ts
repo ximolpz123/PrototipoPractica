@@ -18,7 +18,7 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
 // POST /api/users
 export const createUser = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nombre, apellido, email, password, departamento, rol, activo } = req.body;
+    const { nombre, apellido, email, password, departamento, telefono, rol, activo } = req.body;
     
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -35,6 +35,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       email,
       password: hashedPassword,
       departamento,
+      telefono,
       rol: rol || 'usuario',
       activo: activo !== undefined ? activo : true
     });

@@ -7,7 +7,7 @@ import { AuthRequest } from '../middleware/auth.js';
 // Registrar usuario
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nombre, apellido, email, password, departamento, fechaVencimientoLicencia, licenciaAlDia } = req.body;
+    const { nombre, apellido, email, password, departamento, telefono, fechaVencimientoLicencia, licenciaAlDia } = req.body;
 
     // Verificar si el usuario ya existe
     const existingUser = await User.findOne({ email });
@@ -27,6 +27,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       email,
       password: hashedPassword,
       departamento: departamento || 'Operaciones', // Default so it doesn't crash if missing
+      telefono,
       fechaVencimientoLicencia,
       licenciaAlDia,
     });
