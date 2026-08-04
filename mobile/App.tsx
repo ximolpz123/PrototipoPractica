@@ -25,6 +25,7 @@ import type { IUser } from './types';
 import { COLORS } from './constants';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -217,14 +218,20 @@ function MainApp() {
         return;
       }
       
-      const projectId = 'b45c2ea0-8b1d-4074-b529-e85d1e86a1fb'; // Dummy Project ID si no hay eas.json
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+      
+      if (!projectId) {
+        console.log('⚠️ No se encontró EAS projectId. Ejecuta `eas init` si deseas notificaciones Push reales.');
+        return; // Detener aquí para evitar el error 400 de Expo
+      }
+
       try {
         const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
         if (currentUser && currentUser._id) {
           await userService.updatePushToken(currentUser._id, token);
         }
       } catch (e) {
-        console.error('Error al obtener Push Token', e);
+        console.log('⚠️ Error de Expo Push Token (ignorable en dev local):', e);
       }
     }
   };
