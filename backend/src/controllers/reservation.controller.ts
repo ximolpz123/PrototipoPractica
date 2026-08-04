@@ -4,6 +4,8 @@ import Reservation from '../models/Reservation.js';
 import Vehicle from '../models/Vehicle.js';
 import Audit from '../models/Audit.js';
 import { AuthRequest } from '../middleware/auth.js';
+import Flag from '../models/Flag.js';
+import User from '../models/User.js';
 import { timeService } from '../services/time.service.js';
 
 // Obtener todas las reservas (admin ve todas, usuario solo las suyas)
@@ -284,17 +286,11 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
       return;
     }
 
-    // Validar que fotosSalida y fotosRetorno tengan las 6 posiciones
+    // Validar fotos faltantes (pero NO bloquear, se evaluará para banderas)
     const requiredFotos = ['frontal', 'lateralDer', 'lateralIzq', 'trasero', 'tablero', 'interior'];
-    const faltanSalida = requiredFotos.some(pos => !(reservation.fotosSalida as any)?.[pos]);
-    const faltanRetorno = requiredFotos.some(pos => !(reservation.fotosRetorno as any)?.[pos]);
-
-    if (faltanSalida || faltanRetorno) {
-      res.status(400).json({
-        message: 'Debes completar las 6 posiciones de fotos (frontal, lateralDer, lateralIzq, trasero, tablero, interior) tanto en la salida como en el retorno antes de completar el viaje.',
-      });
-      return;
-    }
+    const faltanSalidaCount = requiredFotos.filter(pos => !(reservation.fotosSalida as any)?.[pos]).length;
+    const faltanRetornoCount = requiredFotos.filter(pos => !(reservation.fotosRetorno as any)?.[pos]).length;
+    const missingPhotosCount = faltanSalidaCount + faltanRetornoCount;
 
     // Validar que kmRetorno > kmSalida (si se registró kmSalida)
     if (reservation.kmSalida && kmRetorno < reservation.kmSalida) {
@@ -316,7 +312,6 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
     if (observaciones) reservation.observaciones = observaciones;
     await reservation.save();
 
-    // Actualizar el kilometraje total del vehículo y ponerlo como disponible
     const vehiculoActualizado = await Vehicle.findByIdAndUpdate(
       reservation.vehiculo,
       {
@@ -325,6 +320,81 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
       },
       { new: true }
     );
+
+    // ── Lógica de Asignación Automática de Banderas ──
+    let assignedColor: 'verde' | 'amarilla' | 'naranja' | 'roja' | null = null;
+    let assignedMotivo = '';
+    
+    let isLate = false;
+    let isVeryLate = false;
+    if (reservation.fechaFin) {
+      const diffMs = new Date().getTime() - new Date(reservation.fechaFin).getTime();
+      const diffHours = diffMs / (1000 * 60 * 60);
+      if (diffHours > 0.25) isLate = true; // +15 min
+      if (diffHours > 2) isVeryLate = true; // +2 horas
+    }
+
+    const lowGas = nivelBencinaRetorno !== undefined && nivelBencinaRetorno < 25;
+    const noGas = nivelBencinaRetorno !== undefined && nivelBencinaRetorno <= 5;
+    const obsLower = (observaciones || '').toLowerCase();
+    const hasDamage = obsLower.includes('chocad') || obsLower.includes('pinchad') || obsLower.includes('accidente');
+
+    if (isVeryLate || noGas || hasDamage) {
+      assignedColor = 'roja';
+      assignedMotivo = 'Llegó muy tarde, vehículo chocado, sin gasolina, o rueda pinchada.';
+    } else if (faltanRetornoCount >= 5 || (isLate && missingPhotosCount > 0)) {
+      // faltanRetornoCount >= 5 significa "Solo 1 foto tomada" (de las 6 del retorno)
+      assignedColor = 'naranja';
+      assignedMotivo = 'Solo 1 foto tomada o vehículo entregado tarde sin avisar.';
+    } else if ((missingPhotosCount >= 1 && missingPhotosCount <= 4) || lowGas) {
+      assignedColor = 'amarilla';
+      assignedMotivo = 'Faltó 1–2 fotos, o nivel de bencina bajo al devolver.';
+    } else {
+      // Revisar si califica para Verde (2 entregas perfectas seguidas)
+      const last2 = await Reservation.find({ usuario: reservation.usuario, estado: 'completada' }).sort({ updatedAt: -1 }).limit(2);
+      if (last2.length === 2) {
+        let perfect = true;
+        for (const r of last2) {
+          const mCount = requiredFotos.filter(pos => !(r.fotosSalida as any)?.[pos]).length + 
+                         requiredFotos.filter(pos => !(r.fotosRetorno as any)?.[pos]).length;
+          const lGas = (r.nivelBencinaRetorno !== undefined && r.nivelBencinaRetorno < 100);
+          const rLate = r.fechaFin && (new Date(r.updatedAt).getTime() - new Date(r.fechaFin).getTime() > 0);
+          if (mCount > 0 || lGas || rLate) perfect = false;
+        }
+        if (perfect && missingPhotosCount === 0 && nivelBencinaRetorno === 100 && !isLate) {
+          assignedColor = 'verde';
+          assignedMotivo = '2 entregas puntuales seguidas, 2 llenados completos seguidos, 6 fotos en 2 reservas seguidas.';
+        }
+      }
+    }
+
+    if (assignedColor) {
+      await Flag.create({
+        usuario: reservation.usuario,
+        reserva: reservation._id,
+        tipo: assignedColor,
+        motivo: assignedMotivo,
+        asignadoPor: 'sistema'
+      });
+
+      // Si es naranja, validar regla: 3 naranjas = 1 roja
+      let finalColorToAssign = assignedColor;
+      if (assignedColor === 'naranja') {
+        const naranjasCount = await Flag.countDocuments({ usuario: reservation.usuario, tipo: 'naranja' });
+        if (naranjasCount >= 3) {
+          finalColorToAssign = 'roja';
+          await Flag.create({
+            usuario: reservation.usuario,
+            tipo: 'roja',
+            motivo: 'Acumulación de 3 banderas naranjas.',
+            asignadoPor: 'sistema'
+          });
+        }
+      }
+
+      await User.findByIdAndUpdate(reservation.usuario, { banderaActual: finalColorToAssign });
+    }
+    // ──────────────────────────────────────────────────
 
     const populated = await reservation.populate([
       { path: 'usuario', select: 'nombre apellido email' },

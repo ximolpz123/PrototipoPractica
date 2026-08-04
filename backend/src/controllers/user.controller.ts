@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import User from '../models/User.js';
+import { AuthRequest } from '../middleware/auth.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import Flag from '../models/Flag.js';
 
 // GET /api/users
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
@@ -144,3 +147,49 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
     res.status(500).json({ message: 'Error al eliminar usuario', error });
   }
 };
+
+// Obtener historial de banderas de un usuario
+export const getUserFlags = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const flags = await Flag.find({ usuario: req.params.id })
+      .populate('adminId', 'nombre apellido')
+      .populate('reserva', 'fechaInicio fechaFin vehiculo')
+      .sort({ createdAt: -1 });
+    res.json(flags);
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener historial de banderas', error });
+  }
+};
+
+// Asignar bandera manual (admin)
+export const assignFlag = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { tipo, motivo } = req.body;
+    if (!['verde', 'amarilla', 'naranja', 'roja'].includes(tipo)) {
+      res.status(400).json({ message: 'Tipo de bandera inválido' });
+      return;
+    }
+    
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      res.status(404).json({ message: 'Usuario no encontrado' });
+      return;
+    }
+
+    const flag = await Flag.create({
+      usuario: req.params.id,
+      tipo,
+      motivo,
+      asignadoPor: 'admin',
+      adminId: req.userId,
+    });
+
+    user.banderaActual = tipo;
+    await user.save();
+
+    res.status(201).json({ message: 'Bandera asignada exitosamente', flag });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al asignar bandera', error });
+  }
+};
+

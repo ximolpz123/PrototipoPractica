@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getUsers, createUser, updateUser, deleteUser, updatePerfil, updateLicencia } from '../controllers/user.controller.js';
+import { getUsers, createUser, updateUser, deleteUser, updatePerfil, updateLicencia, getUserFlags, assignFlag } from '../controllers/user.controller.js';
 import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
 import { upload } from '../config/cloudinary.js';
 
@@ -19,5 +19,8 @@ router.get('/', getUsers);
 router.post('/', createUser);
 router.put('/:id', updateUser);
 router.delete('/:id', deleteUser);
+
+router.get('/:id/flags', getUserFlags);
+router.post('/:id/flags', assignFlag);
 
 export default router;
