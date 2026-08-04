@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, RefreshControl, ScrollView, Modal, TextInput,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants';
 import { useAlert } from '../context/AlertContext';
@@ -26,8 +26,9 @@ function formatFecha(dateStr: string) {
   });
 }
 
-export default function AdminDashboardScreen({ navigation }: any) {
+export default function AdminDashboardScreen() {
   const { showAlert } = useAlert();
+  const navigation = useNavigation<any>();
   const [reservas, setReservas] = useState<IReservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -420,6 +421,14 @@ export default function AdminDashboardScreen({ navigation }: any) {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}
         />
       )}
+
+      {/* FAB para Asignar Vehículo */}
+      <TouchableOpacity 
+        style={styles.fab}
+        onPress={() => navigation.navigate('AdminCreateReservation')}
+      >
+        <Ionicons name="add" size={28} color="#fff" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -430,6 +439,23 @@ const styles = StyleSheet.create({
   loadingText: { marginTop: 10, color: COLORS.textMuted, fontSize: 14 },
   emptyIcon: { fontSize: 44, marginBottom: 10 },
   emptyText: { fontSize: 15, color: COLORS.textMuted, textAlign: 'center' },
+
+  fab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    backgroundColor: COLORS.primary,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 5,
+  },
 
   kpiScroll: { flexGrow: 0 },
   kpiContainer: { paddingHorizontal: 16, paddingVertical: 14, gap: 10 },

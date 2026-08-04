@@ -2,6 +2,10 @@ import api from './api';
 import { IUser } from '../types';
 
 export const userService = {
+  getAll: async (): Promise<IUser[]> => {
+    const response = await api.get('/users');
+    return response.data;
+  },
   getUserFlags: async (userId: string): Promise<any[]> => {
     const response = await api.get(`/users/${userId}/flags`);
     return response.data;

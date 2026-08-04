@@ -55,6 +55,7 @@ export const reservationService = {
     fechaFin: string;
     destino: string;
     motivo: string;
+    usuarioId?: string;
   }): Promise<IReservation> => {
     const response = await api.post('/reservations', data);
     return response.data;
