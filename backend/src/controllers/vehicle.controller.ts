@@ -3,12 +3,28 @@ import Vehicle from '../models/Vehicle.js';
 import Audit from '../models/Audit.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import Reservation from '../models/Reservation.js';
 
 // Obtener todos los vehículos
 export const getVehicles = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const vehicles = await Vehicle.find().sort({ marca: 1 });
-    res.json(vehicles);
+    const vehicles = await Vehicle.find().sort({ marca: 1 }).lean();
+    
+    const activeReservations = await Reservation.find({ estado: 'en_curso' })
+      .populate('usuario', 'nombre apellido departamento')
+      .lean();
+    
+    const vehiclesWithInfo = vehicles.map(v => {
+      if (v.estado === 'reservado') {
+        const activeRes = activeReservations.find(r => r.vehiculo.toString() === v._id.toString());
+        if (activeRes) {
+          return { ...v, conductorActual: activeRes.usuario };
+        }
+      }
+      return v;
+    });
+
+    res.json(vehiclesWithInfo);
   } catch (error) {
     res.status(500).json({ message: 'Error al obtener vehículos', error });
   }

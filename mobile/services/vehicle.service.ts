@@ -11,6 +11,11 @@ export interface IVehicle {
   estado: 'disponible' | 'reservado' | 'en_curso' | 'mantenimiento' | 'fuera_de_servicio';
   kilometraje: number;
   ultimoMantenimiento?: string;
+  conductorActual?: {
+    nombre: string;
+    apellido: string;
+    departamento: string;
+  };
 }
 
 export const vehicleService = {

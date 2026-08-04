@@ -67,6 +67,12 @@ export default function FlotaScreen() {
           </Text>
           <Text style={styles.vehicleDetail}>🎨 {item.color}  •  🪪 {item.placa}</Text>
           <Text style={styles.vehicleDetail}>🛞 {item.kilometraje.toLocaleString()} km</Text>
+          {item.estado === 'reservado' && item.conductorActual && (
+            <View style={styles.conductorContainer}>
+              <Text style={styles.conductorText}>👤 {item.conductorActual.nombre} {item.conductorActual.apellido}</Text>
+              <Text style={styles.conductorDepto}>{item.conductorActual.departamento}</Text>
+            </View>
+          )}
           <View style={[styles.statusBadge, { backgroundColor: estado.bg }]}>
             <Text style={[styles.statusText, { color: estado.text }]}>{estado.label}</Text>
           </View>
@@ -239,6 +245,25 @@ const styles = StyleSheet.create({
   vehicleDetail: {
     fontSize: 13,
     color: COLORS.textMuted,
+    marginBottom: 4,
+  },
+  conductorContainer: {
+    backgroundColor: '#F1F5F9',
+    padding: 8,
+    borderRadius: 8,
+    marginTop: 6,
+    marginBottom: 6,
+  },
+  conductorText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  conductorDepto: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginLeft: 18,
+    marginTop: 2,
   },
   statusBadge: {
     paddingHorizontal: 8,
