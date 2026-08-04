@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants';
 import { useAlert } from '../context/AlertContext';
 import { reservationService, IReservation } from '../services/reservation.service';
+import { userService } from '../services/user.service';
 
 const ESTADO_COLOR: Record<string, string> = {
   pendiente: COLORS.warning,
@@ -37,6 +38,13 @@ export default function AdminDashboardScreen({ navigation }: any) {
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [rejectMotivo, setRejectMotivo] = useState('');
   const [pendingRejectId, setPendingRejectId] = useState<string | null>(null);
+
+  // Estado modal de bandera
+  const [flagModalVisible, setFlagModalVisible] = useState(false);
+  const [flagUser, setFlagUser] = useState<{ id: string, name: string } | null>(null);
+  const [flagType, setFlagType] = useState<'verde' | 'amarilla' | 'naranja' | 'roja'>('verde');
+  const [flagMotivo, setFlagMotivo] = useState('');
+  const [flagLoading, setFlagLoading] = useState(false);
 
   const cargarReservas = async (isRefresh = false) => {
     try {
@@ -116,6 +124,31 @@ export default function AdminDashboardScreen({ navigation }: any) {
     }
   };
 
+  const handleOpenFlagModal = (userId: string, userName: string) => {
+    setFlagUser({ id: userId, name: userName });
+    setFlagType('verde');
+    setFlagMotivo('');
+    setFlagModalVisible(true);
+  };
+
+  const handleAssignFlag = async () => {
+    if (!flagUser) return;
+    if (!flagMotivo.trim()) {
+      showAlert('Motivo requerido', 'Por favor ingresa un motivo para asignar la bandera.');
+      return;
+    }
+    setFlagLoading(true);
+    try {
+      await userService.assignFlag(flagUser.id, flagType, flagMotivo.trim());
+      showAlert('Éxito', `Bandera ${flagType.toUpperCase()} asignada a ${flagUser.name}.`);
+      setFlagModalVisible(false);
+    } catch (err: any) {
+      showAlert('Error', err.response?.data?.message ?? 'No se pudo asignar la bandera.');
+    } finally {
+      setFlagLoading(false);
+    }
+  };
+
   // KPIs
   const pendientes = reservas.filter((r) => r.estado === 'pendiente');
   const enCurso = reservas.filter((r) => r.estado === 'en_curso');
@@ -139,7 +172,17 @@ export default function AdminDashboardScreen({ navigation }: any) {
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.cardConductor}>{conductor}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.cardConductor}>{conductor}</Text>
+              {item.usuario && (
+                <TouchableOpacity 
+                  style={{ marginLeft: 8 }}
+                  onPress={() => handleOpenFlagModal(item.usuario._id, item.usuario.nombre)}
+                >
+                  <Ionicons name="flag" size={16} color={COLORS.primary} />
+                </TouchableOpacity>
+              )}
+            </View>
             <Text style={styles.cardVehiculo}>{vehiculo}</Text>
           </View>
           <View style={[styles.estadoBadge, { backgroundColor: color + '20' }]}>
@@ -232,6 +275,78 @@ export default function AdminDashboardScreen({ navigation }: any) {
                 onPress={handleConfirmReject}
               >
                 <Text style={styles.confirmRejectBtnText}>Confirmar Rechazo</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Asignación de Bandera */}
+      <Modal
+        visible={flagModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFlagModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="flag" size={28} color={COLORS.primary} />
+              <Text style={styles.modalTitle}>Asignar Bandera Manual</Text>
+            </View>
+            <Text style={styles.modalSubtitle}>
+              Asignar bandera al conductor {flagUser?.name}
+            </Text>
+
+            <View style={styles.flagSelectorRow}>
+              {['verde', 'amarilla', 'naranja', 'roja'].map((color) => {
+                const colorsMap: any = { verde: '#10B981', amarilla: '#F59E0B', naranja: '#F97316', roja: '#EF4444' };
+                const isSelected = flagType === color;
+                return (
+                  <TouchableOpacity
+                    key={color}
+                    style={[
+                      styles.flagOption,
+                      isSelected && { borderColor: colorsMap[color], backgroundColor: colorsMap[color] + '20' }
+                    ]}
+                    onPress={() => setFlagType(color as any)}
+                  >
+                    <Ionicons name="flag" size={20} color={colorsMap[color]} />
+                    <Text style={[styles.flagOptionText, isSelected && { color: colorsMap[color], fontWeight: 'bold' }]}>
+                      {color.charAt(0).toUpperCase() + color.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <TextInput
+              style={styles.motivoInput}
+              value={flagMotivo}
+              onChangeText={setFlagMotivo}
+              placeholder="Escribe el motivo..."
+              placeholderTextColor={COLORS.textMuted}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.cancelModalBtn]}
+                onPress={() => setFlagModalVisible(false)}
+              >
+                <Text style={styles.cancelModalBtnText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: COLORS.primary }]}
+                onPress={handleAssignFlag}
+                disabled={flagLoading}
+              >
+                {flagLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 14 }}>Guardar</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -455,4 +570,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 14,
   },
+  flagSelectorRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 20,
+  },
+  flagOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    gap: 6,
+  },
+  flagOptionText: {
+    fontSize: 13,
+    color: COLORS.text,
+  }
 });
