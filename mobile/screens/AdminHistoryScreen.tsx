@@ -189,6 +189,12 @@ export default function AdminHistoryScreen() {
     }
   };
 
+  const getFotosArray = (fotos: any): string[] => {
+    if (!fotos) return [];
+    if (Array.isArray(fotos)) return fotos;
+    return Object.values(fotos).filter(val => typeof val === 'string') as string[];
+  };
+
   // ─── Render de tarjeta ────────────────────────────────────────────────────────
   const renderReserva = ({ item }: { item: IReservation }) => {
     const color = ESTADO_COLOR[item.estado] ?? COLORS.textMuted;
@@ -198,7 +204,7 @@ export default function AdminHistoryScreen() {
     const conductor = item.usuario
       ? `${item.usuario.nombre} ${item.usuario.apellido}`
       : 'Usuario desconocido';
-    const totalFotos = (item.fotosSalida?.length || 0) + (item.fotosRetorno?.length || 0);
+    const totalFotos = getFotosArray(item.fotosSalida).length + getFotosArray(item.fotosRetorno).length;
 
     return (
       <TouchableOpacity style={styles.card} onPress={() => setSelectedReserva(item)}>
@@ -228,8 +234,9 @@ export default function AdminHistoryScreen() {
   };
 
   // ─── Render de fotos en modal ─────────────────────────────────────────────────
-  const renderFotos = (fotos: string[] | undefined, tipo: string) => {
-    if (!fotos || fotos.length === 0) {
+  const renderFotos = (fotosData: any, tipo: string) => {
+    const fotos = getFotosArray(fotosData);
+    if (fotos.length === 0) {
       return <Text style={styles.noPhotos}>Sin fotos de {tipo}.</Text>;
     }
     return (
@@ -375,7 +382,7 @@ export default function AdminHistoryScreen() {
                 <View style={styles.sectionTitleRow}>
                   <Ionicons name="camera" size={16} color={COLORS.primary} />
                   <Text style={[styles.sectionTitle, { marginLeft: 6 }]}>
-                    Evidencia al Salir ({selectedReserva.fotosSalida?.length || 0})
+                    Evidencia al Salir ({getFotosArray(selectedReserva.fotosSalida).length})
                   </Text>
                 </View>
                 {renderFotos(selectedReserva.fotosSalida, 'salida')}
@@ -385,7 +392,7 @@ export default function AdminHistoryScreen() {
                 <View style={styles.sectionTitleRow}>
                   <Ionicons name="camera" size={16} color={COLORS.success} />
                   <Text style={[styles.sectionTitle, { marginLeft: 6 }]}>
-                    Evidencia al Retornar ({selectedReserva.fotosRetorno?.length || 0})
+                    Evidencia al Retornar ({getFotosArray(selectedReserva.fotosRetorno).length})
                   </Text>
                 </View>
                 {renderFotos(selectedReserva.fotosRetorno, 'retorno')}

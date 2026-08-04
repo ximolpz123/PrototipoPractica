@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import Vehicle from '../models/Vehicle.js';
 import Audit from '../models/Audit.js';
 import { AuthRequest } from '../middleware/auth.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Obtener todos los vehículos
 export const getVehicles = async (_req: Request, res: Response): Promise<void> => {
@@ -43,9 +44,67 @@ export const createVehicle = async (req: Request, res: Response): Promise<void> 
     const vehicle = await Vehicle.create(req.body);
     res.status(201).json(vehicle);
   } catch (error) {
-    res.status(500).json({ message: 'Error al crear vehículo', error });
+    res.status(500).json({ message: 'Error al subir imagen', error });
   }
 };
+
+export const iaCreateVehicle = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const files = req.files as Express.Multer.File[];
+    if (!files || files.length === 0) {
+      res.status(400).json({ message: 'Se requieren fotos para el análisis' });
+      return;
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      res.status(500).json({ message: 'Clave de API de Gemini no configurada' });
+      return;
+    }
+
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+
+    const prompt = `Analiza las siguientes imágenes de un vehículo (frontal, patente, tablero, etc).
+Extrae la siguiente información y devuélvela ÚNICAMENTE como un objeto JSON válido, sin texto adicional ni bloques de código markdown:
+{
+  "patente": "ej: ABCD12 o null",
+  "marca": "ej: Toyota o null",
+  "kilometraje": número entero o null,
+  "nivelBencina": número entre 0 y 100 o null (representando el %)
+}`;
+
+    const imageParts = await Promise.all(
+      files.map(async (file) => {
+        const response = await fetch(file.path);
+        const buffer = await response.arrayBuffer();
+        return {
+          inlineData: {
+            data: Buffer.from(buffer).toString("base64"),
+            mimeType: file.mimetype || "image/jpeg"
+          }
+        };
+      })
+    );
+
+    const result = await model.generateContent([prompt, ...imageParts]);
+    let text = result.response.text().trim();
+    
+    if (text.startsWith('```json')) text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    if (text.startsWith('```')) text = text.replace(/```/g, '').trim();
+
+    try {
+      const data = JSON.parse(text);
+      res.json(data);
+    } catch (e) {
+      console.error("Gemini returned invalid JSON:", text);
+      res.status(500).json({ message: 'La IA no devolvió un formato válido', raw: text });
+    }
+  } catch (error) {
+    console.error('Error en iaCreateVehicle:', error);
+    res.status(500).json({ message: 'Error procesando las imágenes con IA' });
+  }
+};
+
 
 // Actualizar vehículo (admin)
 export const updateVehicle = async (req: Request, res: Response): Promise<void> => {
