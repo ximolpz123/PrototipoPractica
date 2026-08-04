@@ -1,9 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../constants';
 import { useAlert } from '../context/AlertContext';
+import { userService } from '../services/user.service';
+
+const FLAG_COLORS: Record<string, string> = {
+  verde: '#10B981',
+  amarilla: '#F59E0B',
+  naranja: '#F97316',
+  roja: '#EF4444',
+  ninguna: '#6B7280'
+};
+const FLAG_ICONS: Record<string, string> = {
+  verde: '🟢',
+  amarilla: '🟡',
+  naranja: '🟠',
+  roja: '🔴',
+  ninguna: '⚪'
+};
 
 export default function PerfilScreen({ route }: any) {
   const { showAlert } = useAlert();
@@ -31,6 +47,16 @@ export default function PerfilScreen({ route }: any) {
   const isLicenciaValida = user.licenciaEstado === 'vigente' || (user.licenciaAlDia && user.licenciaEstado !== 'vencida');
   const [licenciaEstado, setLicenciaEstado] = useState(user.licenciaEstado || (user.licenciaAlDia ? 'vigente' : 'vencida'));
   const [fechaVencimiento, setFechaVencimiento] = useState(user.licenciaVencimiento || user.fechaVencimientoLicencia);
+  const [flags, setFlags] = useState<any[]>([]);
+  const banderaActual = user.banderaActual || 'ninguna';
+
+  useEffect(() => {
+    if (user._id) {
+      userService.getUserFlags(user._id)
+        .then(res => setFlags(res))
+        .catch(err => console.error('Error cargando banderas', err));
+    }
+  }, [user._id]);
 
   const handleChangePhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -131,8 +157,15 @@ export default function PerfilScreen({ route }: any) {
         </TouchableOpacity>
         <Text style={styles.name}>{user.nombre} {user.apellido}</Text>
         <Text style={styles.email}>{user.email}</Text>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{user.rol.toUpperCase()}</Text>
+        <View style={styles.badgeRow}>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{user.rol.toUpperCase()}</Text>
+          </View>
+          <View style={[styles.badge, { backgroundColor: FLAG_COLORS[banderaActual] + '20' }]}>
+            <Text style={[styles.badgeText, { color: FLAG_COLORS[banderaActual] }]}>
+              {FLAG_ICONS[banderaActual]} {banderaActual.toUpperCase()}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -197,6 +230,32 @@ export default function PerfilScreen({ route }: any) {
         <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} style={styles.actionIconRight} />
       </TouchableOpacity>
 
+      <View style={styles.sectionHeader}>
+        <Ionicons name="flag" size={24} color={COLORS.primary} />
+        <Text style={styles.sectionTitle}>Historial de Banderas</Text>
+      </View>
+      <View style={styles.dataCard}>
+        {flags.length === 0 ? (
+          <Text style={styles.emptyText}>No tienes banderas registradas en tu historial.</Text>
+        ) : (
+          flags.map((flag, idx) => (
+            <View key={flag._id || idx} style={[styles.flagItem, idx !== flags.length - 1 && styles.borderBottom]}>
+              <Text style={styles.flagIcon}>{FLAG_ICONS[flag.tipo]}</Text>
+              <View style={styles.flagInfo}>
+                <Text style={styles.flagType}>
+                  Bandera {flag.tipo.toUpperCase()}
+                  {flag.asignadoPor === 'admin' ? ' (Manual)' : ' (Auto)'}
+                </Text>
+                <Text style={styles.flagReason}>{flag.motivo}</Text>
+                <Text style={styles.flagDate}>
+                  {new Date(flag.createdAt).toLocaleDateString()} - {new Date(flag.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                </Text>
+              </View>
+            </View>
+          ))
+        )}
+      </View>
+
       <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
         <Ionicons name="log-out-outline" size={20} color="#fff" />
         <Text style={styles.logoutBtnText}>Cerrar Sesión</Text>
@@ -238,6 +297,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  badgeRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
   cameraOverlay: {
     position: 'absolute',
     bottom: 4,
@@ -362,7 +422,49 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: COLORS.text,
-    marginBottom: 15,
+    marginLeft: 10,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 15,
+    marginTop: 20,
+  },
+  flagItem: {
+    flexDirection: 'row',
+    padding: 15,
+  },
+  flagIcon: {
+    fontSize: 24,
+    marginRight: 15,
+  },
+  flagInfo: {
+    flex: 1,
+  },
+  flagType: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  flagReason: {
+    fontSize: 14,
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  flagDate: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+  },
+  borderBottom: {
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  emptyText: {
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    padding: 15,
   },
   infoRow: {
     flexDirection: 'row',
