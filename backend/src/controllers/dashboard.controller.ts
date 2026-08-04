@@ -3,6 +3,7 @@ import Reservation from '../models/Reservation.js';
 import Vehicle from '../models/Vehicle.js';
 import User from '../models/User.js';
 import { AuthRequest } from '../middleware/auth.js';
+import Config from '../models/Config.js';
 
 export const getDashboardStats = async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -127,6 +128,52 @@ export const getDashboardStats = async (_req: AuthRequest, res: Response): Promi
       generadoEn: now.toISOString(),
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error al obtener estadísticas del dashboard', error });
+    res.status(500).json({ message: 'Error en el servidor' });
+  }
+};
+
+export const getDepartmentCosts = async (_req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const config = await Config.findOne() || { factorCostoBencina: 100 };
+    const factor = config.factorCostoBencina;
+
+    // Agrupar reservas completadas por usuario.departamento
+    const reservasCompletadas = await Reservation.find({ estado: 'completada' }).populate('usuario');
+    
+    // Objeto para acumular { "Ventas": { kmTotales: ..., costoEstimado: ... } }
+    const departmentStats: Record<string, { kmTotales: number; horasUso: number; costoEstimado: number; totalReservas: number }> = {};
+
+    for (const r of reservasCompletadas) {
+      if (!r.usuario) continue;
+      const depto = (r.usuario as any).departamento || 'Sin Departamento';
+      
+      if (!departmentStats[depto]) {
+        departmentStats[depto] = { kmTotales: 0, horasUso: 0, costoEstimado: 0, totalReservas: 0 };
+      }
+      
+      let km = 0;
+      if (r.kmSalida && r.kmRetorno && r.kmRetorno > r.kmSalida) {
+        km = r.kmRetorno - r.kmSalida;
+      }
+      
+      let horas = 0;
+      // Para horas de uso real, podríamos usar fechaInicio y la fecha de actualización al completarla,
+      // pero por ahora usamos la ventana reservada (fechaFin - fechaInicio).
+      if (r.fechaInicio && r.fechaFin) {
+        const diffMs = new Date(r.fechaFin).getTime() - new Date(r.fechaInicio).getTime();
+        horas = diffMs / (1000 * 60 * 60);
+        if (horas < 0) horas = 0;
+      }
+      
+      departmentStats[depto].kmTotales += km;
+      departmentStats[depto].horasUso += horas;
+      departmentStats[depto].costoEstimado += (km * factor);
+      departmentStats[depto].totalReservas += 1;
+    }
+
+    res.json(departmentStats);
+  } catch (error) {
+    console.error('Error in department costs:', error);
+    res.status(500).json({ message: 'Error al obtener costos por departamento' });
   }
 };
