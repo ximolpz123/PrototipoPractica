@@ -26,7 +26,11 @@ export const getReservations = async (req: AuthRequest, res: Response): Promise<
 // Crear una reserva
 export const createReservation = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { vehiculo, fechaInicio, fechaFin, destino, motivo } = req.body;
+    const { vehiculo, fechaInicio, fechaFin, destino, motivo, usuarioId } = req.body;
+    
+    const isAdmin = req.userRol === 'admin';
+    const targetUserId = (isAdmin && usuarioId) ? usuarioId : req.userId;
+    const initialState = (isAdmin && usuarioId) ? 'aprobada' : 'pendiente';
 
     // ── Validación 1: Campos obligatorios ──────────────────────────────────
     if (!vehiculo || !fechaInicio || !fechaFin || !destino || !motivo) {
@@ -89,7 +93,7 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
 
     // ── Validación 5: El usuario no tiene otro vehículo reservado en esas fechas ──
     const usuarioSolapado = await Reservation.findOne({
-      usuario: req.userId,
+      usuario: targetUserId,
       estado: { $in: ['pendiente', 'aprobada', 'en_curso'] },
       fechaInicio: { $lt: fin },
       fechaFin: { $gt: inicio },
@@ -104,23 +108,31 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
       });
 
       res.status(409).json({
-        message: `Ya tienes una reserva activa hasta el ${horaLibreUsuario}. No puedes tener dos reservas al mismo tiempo.`,
+        message: `El usuario ya tiene una reserva activa hasta el ${horaLibreUsuario}. No puede tener dos reservas al mismo tiempo.`,
         fechaDisponibleDesde: fechaLibreUsuario,
       });
       return;
     }
 
-    // ── Crear la reserva (Estado: Pendiente) ───────────────────────────────────────
-    // ── Crear la reserva (Estado: Pendiente) ──────────────────────────────
+    // ── Crear la reserva ──────────────────────────────
     const reservation = await Reservation.create({
-      usuario: req.userId,
+      usuario: targetUserId,
       vehiculo,
       fechaInicio: inicio,
       fechaFin: fin,
       destino,
       motivo,
-      estado: 'pendiente'
+      estado: initialState
     });
+
+    if (isAdmin && usuarioId) {
+      await sendPushNotification(
+        targetUserId,
+        'Nueva Reserva Asignada',
+        'Un administrador te ha asignado un vehículo de forma automática.',
+        { reservaId: reservation._id }
+      );
+    }
 
     // ── Registro de Auditoría (Trazabilidad Completa) ────────────────────────
     await Audit.create({
@@ -128,7 +140,7 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
       accion: 'NUEVA_RESERVA',
       entidad: 'Reservation',
       entidadId: reservation._id,
-      detalles: `Reserva pendiente de aprobación desde ${inicio.toISOString()} hasta ${fin.toISOString()}`
+      detalles: `Reserva ${initialState} desde ${inicio.toISOString()} hasta ${fin.toISOString()}`
     });
 
     const populated = await reservation.populate([
