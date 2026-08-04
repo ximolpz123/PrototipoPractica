@@ -128,6 +128,7 @@ code {
   justify-content: center;
   flex-grow: 1;
   padding: 20px;
+  padding-bottom: 10vh;
 }
 
 .btn {
@@ -188,22 +189,28 @@ body::before {
 
 .form-group {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-direction: row;
+  align-items: center;
+  gap: 15px;
 }
 
 .form-group label {
   font-weight: 600;
   color: var(--text-h);
+  flex: 0 0 180px;
+  text-align: left;
 }
 
-.form-group input {
+.form-group input,
+.form-group select {
+  flex: 1;
   padding: 12px;
-  border: 1px solid var(--border);
+  border: 1px solid #333;
   border-radius: 6px;
   font-size: 16px;
   outline: none;
   transition: border-color 0.2s;
+  box-sizing: border-box;
 }
 
 .form-group input:focus {
@@ -213,7 +220,18 @@ body::before {
 .logo-container {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
+  margin-bottom: 20px;
+  transition: all 0.4s ease;
+}
+
+.logo-right {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  right: 12vw;
+  margin-bottom: 0;
 }
 
 .logo-img {
@@ -227,7 +245,7 @@ body::before {
 }
 
 .logo-text {
-  font-size: 48px;
+  font-size: 64px;
   font-weight: bold;
   color: var(--text-h);
 }
@@ -1057,7 +1075,7 @@ input:checked+.theme-slider:before {
   border-radius: 12px;
   overflow: hidden;
   box-shadow: var(--shadow);
-  font-size: 1.15rem;
+  font-size: 0.95rem;
 }
 
 .admin-table th {

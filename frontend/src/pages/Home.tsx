@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import logo from '../assets/bit1.png';
+import logo from '../assets/bit-mejorado.png';
 
 function Home() {
   return (

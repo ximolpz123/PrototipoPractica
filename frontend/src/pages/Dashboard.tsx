@@ -113,10 +113,10 @@ function Dashboard() {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [errorUsers, setErrorUsers] = useState('');
   const [editUser, setEditUser] = useState<IUser | null>(null);
-  const [editForm, setEditForm] = useState({ nombre: '', apellido: '', email: '', departamento: '', rol: 'usuario' as 'usuario' | 'admin', activo: true });
+  const [editForm, setEditForm] = useState({ nombre: '', apellido: '', email: '', departamento: '', telefono: '', rol: 'usuario' as 'usuario' | 'admin', activo: true });
   const [showDeleteUserConfirm, setShowDeleteUserConfirm] = useState<string | null>(null);
   const [showCreateUser, setShowCreateUser] = useState(false);
-  const [createForm, setCreateForm] = useState({ nombre: '', apellido: '', email: '', password: '', departamento: '', rol: 'usuario' as 'usuario' | 'admin' });
+  const [createForm, setCreateForm] = useState({ nombre: '', apellido: '', email: '', password: '', departamento: '', telefono: '', rol: 'usuario' as 'usuario' | 'admin' });
 
   // ── Estado Reservaciones ──
   const [reservations, setReservations] = useState<IReservation[]>([]);
@@ -213,7 +213,7 @@ function Dashboard() {
   // ────────── CRUD USUARIOS ──────────
   const openEdit = (u: IUser) => {
     setEditUser(u);
-    setEditForm({ nombre: u.nombre, apellido: u.apellido, email: u.email, departamento: u.departamento, rol: u.rol, activo: u.activo });
+    setEditForm({ nombre: u.nombre, apellido: u.apellido, email: u.email, departamento: u.departamento || '', telefono: u.telefono || '', rol: u.rol, activo: u.activo });
   };
 
   const saveEdit = async () => {
@@ -246,7 +246,7 @@ function Dashboard() {
         body: JSON.stringify(createForm),
       });
       setShowCreateUser(false);
-      setCreateForm({ nombre: '', apellido: '', email: '', password: '', departamento: '', rol: 'usuario' });
+      setCreateForm({ nombre: '', apellido: '', email: '', password: '', departamento: '', telefono: '', rol: 'usuario' });
       fetchUsers();
     } catch { alert('Error al crear usuario'); }
   };
@@ -664,7 +664,7 @@ function Dashboard() {
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>Nombre</th><th>Apellido</th><th>Email</th><th>Rol</th><th>Activo</th><th style={{ textAlign: 'center' }}>Acciones</th>
+                    <th>Nombre</th><th>Apellido</th><th>Email</th><th>Departamento</th><th>Teléfono</th><th>Licencia Estado</th><th>Rol</th><th>Activo</th><th style={{ textAlign: 'center' }}>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -673,8 +673,11 @@ function Dashboard() {
                       <td>{u.nombre}</td>
                       <td>{u.apellido}</td>
                       <td>{u.email}</td>
+                      <td>{u.departamento}</td>
+                      <td>{u.telefono || 'N/A'}</td>
+                      <td><span className="status-badge" style={{ backgroundColor: u.licenciaAlDia ? '#22c55e' : '#ef4444' }}>{u.licenciaAlDia ? 'Al Día' : 'No Al Día'}</span></td>
                       <td><span className="status-badge" style={{ backgroundColor: u.rol === 'admin' ? '#175fbd' : '#6b7280' }}>{u.rol}</span></td>
-                      <td><span className="status-badge" style={{ backgroundColor: u.activo ? '#22c55e' : '#ef4444' }}>{u.activo ? 'Sí' : 'No'}</span></td>
+                      <td><span className="status-badge" style={{ backgroundColor: u.id === user?.id ? '#22c55e' : '#ef4444' }}>{u.id === user?.id ? 'Sí' : 'No'}</span></td>
                       <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
                         <div style={{ display: 'inline-flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center' }}>
                           {u.rol !== 'admin' ? (
@@ -811,7 +814,7 @@ function Dashboard() {
                         <span><strong>Km:</strong> {v.kilometraje.toLocaleString('es-CL')}</span>
                         {v.ultimoMantenimiento && (
                           <span style={{ fontSize: '0.85rem', marginTop: '4px', display: 'block' }}>
-                            <strong>Último Mant.:</strong><br />
+                            <strong>Último Mantenimiento:</strong><br />
                             {new Date(v.ultimoMantenimiento).toLocaleString('es-CL')}
                           </span>
                         )}
@@ -1016,14 +1019,14 @@ function Dashboard() {
                 {showRejectForm ? (
                   <div style={{ marginTop: '10px', textAlign: 'left', borderTop: '1px solid #ccc', paddingTop: '10px' }}>
                     <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Escriba el motivo del Rechazo:</label>
-                    <textarea 
+                    <textarea
                       style={{ width: '100%', padding: '8px', boxSizing: 'border-box', minHeight: '60px', borderRadius: '4px', border: '1px solid #ccc' }}
                       value={rejectReason}
                       onChange={(e) => setRejectReason(e.target.value)}
                       placeholder="Motivo del rechazo..."
                     />
                     <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                      <button 
+                      <button
                         className="btn"
                         style={{ backgroundColor: '#3b82f6', color: 'black', border: '2px solid black', flex: 1, padding: '0.7rem' }}
                         onClick={() => rejectReservation(selectedReservation._id)}
@@ -1031,7 +1034,7 @@ function Dashboard() {
                       >
                         {isRejecting ? 'Enviando...' : 'Enviar Rechazo'}
                       </button>
-                      <button 
+                      <button
                         className="btn"
                         style={{ backgroundColor: '#ef4444', color: 'black', border: '2px solid black', flex: 1, padding: '0.7rem' }}
                         onClick={() => { setShowRejectForm(false); setRejectReason(''); }}
@@ -1067,7 +1070,7 @@ function Dashboard() {
             <button onClick={() => setEditUser(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}>Editar Usuario</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {(['nombre', 'apellido', 'email', 'departamento'] as const).map(field => (
+              {(['nombre', 'apellido', 'email', 'departamento', 'telefono'] as const).map(field => (
                 <div key={field}>
                   <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem', textTransform: 'capitalize' }}>{field}:</label>
                   <input className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} value={editForm[field]} onChange={e => setEditForm(f => ({ ...f, [field]: e.target.value }))} />
@@ -1115,7 +1118,7 @@ function Dashboard() {
             <button onClick={() => setShowCreateUser(false)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}>Agregar Usuario</h2>
             <form onSubmit={createUser} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {([['nombre', 'Nombre'], ['apellido', 'Apellido'], ['email', 'Email'], ['password', 'Contraseña'], ['departamento', 'Departamento']] as [keyof typeof createForm, string][]).map(([field, label]) => (
+              {([['nombre', 'Nombre'], ['apellido', 'Apellido'], ['email', 'Email'], ['password', 'Contraseña'], ['departamento', 'Departamento'], ['telefono', 'Teléfono']] as [keyof typeof createForm, string][]).map(([field, label]) => (
                 <div key={field}>
                   <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>{label}:</label>
                   <input className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} type={field === 'password' ? 'password' : 'text'} value={createForm[field]} onChange={e => setCreateForm(f => ({ ...f, [field]: e.target.value }))} required={field !== 'departamento'} />
