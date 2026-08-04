@@ -18,9 +18,23 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { authService } from './services/auth.service';
+import { userService } from './services/user.service';
+import { reservationService } from './services/reservation.service';
 import './services/location.service'; // Import location service for global TaskManager registration
 import type { IUser } from './types';
 import { COLORS } from './constants';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 // Screens
 import HomeScreen from './screens/HomeScreen';
@@ -181,15 +195,103 @@ function MainApp() {
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
 
+  // Funciones de Push Notifications
+  const registerForPushNotificationsAsync = async (currentUser: any) => {
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7C',
+      });
+    }
+
+    if (Device.isDevice) {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== 'granted') {
+        return;
+      }
+      
+      const projectId = 'b45c2ea0-8b1d-4074-b529-e85d1e86a1fb'; // Dummy Project ID si no hay eas.json
+      try {
+        const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+        if (currentUser && currentUser._id) {
+          await userService.updatePushToken(currentUser._id, token);
+        }
+      } catch (e) {
+        console.error('Error al obtener Push Token', e);
+      }
+    }
+  };
+
   // Al abrir la app, verificar si ya hay sesión activa
   useEffect(() => {
     const checkSession = async () => {
       const currentUser = await authService.getCurrentUser();
       setUser(currentUser);
       setCheckingSession(false);
+      
+      if (currentUser) {
+        registerForPushNotificationsAsync(currentUser);
+      }
     };
     checkSession();
   }, []);
+
+  // Listeners de Notificaciones
+  useEffect(() => {
+    if (!user) return;
+
+    const subscription = Notifications.addNotificationReceivedListener(notification => {
+      const data = notification.request.content.data as any;
+      if (data && data.type === 'DELAY_CONFIRMATION') {
+        Alert.alert(
+          notification.request.content.title || 'Retraso en vehículo',
+          notification.request.content.body || 'Tu próximo vehículo está retrasado.',
+          [
+            {
+              text: 'Cancelar Reserva',
+              style: 'destructive',
+              onPress: async () => {
+                try {
+                  await reservationService.handleDelayResponse(data.reservaId, false, 'Cancelada por el conductor debido a retraso de 15 mins.');
+                  showAlert('Cancelada', 'Has cancelado la reserva.');
+                } catch (err) {
+                  showAlert('Error', 'No se pudo cancelar la reserva.');
+                }
+              }
+            },
+            {
+              text: 'Aceptar Demora',
+              onPress: async () => {
+                try {
+                  await reservationService.handleDelayResponse(data.reservaId, true);
+                  showAlert('Éxito', 'Has aceptado la demora de 15 minutos.');
+                } catch (err) {
+                  showAlert('Error', 'No se pudo actualizar tu reserva.');
+                }
+              }
+            }
+          ],
+          { cancelable: false }
+        );
+      }
+    });
+
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
+      // Manejar click si es necesario
+    });
+
+    return () => {
+      subscription.remove();
+      responseSubscription.remove();
+    };
+  }, [user]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -201,6 +303,7 @@ function MainApp() {
     try {
       const response = await authService.login({ email: email.trim(), password });
       setUser(response.user);
+      registerForPushNotificationsAsync(response.user);
     } catch (error: any) {
       const message = error.response?.data?.message || 'Error al iniciar sesión';
       showAlert('Error', message);

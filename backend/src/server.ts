@@ -10,6 +10,8 @@ import trackingRoutes from './routes/tracking.routes.js';
 import userRoutes from './routes/user.routes.js';
 import devRoutes from './routes/dev.routes.js';
 import configRoutes from './routes/config.routes.js';
+import { initCronJobs } from './jobs/cron.js';
+
 // Cargar variables de entorno
 dotenv.config();
 
@@ -45,6 +47,7 @@ const startServer = async () => {
 
   app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+    initCronJobs(); // Iniciar tareas programadas
     console.log(`📋 Health check: http://localhost:${PORT}/api/health`);
   });
 };

@@ -43,6 +43,10 @@ export interface IReservation extends Document {
   tramos?: ITramo[];
   observaciones?: string;
   motivoRechazo?: string;
+  // ── Notificaciones de retraso ──
+  notificadoRetraso?: boolean;
+  notificadoAdmin?: boolean;
+  demoraAceptadaSiguiente?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -129,7 +133,22 @@ const reservationSchema = new Schema<IReservation>(
     // ── Tramos ──
     tramos: [tramoSchema],
     observaciones:  { type: String, trim: true },
-    motivoRechazo:  { type: String, trim: true },
+    motivoRechazo: {
+      type: String,
+      trim: true,
+    },
+    // ── Notificaciones de retraso ──
+    notificadoRetraso: {
+      type: Boolean,
+      default: false,
+    },
+    notificadoAdmin: {
+      type: Boolean,
+      default: false,
+    },
+    demoraAceptadaSiguiente: {
+      type: Boolean,
+    },
   },
   { timestamps: true }
 );

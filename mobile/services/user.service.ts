@@ -10,4 +10,8 @@ export const userService = {
     const response = await api.post(`/users/${userId}/flags`, { tipo, motivo });
     return response.data;
   },
+  updatePushToken: async (userId: string, pushToken: string): Promise<any> => {
+    const response = await api.patch(`/users/${userId}/push-token`, { pushToken });
+    return response.data;
+  }
 };

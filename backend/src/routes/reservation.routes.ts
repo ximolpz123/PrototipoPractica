@@ -6,6 +6,10 @@ import {
   updateReservationStatus,
   cancelReservation,
   completeReservation,
+  uploadPhotos,
+  uploadFotoTablero,
+  notifyDelayToNextReservation,
+  handleDelayResponse,
 } from '../controllers/reservation.controller.js';
 import { authMiddleware, adminMiddleware, licenciaMiddleware } from '../middleware/auth.js';
 import { upload } from '../config/cloudinary.js';
@@ -31,9 +35,14 @@ router.patch('/:id/cancel', authMiddleware, cancelReservation);
 // Body: { kmRetorno: number, observaciones?: string }
 router.patch('/:id/complete', authMiddleware, completeReservation);
 
+// POST /api/reservations/:id/notify-delay (solo admin)
+router.post('/:id/notify-delay', authMiddleware, adminMiddleware, notifyDelayToNextReservation);
+
+// POST /api/reservations/:id/handle-delay-response
+router.post('/:id/handle-delay-response', authMiddleware, handleDelayResponse);
+
 // POST /api/reservations/:id/upload
 // Sube hasta 4 fotos y las asocia a la reserva (tipo: 'salida' o 'retorno')
-import { uploadPhotos, uploadFotoTablero } from '../controllers/reservation.controller.js';
 router.post(
   '/:id/upload',
   authMiddleware,

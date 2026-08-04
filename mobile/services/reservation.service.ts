@@ -73,4 +73,9 @@ export const reservationService = {
   cancel: async (id: string, motivoRechazo?: string): Promise<void> => {
     await api.patch(`/reservations/${id}/cancel`, { motivoRechazo });
   },
+
+  handleDelayResponse: async (id: string, acepta: boolean, motivoCancelacion?: string) => {
+    const response = await api.post(`/reservations/${id}/handle-delay-response`, { acepta, motivoCancelacion });
+    return response.data;
+  },
 };

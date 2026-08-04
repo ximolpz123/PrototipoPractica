@@ -7,6 +7,7 @@ import { AuthRequest } from '../middleware/auth.js';
 import Flag from '../models/Flag.js';
 import User from '../models/User.js';
 import { timeService } from '../services/time.service.js';
+import { sendPushNotification, notifyAdmins } from '../services/notification.service.js';
 
 // Obtener todas las reservas (admin ve todas, usuario solo las suyas)
 export const getReservations = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -569,3 +570,78 @@ export const uploadFotoTablero = async (req: AuthRequest, res: Response): Promis
   }
 };
 
+// Notificar retraso a la siguiente reserva
+export const notifyDelayToNextReservation = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const currentRes = await Reservation.findById(id);
+    if (!currentRes) {
+      res.status(404).json({ message: 'Reserva actual no encontrada' });
+      return;
+    }
+
+    // Buscar la siguiente reserva del MISMO vehículo, que esté "aprobada", y cuya fecha de inicio sea en el futuro cercano
+    const nextRes = await Reservation.findOne({
+      vehiculo: currentRes.vehiculo,
+      estado: 'aprobada',
+      fechaInicio: { $gt: currentRes.fechaFin }
+    }).sort({ fechaInicio: 1 }).populate('usuario');
+
+    if (!nextRes) {
+      res.json({ message: 'No hay reservas próximas para este vehículo.' });
+      return;
+    }
+
+    const nextUser = nextRes.usuario as any;
+
+    // Enviar Push con ACTION / DATA
+    await sendPushNotification(
+      nextUser._id.toString(),
+      'Retraso en tu próximo vehículo',
+      'El vehículo que reservaste viene con 15 mins de retraso. ¿Deseas mantener tu viaje (se atrasará 15 mins) o cancelar?',
+      { type: 'DELAY_CONFIRMATION', reservaId: nextRes._id }
+    );
+
+    res.json({ message: `Notificación enviada a ${nextUser.nombre} ${nextUser.apellido}`, nextReservation: nextRes._id });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al notificar siguiente reserva', error });
+  }
+};
+
+// Conductor responde a la demora
+export const handleDelayResponse = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { acepta, motivoCancelacion } = req.body;
+
+    const reservation = await Reservation.findById(id);
+    if (!reservation) {
+      res.status(404).json({ message: 'Reserva no encontrada' });
+      return;
+    }
+
+    if (reservation.usuario.toString() !== req.userId) {
+      res.status(403).json({ message: 'No tienes permiso para responder por esta reserva' });
+      return;
+    }
+
+    if (acepta) {
+      // Atrasar 15 minutos (900000 ms)
+      reservation.fechaInicio = new Date(reservation.fechaInicio.getTime() + 15 * 60000);
+      reservation.fechaFin = new Date(reservation.fechaFin.getTime() + 15 * 60000);
+      reservation.demoraAceptadaSiguiente = true;
+      await reservation.save();
+      res.json({ message: 'Reserva atrasada 15 minutos exitosamente.', reservation });
+    } else {
+      reservation.estado = 'cancelada';
+      reservation.motivo = motivoCancelacion || 'Cancelada por retraso del conductor anterior.';
+      await reservation.save();
+      
+      await notifyAdmins('Reserva Cancelada', `El usuario ha cancelado su reserva porque no podía esperar el retraso de 15 mins.`);
+      
+      res.json({ message: 'Reserva cancelada exitosamente.', reservation });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Error al manejar la respuesta de retraso', error });
+  }
+};

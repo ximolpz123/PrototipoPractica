@@ -148,6 +148,33 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
+// Actualizar push token
+export const updatePushToken = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { pushToken } = req.body;
+    if (!pushToken) {
+      res.status(400).json({ message: 'pushToken es requerido' });
+      return;
+    }
+    
+    // Si el usuario que intenta actualizar no es el dueño ni admin
+    if (req.params.id !== req.userId && req.userRol !== 'admin') {
+      res.status(403).json({ message: 'No tienes permiso para actualizar este token' });
+      return;
+    }
+
+    const user = await User.findByIdAndUpdate(req.params.id, { pushToken }, { new: true });
+    if (!user) {
+      res.status(404).json({ message: 'Usuario no encontrado' });
+      return;
+    }
+
+    res.json({ message: 'Push token actualizado', pushToken: user.pushToken });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al actualizar push token', error });
+  }
+};
+
 // Obtener historial de banderas de un usuario
 export const getUserFlags = async (req: Request, res: Response): Promise<void> => {
   try {

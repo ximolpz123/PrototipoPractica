@@ -10,6 +10,7 @@ export interface IUser extends Document {
   rol: 'usuario' | 'admin';
   activo: boolean;
   banderaActual: 'verde' | 'amarilla' | 'naranja' | 'roja' | 'ninguna';
+  pushToken?: string;
   // ── Licencia (sistema antiguo — se mantiene por compatibilidad) ──
   licenciaAlDia: boolean;
   fechaVencimientoLicencia?: Date;
@@ -68,6 +69,9 @@ const userSchema = new Schema<IUser>(
       type: String,
       enum: ['verde', 'amarilla', 'naranja', 'roja', 'ninguna'],
       default: 'ninguna',
+    },
+    pushToken: {
+      type: String,
     },
     // ── Licencia (sistema antiguo — se mantiene por compatibilidad) ──
     licenciaAlDia: {
