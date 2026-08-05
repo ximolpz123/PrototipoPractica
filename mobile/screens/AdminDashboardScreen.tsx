@@ -9,6 +9,7 @@ import { COLORS } from '../constants';
 import { useAlert } from '../context/AlertContext';
 import { reservationService, IReservation } from '../services/reservation.service';
 import { userService } from '../services/user.service';
+import { inspectionService, IInspeccion } from '../services/inspection.service';
 
 const ESTADO_COLOR: Record<string, string> = {
   pendiente: COLORS.warning,
@@ -33,7 +34,8 @@ export default function AdminDashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [filtro, setFiltro] = useState<'pendiente' | 'todas'>('pendiente');
+  const [filtro, setFiltro] = useState<'pendiente' | 'todas' | 'inspecciones'>('pendiente');
+  const [inspecciones, setInspecciones] = useState<IInspeccion[]>([]);
 
   // Estado modal de rechazo
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
@@ -52,6 +54,8 @@ export default function AdminDashboardScreen() {
       if (!isRefresh) setLoading(true);
       const todas = await reservationService.getAllReservations();
       setReservas(todas);
+      const insp = await inspectionService.getTodayInspections();
+      setInspecciones(insp);
     } catch (err) {
       showAlert('Error', 'No se pudieron cargar las reservas.');
     } finally {
@@ -159,6 +163,33 @@ export default function AdminDashboardScreen() {
   );
 
   const listaFiltrada = filtro === 'pendiente' ? pendientes : reservas;
+
+  const renderInspeccion = ({ item }: { item: IInspeccion }) => {
+    const color = item.estado === 'pendiente' ? COLORS.warning : item.estado === 'respondida' ? COLORS.success : COLORS.danger;
+    const vehiculo = item.reserva?.vehiculo ? `${item.reserva.vehiculo.marca} ${item.reserva.vehiculo.modelo}` : 'Vehículo';
+    
+    return (
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardConductor}>
+            {item.usuario ? `${item.usuario.nombre} ${item.usuario.apellido}` : 'Desconocido'}
+          </Text>
+          <View style={[styles.estadoBadge, { backgroundColor: color + '20' }]}>
+            <Text style={[styles.estadoText, { color }]}>
+              {item.estado.toUpperCase()}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.cardBody}>
+          <Text style={styles.cardVehiculo}>{vehiculo}</Text>
+          <Text style={[styles.infoLine, { marginTop: 5 }]}>📋 {item.descripcion}</Text>
+          <Text style={styles.infoLine}>🕒 Creada: {formatFecha(item.fechaActivacion)}</Text>
+          {item.respuestaTexto ? <Text style={styles.infoLine}>🗣️ {item.respuestaTexto}</Text> : null}
+          {item.respuestaFotoUrl ? <Text style={[styles.infoLine, {color: COLORS.primary}]}>🖼️ Contiene foto adjunta</Text> : null}
+        </View>
+      </View>
+    );
+  };
 
   const renderReserva = ({ item }: { item: IReservation }) => {
     const color = ESTADO_COLOR[item.estado] ?? COLORS.textMuted;
@@ -397,6 +428,14 @@ export default function AdminDashboardScreen() {
             Todas
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filtroBtn, filtro === 'inspecciones' && styles.filtroBtnActive]}
+          onPress={() => setFiltro('inspecciones')}
+        >
+          <Text style={[styles.filtroBtnText, filtro === 'inspecciones' && styles.filtroBtnTextActive]}>
+            Inspecciones
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -404,18 +443,18 @@ export default function AdminDashboardScreen() {
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Cargando reservas...</Text>
         </View>
-      ) : listaFiltrada.length === 0 ? (
+      ) : (filtro === 'inspecciones' && inspecciones.length === 0) || (filtro !== 'inspecciones' && listaFiltrada.length === 0) ? (
         <View style={styles.centered}>
           <Text style={styles.emptyIcon}>📋</Text>
           <Text style={styles.emptyText}>
-            {filtro === 'pendiente' ? 'No hay solicitudes pendientes' : 'No hay reservas registradas'}
+            {filtro === 'pendiente' ? 'No hay solicitudes pendientes' : filtro === 'inspecciones' ? 'No hay inspecciones hoy' : 'No hay reservas registradas'}
           </Text>
         </View>
       ) : (
         <FlatList
-          data={listaFiltrada}
+          data={filtro === 'inspecciones' ? inspecciones as any : listaFiltrada as any}
           keyExtractor={(item) => item._id}
-          renderItem={renderReserva}
+          renderItem={filtro === 'inspecciones' ? renderInspeccion as any : renderReserva}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}

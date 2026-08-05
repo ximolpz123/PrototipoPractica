@@ -10,6 +10,7 @@ import trackingRoutes from './routes/tracking.routes.js';
 import userRoutes from './routes/user.routes.js';
 import devRoutes from './routes/dev.routes.js';
 import configRoutes from './routes/config.routes.js';
+import inspectionRoutes from './routes/inspection.routes.js';
 import { initCronJobs } from './jobs/cron.js';
 
 // Cargar variables de entorno
@@ -40,6 +41,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/tracking', trackingRoutes);
 app.use('/api/dev', devRoutes);
 app.use('/api/config', configRoutes);
+app.use('/api/inspections', inspectionRoutes);
 
 // Iniciar servidor
 const startServer = async () => {

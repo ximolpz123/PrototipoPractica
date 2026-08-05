@@ -6,8 +6,10 @@ import { useAlert } from '../context/AlertContext';
 import { locationService } from '../services/location.service';
 import { reservationService, IReservation } from '../services/reservation.service';
 import { userService } from '../services/user.service';
+import { inspectionService, IInspeccion } from '../services/inspection.service';
 import { IUser } from '../types';
 import api from '../services/api';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function HomeScreen({ route, navigation }: any) {
   const { showAlert } = useAlert();
@@ -18,6 +20,11 @@ export default function HomeScreen({ route, navigation }: any) {
   const [isTracking, setIsTracking] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const [activeInspection, setActiveInspection] = useState<IInspeccion | null>(null);
+  const [inspectionPhoto, setInspectionPhoto] = useState<string | null>(null);
+  const [inspectionText, setInspectionText] = useState('');
+  const [submittingInspection, setSubmittingInspection] = useState(false);
 
   // Modal DEV para Máquina del Tiempo
   const [devModalVisible, setDevModalVisible] = useState(false);
@@ -92,6 +99,14 @@ export default function HomeScreen({ route, navigation }: any) {
       // Sincronizar estado del GPS
       const tracking = await locationService.isTracking();
       setIsTracking(tracking);
+
+      // Sincronizar inspecciones aleatorias
+      const pendingInspections = await inspectionService.getPendingInspections();
+      if (pendingInspections.length > 0) {
+        setActiveInspection(pendingInspections[0]);
+      } else {
+        setActiveInspection(null);
+      }
 
       await fetchTimeOffset();
     } catch (err) {
@@ -205,6 +220,45 @@ export default function HomeScreen({ route, navigation }: any) {
     const reserva = activeReserva;
     if (!reserva) return;
     navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'retorno', tipoIndicador: reserva.vehiculo?.tipoIndicador });
+  };
+
+  const handleTakeInspectionPhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      showAlert('Permisos denegados', 'Necesitas dar acceso a la cámara para tomar la foto.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.5,
+    });
+
+    if (!result.canceled) {
+      setInspectionPhoto(result.assets[0].uri);
+    }
+  };
+
+  const handleSubmitInspection = async () => {
+    if (!activeInspection) return;
+    if (!inspectionText && !inspectionPhoto) {
+      showAlert('Faltan datos', 'Debes enviar al menos un texto o una foto.');
+      return;
+    }
+
+    try {
+      setSubmittingInspection(true);
+      await inspectionService.respondInspection(activeInspection._id, inspectionText, inspectionPhoto || undefined);
+      showAlert('¡Gracias!', 'Inspección enviada correctamente.');
+      setActiveInspection(null);
+      setInspectionPhoto(null);
+      setInspectionText('');
+    } catch (err: any) {
+      showAlert('Error', err.response?.data?.message || 'Error al enviar inspección');
+    } finally {
+      setSubmittingInspection(false);
+    }
   };
 
 
@@ -408,6 +462,48 @@ export default function HomeScreen({ route, navigation }: any) {
               onPress={() => setShowDriverModal(false)}
             >
               <Text style={styles.btnText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── Modal Inspección Aleatoria ─── */}
+      <Modal visible={!!activeInspection} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>🚨 Inspección Aleatoria</Text>
+            <Text style={{ fontSize: 16, color: COLORS.danger, fontWeight: 'bold', marginBottom: 5 }}>
+              Tiempo límite: {activeInspection ? new Date(activeInspection.fechaLimite).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : ''}
+            </Text>
+            <Text style={{ textAlign: 'center', marginBottom: 20, fontSize: 15 }}>
+              {activeInspection?.descripcion}
+            </Text>
+
+            <TextInput
+              style={[styles.kmInput, { minHeight: 60, textAlignVertical: 'top', width: '100%', marginBottom: 15 }]}
+              placeholder="Escribe un comentario o reporte..."
+              placeholderTextColor={COLORS.textMuted}
+              multiline
+              value={inspectionText}
+              onChangeText={setInspectionText}
+            />
+
+            <View style={{ flexDirection: 'row', width: '100%', gap: 10, marginBottom: 15 }}>
+              <TouchableOpacity style={[styles.btnPrimary, { flex: 1, backgroundColor: inspectionPhoto ? COLORS.success : COLORS.primaryDark }]} onPress={handleTakeInspectionPhoto}>
+                <Text style={styles.btnText}>{inspectionPhoto ? '📸 Foto Lista (Reemplazar)' : '📸 Tomar Foto'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.btnPrimary, { width: '100%' }]} 
+              onPress={handleSubmitInspection}
+              disabled={submittingInspection}
+            >
+              {submittingInspection ? (
+                <ActivityIndicator color={COLORS.white} />
+              ) : (
+                <Text style={styles.btnText}>Enviar Reporte</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
