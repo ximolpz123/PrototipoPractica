@@ -122,7 +122,12 @@ export const updateLicencia = async (req: Request, res: Response): Promise<void>
         const arrayBuffer = await imgResponse.arrayBuffer();
         const base64Img = Buffer.from(arrayBuffer).toString("base64");
         
-        const prompt = "Revisa esta imagen. Determina si es una licencia de conducir válida de Chile o algún país. Si NO es una licencia de conducir (ej. imagen en negro, una foto cualquiera), o si está ilegible, devuelve EXCLUSIVAMENTE la palabra 'INVALIDA'. Si es una licencia, encuentra la fecha de vencimiento o control y devuélvela en formato YYYY-MM-DD. Solo devuelve 'INVALIDA' o la fecha en formato YYYY-MM-DD, nada más.";
+        const prompt = `Revisa esta imagen. Determina si es una licencia de conducir válida (por ejemplo, una "LICENCIA DE CONDUCTOR REPÚBLICA DE CHILE"). 
+Si NO es una licencia de conducir (ej. imagen en negro, borrosa o ilegible), devuelve EXCLUSIVAMENTE la palabra 'INVALIDA'. 
+Si es una licencia válida, busca el campo "FECHA DE CONTROL" (no "FECHA ÚLTIMO CONTROL", sino "FECHA DE CONTROL" que indica el vencimiento). 
+Extrae esa fecha y devuélvela estrictamente en formato YYYY-MM-DD. 
+Ejemplo: si dice 23/05/2030, debes devolver 2030-05-23.
+No devuelvas ningún otro texto, solo 'INVALIDA' o la fecha (YYYY-MM-DD).`;
         const image = { inlineData: { data: base64Img, mimeType: "image/jpeg" } };
         
         const aiResponse = await model.generateContent([prompt, image]);
