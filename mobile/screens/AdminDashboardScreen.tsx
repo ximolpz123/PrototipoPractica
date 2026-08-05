@@ -1,11 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl, ScrollView, Modal, TextInput,
+  ActivityIndicator, RefreshControl, ScrollView, Modal, TextInput, Animated
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../constants';
+import { COLORS, GRADIENTS } from '../constants';
 import { useAlert } from '../context/AlertContext';
 import { reservationService, IReservation } from '../services/reservation.service';
 import { userService } from '../services/user.service';
@@ -37,6 +38,10 @@ export default function AdminDashboardScreen() {
   const [filtro, setFiltro] = useState<'pendiente' | 'todas' | 'inspecciones'>('pendiente');
   const [inspecciones, setInspecciones] = useState<IInspeccion[]>([]);
 
+  // Animaciones
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [slideAnim] = useState(new Animated.Value(20));
+
   // Estado modal de rechazo
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [rejectMotivo, setRejectMotivo] = useState('');
@@ -67,7 +72,11 @@ export default function AdminDashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       cargarReservas();
-    }, [])
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.spring(slideAnim, { toValue: 0, friction: 8, tension: 40, useNativeDriver: true })
+      ]).start();
+    }, [fadeAnim, slideAnim])
   );
 
   const onRefresh = useCallback(() => {
@@ -392,22 +401,33 @@ export default function AdminDashboardScreen() {
         style={styles.kpiScroll}
         contentContainerStyle={styles.kpiContainer}
       >
-        <View style={[styles.kpiCard, { borderLeftColor: COLORS.warning }]}>
-          <Text style={styles.kpiNum}>{pendientes.length}</Text>
-          <Text style={styles.kpiLabel}>Pendientes</Text>
-        </View>
-        <View style={[styles.kpiCard, { borderLeftColor: COLORS.success }]}>
-          <Text style={styles.kpiNum}>{enCurso.length}</Text>
-          <Text style={styles.kpiLabel}>En Ruta</Text>
-        </View>
-        <View style={[styles.kpiCard, { borderLeftColor: COLORS.primary }]}>
-          <Text style={styles.kpiNum}>{hoyCompletadas.length}</Text>
-          <Text style={styles.kpiLabel}>Finalizadas Hoy</Text>
-        </View>
-        <View style={[styles.kpiCard, { borderLeftColor: COLORS.textMuted }]}>
-          <Text style={styles.kpiNum}>{reservas.length}</Text>
-          <Text style={styles.kpiLabel}>Total</Text>
-        </View>
+        <LinearGradient colors={GRADIENTS.warning} style={[styles.kpiCard, { padding: 0 }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+          <View style={{ padding: 15, width: '100%' }}>
+            <Text style={[styles.kpiNum, { color: COLORS.white }]}>{pendientes.length}</Text>
+            <Text style={[styles.kpiLabel, { color: 'rgba(255,255,255,0.8)' }]}>Pendientes</Text>
+          </View>
+        </LinearGradient>
+        
+        <LinearGradient colors={GRADIENTS.success} style={[styles.kpiCard, { padding: 0 }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+          <View style={{ padding: 15, width: '100%' }}>
+            <Text style={[styles.kpiNum, { color: COLORS.white }]}>{enCurso.length}</Text>
+            <Text style={[styles.kpiLabel, { color: 'rgba(255,255,255,0.8)' }]}>En Ruta</Text>
+          </View>
+        </LinearGradient>
+
+        <LinearGradient colors={GRADIENTS.primary} style={[styles.kpiCard, { padding: 0 }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+          <View style={{ padding: 15, width: '100%' }}>
+            <Text style={[styles.kpiNum, { color: COLORS.white }]}>{hoyCompletadas.length}</Text>
+            <Text style={[styles.kpiLabel, { color: 'rgba(255,255,255,0.8)' }]}>Finalizadas Hoy</Text>
+          </View>
+        </LinearGradient>
+
+        <LinearGradient colors={GRADIENTS.cardBackground} style={[styles.kpiCard, { padding: 0, borderWidth: 1, borderColor: COLORS.border }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+          <View style={{ padding: 15, width: '100%' }}>
+            <Text style={[styles.kpiNum, { color: COLORS.text }]}>{reservas.length}</Text>
+            <Text style={[styles.kpiLabel, { color: COLORS.textMuted }]}>Total</Text>
+          </View>
+        </LinearGradient>
       </ScrollView>
 
       {/* Filtros */}
@@ -451,9 +471,10 @@ export default function AdminDashboardScreen() {
           </Text>
         </View>
       ) : (
-        <FlatList
+        <Animated.FlatList
+          style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
           data={filtro === 'inspecciones' ? inspecciones as any : listaFiltrada as any}
-          keyExtractor={(item) => item._id}
+          keyExtractor={(item: any) => item._id}
           renderItem={filtro === 'inspecciones' ? renderInspeccion as any : renderReserva}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}

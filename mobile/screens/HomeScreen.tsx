@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput, Modal, ScrollView, RefreshControl, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput, Modal, ScrollView, RefreshControl, Linking, Animated } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { COLORS } from '../constants';
+import { LinearGradient } from 'expo-linear-gradient';
+import { COLORS, GRADIENTS } from '../constants';
 import { useAlert } from '../context/AlertContext';
 import { locationService } from '../services/location.service';
 import { reservationService, IReservation } from '../services/reservation.service';
@@ -20,6 +21,28 @@ export default function HomeScreen({ route, navigation }: any) {
   const [isTracking, setIsTracking] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Micro-animación de entrada
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [slideAnim] = useState(new Animated.Value(20));
+
+  useFocusEffect(
+    useCallback(() => {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          friction: 8,
+          tension: 40,
+          useNativeDriver: true,
+        })
+      ]).start();
+    }, [fadeAnim, slideAnim])
+  );
 
   const [activeInspection, setActiveInspection] = useState<IInspeccion | null>(null);
   const [inspectionPhoto, setInspectionPhoto] = useState<string | null>(null);
@@ -315,18 +338,26 @@ export default function HomeScreen({ route, navigation }: any) {
 
       {/* Tarjeta de Viaje Activo */}
       {activeReserva ? (
-        <View style={[styles.card, styles.cardActive]}>
+        <Animated.View style={[styles.card, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+          <LinearGradient
+            colors={GRADIENTS.primary}
+            style={[StyleSheet.absoluteFill, { borderRadius: 16, opacity: 0.1 }]}
+          />
           <View style={styles.cardHeader}>
-            <Text style={styles.cardLabel}>🚗 VIAJE EN CURSO</Text>
-            {isTracking && (
-              <View style={styles.gpsIndicator}>
-                <Text style={styles.gpsIndicatorText}>📡 GPS Activo</Text>
-              </View>
-            )}
+            <View>
+              <Text style={styles.cardTitle}>🚗 VIAJE EN CURSO</Text>
+              <Text style={styles.cardVehiculo}>{vehiculoNombre(activeReserva)}</Text>
+            </View>
+            <View style={[styles.badge, { backgroundColor: COLORS.success + '20' }]}>
+              <Text style={[styles.badgeText, { color: COLORS.success }]}>ACTIVO</Text>
+            </View>
           </View>
-          <Text style={styles.cardVehicle}>{vehiculoNombre(activeReserva)}</Text>
-          <Text style={styles.cardInfo}>📍 {activeReserva.destino}</Text>
-          <Text style={styles.cardInfo}>⏱ Hasta: {formatFecha(activeReserva.fechaFin)}</Text>
+
+          <View style={styles.cardBody}>
+            <Text style={styles.infoLine}>📍 Destino: <Text style={styles.bold}>{activeReserva.destino}</Text></Text>
+            <Text style={styles.infoLine}>🕒 Inicio: <Text style={styles.bold}>{formatFecha(activeReserva.fechaInicio)}</Text></Text>
+            <Text style={styles.infoLine}>🏁 Fin: <Text style={styles.bold}>{formatFecha(activeReserva.fechaFin)}</Text></Text>
+          </View>
 
           {!isTracking && (
             <TouchableOpacity style={styles.btnPrimary} onPress={handleStartTrip}>
@@ -350,11 +381,19 @@ export default function HomeScreen({ route, navigation }: any) {
           >
             <Text style={styles.btnText}>Pasar el Mando 🔑</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       ) : upcomingReserva ? (
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>📅 PRÓXIMA RESERVA</Text>
-          <Text style={styles.cardVehicle}>{vehiculoNombre(upcomingReserva)}</Text>
+        <Animated.View style={[styles.card, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+          <LinearGradient
+            colors={GRADIENTS.cardBackground}
+            style={[StyleSheet.absoluteFill, { borderRadius: 16 }]}
+          />
+          <View style={styles.cardHeader}>
+            <View>
+              <Text style={styles.cardTitle}>Próximo Vehículo Asignado</Text>
+              <Text style={styles.cardVehiculo}>{vehiculoNombre(upcomingReserva)}</Text>
+            </View>
+          </View>
           <Text style={styles.cardInfo}>📍 {upcomingReserva.destino}</Text>
           <Text style={styles.cardInfo}>🕐 Inicio: {formatFecha(upcomingReserva.fechaInicio)}</Text>
           <Text style={styles.cardInfo}>📝 {upcomingReserva.motivo}</Text>
@@ -362,15 +401,15 @@ export default function HomeScreen({ route, navigation }: any) {
           <TouchableOpacity style={styles.btnPrimary} onPress={handleStartTrip}>
             <Text style={styles.btnText}>▶ Iniciar Viaje y Activar GPS</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       ) : (
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>📋 SIN RESERVAS PRÓXIMAS</Text>
-          <Text style={styles.cardSub}>No tienes viajes programados. Puedes crear una nueva reserva desde la pestaña "Reservas".</Text>
+        <Animated.View style={[styles.centered, { opacity: fadeAnim }]}>
+          <Text style={styles.emptyIcon}>🏖️</Text>
+          <Text style={styles.emptyText}>No tienes reservas activas ni próximas.</Text>
           <TouchableOpacity style={styles.btnPrimary} onPress={() => navigation.navigate('CreateReservation')}>
             <Text style={styles.btnText}>+ Crear Reserva</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       )}
 
       {/* Indicador GPS en segundo plano */}
@@ -614,6 +653,39 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 6,
   },
+  cardTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: COLORS.textMuted,
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  cardVehiculo: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  cardBody: {
+    marginTop: 15,
+  },
+  infoLine: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+    marginBottom: 6,
+  },
+  bold: {
+    fontWeight: '600',
+    color: COLORS.text,
+  },
   cardVehicle: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -640,7 +712,6 @@ const styles = StyleSheet.create({
   gpsIndicatorText: {
     fontSize: 11,
     color: COLORS.success,
-    marginTop: 15,
   },
   btnPrimary: {
     backgroundColor: COLORS.primary,
@@ -703,6 +774,16 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     padding: 24,
     paddingBottom: 36,
+  },
+  emptyIcon: {
+    fontSize: 40,
+    marginBottom: 10,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginBottom: 20,
   },
   modalTitle: {
     fontSize: 20,

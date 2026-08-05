@@ -21,8 +21,18 @@ export const COLORS = {
   textMuted: '#8E939A',                           // El color gris oscuro solicitado por el usuario
   border: isDarkMode ? '#333333' : '#D6D7D9',     // Bordes sutiles
 
-  success: '#16A34A',
-  danger: '#DC2626',
+  success: '#22C55E',
+  danger: '#EF4444',
   warning: '#F59E0B',
-  info: '#0284C7',
+  info: '#3B82F6',
+};
+
+export const GRADIENTS = {
+  primary: ['#5C99CC', '#3D9FD3'] as const,
+  primaryDark: ['#478EC6', '#2A6F9E'] as const,
+  success: ['#4ADE80', '#22C55E'] as const,
+  danger: ['#F87171', '#EF4444'] as const,
+  warning: ['#FBBF24', '#F59E0B'] as const,
+  cardBackground: isDarkMode ? (['#1E1E1E', '#252525'] as const) : (['#FFFFFF', '#F8FAFC'] as const),
+  mainBackground: isDarkMode ? (['#121212', '#1A1A1A'] as const) : (['#F1F5F9', '#E2E8F0'] as const),
 };
