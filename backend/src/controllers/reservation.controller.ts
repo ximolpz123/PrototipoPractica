@@ -267,6 +267,97 @@ export const cancelReservation = async (req: AuthRequest, res: Response): Promis
   }
 };
 
+// Cambio de conductor en tramo
+export const cambioConductorTramo = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const reservation = await Reservation.findById(req.params.id);
+    if (!reservation) {
+      res.status(404).json({ message: 'Reserva no encontrada' });
+      return;
+    }
+
+    if (reservation.estado !== 'en_curso') {
+      res.status(400).json({ message: 'Solo se puede cambiar conductor si la reserva está en curso' });
+      return;
+    }
+
+    const { nuevoConductorId, kmActual } = req.body;
+    if (!nuevoConductorId) {
+      res.status(400).json({ message: 'Se requiere el ID del nuevo conductor' });
+      return;
+    }
+
+    const nuevoConductor = await User.findById(nuevoConductorId);
+    if (!nuevoConductor) {
+      res.status(404).json({ message: 'Nuevo conductor no encontrado' });
+      return;
+    }
+
+    if (!reservation.tramos) {
+      reservation.tramos = [];
+    }
+
+    const now = new Date();
+    const vehiculo = await Vehicle.findById(reservation.vehiculo);
+    const currentKm = kmActual ?? vehiculo?.kilometraje ?? 0;
+
+    if (reservation.tramos.length === 0) {
+      // Create the first tramo retroactively for the original driver
+      reservation.tramos.push({
+        conductor: reservation.usuario,
+        fechaInicio: reservation.fechaInicio,
+        fechaFin: now,
+        gpsActivo: true,
+        kmInicio: reservation.kmSalida,
+        kmFin: currentKm
+      });
+    } else {
+      // Close the last tramo
+      const lastTramo = reservation.tramos[reservation.tramos.length - 1];
+      lastTramo.fechaFin = now;
+      lastTramo.kmFin = currentKm;
+    }
+
+    // Create the new tramo for the new driver
+    reservation.tramos.push({
+      conductor: nuevoConductor._id,
+      fechaInicio: now,
+      gpsActivo: true,
+      kmInicio: currentKm
+    });
+
+    await reservation.save();
+
+    if (vehiculo && currentKm > vehiculo.kilometraje) {
+      vehiculo.kilometraje = currentKm;
+      await vehiculo.save();
+    }
+
+    // Notify Admins
+    const admins = await User.find({ rol: 'admin' });
+    for (const admin of admins) {
+      await sendPushNotification(
+        admin._id.toString(),
+        'Cambio de conductor',
+        `El vehículo ${vehiculo?.placa} ahora es conducido por ${nuevoConductor.nombre} ${nuevoConductor.apellido}.`,
+        { reservaId: reservation._id }
+      );
+    }
+
+    // Notify New Driver
+    await sendPushNotification(
+      nuevoConductor._id.toString(),
+      'Vehículo entregado',
+      `Se te ha asignado el vehículo ${vehiculo?.placa} en la ruta actual.`,
+      { reservaId: reservation._id }
+    );
+
+    res.json({ message: 'Cambio de conductor registrado exitosamente', tramos: reservation.tramos });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al cambiar conductor', error });
+  }
+};
+
 // Completar una reserva y registrar kilometraje de retorno
 export const completeReservation = async (req: AuthRequest, res: Response): Promise<void> => {
   try {

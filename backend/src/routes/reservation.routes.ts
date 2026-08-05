@@ -10,6 +10,7 @@ import {
   uploadFotoTablero,
   notifyDelayToNextReservation,
   handleDelayResponse,
+  cambioConductorTramo,
 } from '../controllers/reservation.controller.js';
 import { authMiddleware, adminMiddleware, licenciaMiddleware } from '../middleware/auth.js';
 import { upload } from '../config/cloudinary.js';
@@ -40,6 +41,9 @@ router.post('/:id/notify-delay', authMiddleware, adminMiddleware, notifyDelayToN
 
 // POST /api/reservations/:id/handle-delay-response
 router.post('/:id/handle-delay-response', authMiddleware, handleDelayResponse);
+
+// POST /api/reservations/:id/tramos/cambio (Registra cambio de conductor en ruta)
+router.post('/:id/tramos/cambio', authMiddleware, cambioConductorTramo);
 
 // POST /api/reservations/:id/upload
 // Sube hasta 4 fotos y las asocia a la reserva (tipo: 'salida' o 'retorno')
