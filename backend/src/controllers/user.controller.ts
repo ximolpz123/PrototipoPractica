@@ -96,6 +96,12 @@ export const updatePerfil = async (req: Request, res: Response): Promise<void> =
 // PATCH /api/users/:id/licencia
 export const updateLicencia = async (req: Request, res: Response): Promise<void> => {
   try {
+    console.log('updateLicencia check:', {
+      paramsId: req.params.id,
+      userId: (req as any).userId,
+      userRol: (req as any).userRol
+    });
+
     if (req.params.id !== (req as any).userId && (req as any).userRol !== 'admin') {
       res.status(403).json({ message: 'No tienes permiso para actualizar esta licencia' });
       return;

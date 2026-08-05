@@ -52,12 +52,13 @@ export default function PerfilScreen({ route }: any) {
   const banderaActual = user.banderaActual || 'ninguna';
 
   useEffect(() => {
-    if (user._id) {
-      userService.getUserFlags(user._id)
+    const userId = user.id || user._id;
+    if (userId) {
+      userService.getUserFlags(userId)
         .then(res => setFlags(res))
         .catch(err => console.error('Error cargando banderas', err));
     }
-  }, [user._id]);
+  }, [user.id, user._id]);
 
   const handleChangePhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -81,11 +82,12 @@ export default function PerfilScreen({ route }: any) {
   };
 
   const handleSaveProfile = async () => {
-    if (!user._id) return;
+    const userId = user.id || user._id;
+    if (!userId) return;
     setSavingProfile(true);
     try {
       // Usarían import api from '../services/api'
-      // await api.patch(`/users/${user._id}/perfil`, { departamento, telefono });
+      // await api.patch(`/users/${userId}/perfil`, { departamento, telefono });
       showAlert('Éxito', 'Perfil actualizado correctamente.');
     } catch (error) {
       showAlert('Error', 'No se pudo actualizar el perfil.');
@@ -117,7 +119,8 @@ export default function PerfilScreen({ route }: any) {
           name: 'licencia.jpg',
           type: 'image/jpeg'
         } as any);
-        const res = await api.patch(`/users/${user._id}/licencia`, formData, {
+        const userId = user.id || user._id;
+        const res = await api.patch(`/users/${userId}/licencia`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
         setLicenciaEstado(res.data.user.licenciaEstado);
