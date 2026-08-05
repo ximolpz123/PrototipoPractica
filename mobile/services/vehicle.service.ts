@@ -23,6 +23,8 @@ export interface IVehicle {
     fechaInicio: string;
     fechaFin: string;
   }>;
+  nivelBencina?: number;
+  tipoIndicador?: 'digital' | 'analogico';
 }
 
 export const vehicleService = {
