@@ -109,25 +109,59 @@ export const updateLicencia = async (req: Request, res: Response): Promise<void>
 
     const fotoUrl = file.path; // Cloudinary
     
-    // AQUÍ IRÍA LA LLAMADA A LA IA (OpenAI Vision o Google Vision)
-    // Para efectos del prototipo y si no hay API KEY, simulamos una respuesta exitosa
-    // asumiendo que la licencia vence en 1 año más:
-    const fechaSimulada = new Date();
-    fechaSimulada.setFullYear(fechaSimulada.getFullYear() + 1);
+    let isVigente = false;
+    let fechaVencimiento = new Date();
+    fechaVencimiento.setFullYear(fechaVencimiento.getFullYear() + 1); // fallback default
+
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+        
+        const imgResponse = await fetch(fotoUrl);
+        const arrayBuffer = await imgResponse.arrayBuffer();
+        const base64Img = Buffer.from(arrayBuffer).toString("base64");
+        
+        const prompt = "Revisa esta imagen. Determina si es una licencia de conducir válida de Chile o algún país. Si NO es una licencia de conducir (ej. imagen en negro, una foto cualquiera), o si está ilegible, devuelve EXCLUSIVAMENTE la palabra 'INVALIDA'. Si es una licencia, encuentra la fecha de vencimiento o control y devuélvela en formato YYYY-MM-DD. Solo devuelve 'INVALIDA' o la fecha en formato YYYY-MM-DD, nada más.";
+        const image = { inlineData: { data: base64Img, mimeType: "image/jpeg" } };
+        
+        const aiResponse = await model.generateContent([prompt, image]);
+        const result = aiResponse.response.text().trim();
+        
+        if (result !== 'INVALIDA') {
+          const parsedDate = new Date(result);
+          if (!isNaN(parsedDate.getTime())) {
+            fechaVencimiento = parsedDate;
+            if (fechaVencimiento > new Date()) {
+              isVigente = true;
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error en IA de licencia:", error);
+      }
+    } else {
+      isVigente = true; // Fallback sin API KEY
+    }
+
+    if (!isVigente) {
+      res.status(400).json({ message: 'La imagen proporcionada no es una licencia de conducir válida o se encuentra vencida.' });
+      return;
+    }
 
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { 
         licenciaFotoUrl: fotoUrl,
-        licenciaVencimiento: fechaSimulada,
+        licenciaVencimiento: fechaVencimiento,
         licenciaEstado: 'vigente',
-        licenciaAlDia: true // legacy
+        licenciaAlDia: true 
       },
       { new: true }
     ).select('-password');
 
     res.json({
-      message: 'Licencia procesada exitosamente con IA (Simulado)',
+      message: 'Licencia procesada exitosamente con IA',
       user
     });
   } catch (error) {

@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../constants';
 import { useAlert } from '../context/AlertContext';
 import { userService } from '../services/user.service';
+import api from '../services/api';
 
 const FLAG_COLORS: Record<string, string> = {
   verde: '#10B981',
@@ -110,7 +111,6 @@ export default function PerfilScreen({ route }: any) {
     if (!result.canceled && result.assets.length > 0) {
       setScanningLicense(true);
       try {
-        /*
         const formData = new FormData();
         formData.append('imagen', {
           uri: result.assets[0].uri,
@@ -122,19 +122,12 @@ export default function PerfilScreen({ route }: any) {
         });
         setLicenciaEstado(res.data.user.licenciaEstado);
         setFechaVencimiento(res.data.user.licenciaVencimiento);
-        */
-        // Simulación de éxito por IA
-        setTimeout(() => {
-          setLicenciaEstado('vigente');
-          const nextYear = new Date();
-          nextYear.setFullYear(nextYear.getFullYear() + 1);
-          setFechaVencimiento(nextYear.toISOString());
-          showAlert('IA Exitosa', 'Licencia analizada. Es válida hasta el próximo año.');
-          setScanningLicense(false);
-        }, 1500);
-      } catch (error) {
+        showAlert('Éxito', res.data.message);
         setScanningLicense(false);
-        showAlert('Error', 'No se pudo procesar la licencia.');
+      } catch (error: any) {
+        setScanningLicense(false);
+        const msg = error.response?.data?.message ?? 'No se pudo procesar la licencia.';
+        showAlert('Error', msg);
       }
     }
   };
@@ -195,15 +188,15 @@ export default function PerfilScreen({ route }: any) {
         
         {isLicenciaValida ? (
           <View>
-            <Text style={styles.licenseStatus}>✅ {licenciaEstado.toUpperCase()}</Text>
+            <Text style={styles.licenseStatus}>✅ VIGENTE</Text>
             <Text style={styles.licenseDate}>
               Vence el: {fechaVencimiento ? new Date(fechaVencimiento).toLocaleDateString() : 'N/A'}
             </Text>
           </View>
         ) : (
           <View>
-            <Text style={styles.licenseStatus}>❌ {licenciaEstado.toUpperCase()}</Text>
-            <Text style={styles.licenseDate}>No puedes solicitar nuevas reservas de vehículos.</Text>
+            <Text style={[styles.licenseStatus, { color: COLORS.danger }]}>❌ VENCIDA O INVÁLIDA</Text>
+            <Text style={[styles.licenseDate, { color: COLORS.danger }]}>No puedes solicitar nuevas reservas de vehículos.</Text>
           </View>
         )}
         

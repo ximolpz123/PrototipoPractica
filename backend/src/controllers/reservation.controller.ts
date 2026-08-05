@@ -43,6 +43,21 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
       return;
     }
 
+    // ── Validación 1.5: Validar Licencia del Usuario ──────────────────────
+    const userToCheck = await User.findById(targetUserId);
+    if (!userToCheck) {
+      res.status(404).json({ message: 'Usuario no encontrado' });
+      return;
+    }
+    const isLicenciaValida = userToCheck.licenciaEstado === 'vigente' && 
+                             userToCheck.licenciaVencimiento && 
+                             new Date(userToCheck.licenciaVencimiento) > new Date();
+                             
+    if (!isLicenciaValida && !isAdmin) { // Admin can override maybe, but let's block driver
+      res.status(403).json({ message: 'No puedes solicitar reservas. Tu licencia está vencida o no es válida.' });
+      return;
+    }
+
     const inicio = new Date(fechaInicio);
     const fin = new Date(fechaFin);
 
