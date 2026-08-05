@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../constants';
 import { useAlert } from '../context/AlertContext';
 import { userService } from '../services/user.service';
+import { authService } from '../services/auth.service';
 import api from '../services/api';
 
 const FLAG_COLORS: Record<string, string> = {
@@ -100,10 +101,28 @@ export default function PerfilScreen({ route }: any) {
     if (!userId) return;
     setSavingProfile(true);
     try {
-      // Usarían import api from '../services/api'
-      // await api.patch(`/users/${userId}/perfil`, { departamento, telefono });
+      const formData = new FormData();
+      formData.append('departamento', departamento);
+      formData.append('telefono', telefono);
+
+      if (avatarUri && !avatarUri.startsWith('http')) {
+        formData.append('avatar', {
+          uri: avatarUri,
+          name: 'avatar.jpg',
+          type: 'image/jpeg'
+        } as any);
+      }
+
+      const res = await api.patch(`/users/${userId}/perfil`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      // Actualizar el usuario local en AsyncStorage para que persista
+      await authService.updateLocalUser(res.data);
+      
       showAlert('Éxito', 'Perfil actualizado correctamente.');
     } catch (error) {
+      console.error(error);
       showAlert('Error', 'No se pudo actualizar el perfil.');
     } finally {
       setSavingProfile(false);
@@ -140,6 +159,10 @@ export default function PerfilScreen({ route }: any) {
         setLicenciaEstado(res.data.user.licenciaEstado);
         setFechaVencimiento(res.data.user.licenciaVencimiento);
         setLicenciaFotoUrl(res.data.user.licenciaFotoUrl);
+        
+        // Actualizar el usuario local en AsyncStorage
+        await authService.updateLocalUser(res.data.user);
+        
         showAlert('Éxito', res.data.message);
         setScanningLicense(false);
       } catch (error: any) {

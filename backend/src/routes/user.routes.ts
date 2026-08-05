@@ -10,7 +10,7 @@ router.use(authMiddleware);
 
 // Rutas accesibles por el propio usuario (o admin)
 router.get('/:id/flags', getUserFlags);
-router.patch('/:id/perfil', updatePerfil);
+router.patch('/:id/perfil', upload.single('avatar'), updatePerfil);
 router.patch('/:id/licencia', upload.single('imagen'), updateLicencia);
 router.patch('/:id/push-token', updatePushToken);
 

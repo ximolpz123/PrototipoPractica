@@ -77,9 +77,15 @@ export const updatePerfil = async (req: Request, res: Response): Promise<void> =
     }
 
     const { departamento, telefono } = req.body;
+    const updateData: any = { departamento, telefono };
+    
+    if (req.file) {
+      updateData.avatarUrl = req.file.path;
+    }
+
     const user = await User.findByIdAndUpdate(
       req.params.id,
-      { departamento, telefono },
+      updateData,
       { new: true }
     ).select('-password');
 

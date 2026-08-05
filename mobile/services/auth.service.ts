@@ -23,6 +23,11 @@ export const authService = {
     return user ? JSON.parse(user) : null;
   },
 
+  // Actualizar usuario en storage local
+  updateLocalUser: async (updatedUser: any): Promise<void> => {
+    await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+  },
+
   // Verificar si hay sesión activa
   isAuthenticated: async (): Promise<boolean> => {
     const token = await AsyncStorage.getItem('token');
