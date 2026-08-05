@@ -45,9 +45,11 @@ export default function PerfilScreen({ route }: any) {
   const [telefono, setTelefono] = useState(user.telefono || '');
   
   // Real license validation based on v2 model
-  const isLicenciaValida = user.licenciaEstado === 'vigente' || (user.licenciaAlDia && user.licenciaEstado !== 'vencida');
   const [licenciaEstado, setLicenciaEstado] = useState(user.licenciaEstado || (user.licenciaAlDia ? 'vigente' : 'vencida'));
   const [fechaVencimiento, setFechaVencimiento] = useState(user.licenciaVencimiento || user.fechaVencimientoLicencia);
+  const [licenciaFotoUrl, setLicenciaFotoUrl] = useState(user.licenciaFotoUrl || null);
+  const [showLicenciaModal, setShowLicenciaModal] = useState(false);
+  const isLicenciaValida = licenciaEstado === 'vigente' && fechaVencimiento && new Date(fechaVencimiento) > new Date();
   const [flags, setFlags] = useState<any[]>([]);
   const banderaActual = user.banderaActual || 'ninguna';
 
@@ -125,6 +127,7 @@ export default function PerfilScreen({ route }: any) {
         });
         setLicenciaEstado(res.data.user.licenciaEstado);
         setFechaVencimiento(res.data.user.licenciaVencimiento);
+        setLicenciaFotoUrl(res.data.user.licenciaFotoUrl);
         showAlert('Éxito', res.data.message);
         setScanningLicense(false);
       } catch (error: any) {
@@ -165,6 +168,25 @@ export default function PerfilScreen({ route }: any) {
         </View>
       </View>
 
+      {/* MODAL PARA VER LICENCIA */}
+      <Modal visible={showLicenciaModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Licencia Subida</Text>
+              <TouchableOpacity onPress={() => setShowLicenciaModal(false)}>
+                <Ionicons name="close" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+            {licenciaFotoUrl ? (
+              <Image source={{ uri: licenciaFotoUrl }} style={{ width: '100%', height: 200, resizeMode: 'contain', borderRadius: 10, marginTop: 10 }} />
+            ) : (
+              <Text style={{ textAlign: 'center', marginTop: 20, color: COLORS.textMuted }}>No hay foto disponible</Text>
+            )}
+          </View>
+        </View>
+      </Modal>
+
       {/* USER DATA SECTION */}
       <View style={styles.dataCard}>
         <Text style={styles.sectionTitle}>Datos Personales</Text>
@@ -203,6 +225,16 @@ export default function PerfilScreen({ route }: any) {
           </View>
         )}
         
+        {licenciaFotoUrl ? (
+          <TouchableOpacity 
+            style={[styles.scanBtn, { backgroundColor: COLORS.textMuted, marginBottom: 10 }]} 
+            onPress={() => setShowLicenciaModal(true)}
+          >
+            <Ionicons name="eye-outline" size={20} color={COLORS.white} />
+            <Text style={styles.scanBtnText}>Ver Licencia Subida</Text>
+          </TouchableOpacity>
+        ) : null}
+
         <TouchableOpacity 
           style={styles.scanBtn} 
           onPress={handleScanLicense}
@@ -213,7 +245,7 @@ export default function PerfilScreen({ route }: any) {
           ) : (
             <>
               <Ionicons name="scan-outline" size={20} color={COLORS.white} />
-              <Text style={styles.scanBtnText}>Escanear Licencia (IA)</Text>
+              <Text style={styles.scanBtnText}>{licenciaFotoUrl ? 'Renovar Licencia (IA)' : 'Escanear Licencia (IA)'}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -518,4 +550,25 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: 8,
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: COLORS.white,
+    borderRadius: 15,
+    padding: 20,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  }
 });
