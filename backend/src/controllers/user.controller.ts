@@ -222,8 +222,13 @@ export const updatePushToken = async (req: AuthRequest, res: Response): Promise<
 };
 
 // Obtener historial de banderas de un usuario
-export const getUserFlags = async (req: Request, res: Response): Promise<void> => {
+export const getUserFlags = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    if (req.params.id !== req.userId && req.userRol !== 'admin') {
+      res.status(403).json({ message: 'No tienes permiso para ver estas banderas' });
+      return;
+    }
+
     const flags = await Flag.find({ usuario: req.params.id })
       .populate('adminId', 'nombre apellido')
       .populate('reserva', 'fechaInicio fechaFin vehiculo')

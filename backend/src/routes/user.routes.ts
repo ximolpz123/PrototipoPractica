@@ -9,6 +9,7 @@ const router = Router();
 router.use(authMiddleware);
 
 // Rutas accesibles por el propio usuario (o admin)
+router.get('/:id/flags', getUserFlags);
 router.patch('/:id/perfil', updatePerfil);
 router.patch('/:id/licencia', upload.single('imagen'), updateLicencia);
 router.patch('/:id/push-token', updatePushToken);
@@ -21,7 +22,6 @@ router.post('/', createUser);
 router.put('/:id', updateUser);
 router.delete('/:id', deleteUser);
 
-router.get('/:id/flags', getUserFlags);
 router.post('/:id/flags', assignFlag);
 
 export default router;
