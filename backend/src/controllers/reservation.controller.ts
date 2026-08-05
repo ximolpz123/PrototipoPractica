@@ -272,7 +272,40 @@ export const cancelReservation = async (req: AuthRequest, res: Response): Promis
   }
 };
 
-// Cambio de conductor en tramo
+// Solicitar cambio de conductor (solo envía notificación)
+export const requestCambioConductorTramo = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const reservation = await Reservation.findById(req.params.id);
+    if (!reservation) {
+      res.status(404).json({ message: 'Reserva no encontrada' });
+      return;
+    }
+    if (reservation.estado !== 'en_curso') {
+      res.status(400).json({ message: 'La reserva no está en curso' });
+      return;
+    }
+
+    const { nuevoConductorId, kmActual } = req.body;
+    const vehiculo = await Vehicle.findById(reservation.vehiculo);
+
+    await sendPushNotification(
+      nuevoConductorId,
+      'Transferencia de Vehículo',
+      `Te han asignado el regreso del vehículo ${vehiculo?.placa}. ¿Aceptas?`,
+      { 
+        type: 'HANDOVER_REQUEST', 
+        reservaId: reservation._id,
+        kmActual: kmActual || vehiculo?.kilometraje
+      }
+    );
+
+    res.json({ message: 'Solicitud enviada al conductor' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al solicitar cambio', error });
+  }
+};
+
+// Cambio de conductor en tramo (aceptar)
 export const cambioConductorTramo = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const reservation = await Reservation.findById(req.params.id);

@@ -80,6 +80,11 @@ export const reservationService = {
     return response.data;
   },
 
+  requestCambioConductorTramo: async (id: string, nuevoConductorId: string, kmActual?: number): Promise<any> => {
+    const response = await api.post(`/reservations/${id}/tramos/cambio/request`, { nuevoConductorId, kmActual });
+    return response.data;
+  },
+
   handleDelayResponse: async (id: string, acepta: boolean, motivoCancelacion?: string) => {
     const response = await api.post(`/reservations/${id}/handle-delay-response`, { acepta, motivoCancelacion });
     return response.data;

@@ -20,7 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { authService } from './services/auth.service';
 import { userService } from './services/user.service';
 import { reservationService } from './services/reservation.service';
-import './services/location.service'; // Import location service for global TaskManager registration
+import { locationService } from './services/location.service'; // Import location service for global TaskManager registration
 import type { IUser } from './types';
 import { COLORS } from './constants';
 import * as Notifications from 'expo-notifications';
@@ -282,6 +282,27 @@ function MainApp() {
                   showAlert('Éxito', 'Has aceptado la demora de 15 minutos.');
                 } catch (err) {
                   showAlert('Error', 'No se pudo actualizar tu reserva.');
+                }
+              }
+            }
+          ],
+          { cancelable: false }
+        );
+      } else if (data && data.type === 'HANDOVER_REQUEST') {
+        Alert.alert(
+          notification.request.content.title || 'Transferencia de Vehículo',
+          notification.request.content.body || 'Te han asignado el regreso del vehículo. ¿Aceptas?',
+          [
+            { text: 'Rechazar', style: 'cancel' },
+            {
+              text: 'Aceptar',
+              onPress: async () => {
+                try {
+                  await reservationService.cambioConductorTramo(data.reservaId, user.id || (user as any)._id, data.kmActual);
+                  await locationService.startTracking(data.reservaId);
+                  showAlert('Mando Aceptado', 'Has recibido el vehículo y el GPS está activo.');
+                } catch (err: any) {
+                  showAlert('Error', err.response?.data?.message || 'No se pudo aceptar el vehículo.');
                 }
               }
             }

@@ -11,6 +11,7 @@ import {
   notifyDelayToNextReservation,
   handleDelayResponse,
   cambioConductorTramo,
+  requestCambioConductorTramo,
 } from '../controllers/reservation.controller.js';
 import { authMiddleware, adminMiddleware, licenciaMiddleware } from '../middleware/auth.js';
 import { upload } from '../config/cloudinary.js';
@@ -41,6 +42,9 @@ router.post('/:id/notify-delay', authMiddleware, adminMiddleware, notifyDelayToN
 
 // POST /api/reservations/:id/handle-delay-response
 router.post('/:id/handle-delay-response', authMiddleware, handleDelayResponse);
+
+// POST /api/reservations/:id/tramos/cambio/request (Solicitar cambio de conductor)
+router.post('/:id/tramos/cambio/request', authMiddleware, requestCambioConductorTramo);
 
 // POST /api/reservations/:id/tramos/cambio (Registra cambio de conductor en ruta)
 router.post('/:id/tramos/cambio', authMiddleware, cambioConductorTramo);

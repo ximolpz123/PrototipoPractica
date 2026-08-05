@@ -171,11 +171,11 @@ export default function HomeScreen({ route, navigation }: any) {
             try {
               setLoading(true);
               setShowDriverModal(false);
-              await reservationService.cambioConductorTramo(activeReserva._id, (nuevoConductor as any)._id);
-              await locationService.stopTracking(); // Stop MY tracking
+              await reservationService.requestCambioConductorTramo(activeReserva._id, (nuevoConductor as any)._id);
+              await locationService.stopTracking(); // Stop MY tracking while handing over
               setIsTracking(false);
-              showAlert('Mando transferido', 'Se ha notificado al nuevo conductor.');
-              loadReservas(); // Reload to remove en_curso from me
+              showAlert('Solicitud enviada', `Se ha notificado a ${nuevoConductor.nombre}. Cuando acepte, el vehículo será transferido.`);
+              loadReservas(); // Reload to update state
             } catch (err: any) {
               showAlert('Error', err.response?.data?.message || 'Error al cambiar conductor');
               setLoading(false);
