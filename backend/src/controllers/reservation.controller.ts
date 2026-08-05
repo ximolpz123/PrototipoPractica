@@ -12,7 +12,12 @@ import { sendPushNotification, notifyAdmins } from '../services/notification.ser
 // Obtener todas las reservas (admin ve todas, usuario solo las suyas)
 export const getReservations = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const filter = req.userRol === 'admin' ? {} : { usuario: req.userId };
+    const filter = req.userRol === 'admin' ? {} : { 
+      $or: [
+        { usuario: req.userId },
+        { 'tramos.conductor': req.userId }
+      ]
+    };
     const reservations = await Reservation.find(filter)
       .populate('usuario', 'nombre apellido email departamento')
       .populate('vehiculo', 'placa marca modelo color tipo tipoIndicador')

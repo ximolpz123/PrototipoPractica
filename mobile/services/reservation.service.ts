@@ -75,6 +75,11 @@ export const reservationService = {
     await api.patch(`/reservations/${id}/cancel`, { motivoRechazo });
   },
 
+  cambioConductorTramo: async (id: string, nuevoConductorId: string, kmActual?: number): Promise<any> => {
+    const response = await api.post(`/reservations/${id}/tramos/cambio`, { nuevoConductorId, kmActual });
+    return response.data;
+  },
+
   handleDelayResponse: async (id: string, acepta: boolean, motivoCancelacion?: string) => {
     const response = await api.post(`/reservations/${id}/handle-delay-response`, { acepta, motivoCancelacion });
     return response.data;

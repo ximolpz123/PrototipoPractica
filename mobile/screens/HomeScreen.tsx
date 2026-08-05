@@ -5,6 +5,8 @@ import { COLORS } from '../constants';
 import { useAlert } from '../context/AlertContext';
 import { locationService } from '../services/location.service';
 import { reservationService, IReservation } from '../services/reservation.service';
+import { userService } from '../services/user.service';
+import { IUser } from '../types';
 import api from '../services/api';
 
 export default function HomeScreen({ route, navigation }: any) {
@@ -22,6 +24,10 @@ export default function HomeScreen({ route, navigation }: any) {
   const [manualMinutes, setManualMinutes] = useState('');
   const [serverOffset, setServerOffset] = useState(0);
   const [simulatedTime, setSimulatedTime] = useState(new Date());
+
+  const [showDriverModal, setShowDriverModal] = useState(false);
+  const [drivers, setDrivers] = useState<IUser[]>([]);
+  const [loadingDrivers, setLoadingDrivers] = useState(false);
 
   const fetchTimeOffset = async () => {
     try {
@@ -138,6 +144,48 @@ export default function HomeScreen({ route, navigation }: any) {
     }
   };
 
+  const handleOpenPasarMando = async () => {
+    try {
+      setLoadingDrivers(true);
+      setShowDriverModal(true);
+      const allUsers = await userService.getAll();
+      setDrivers(allUsers.filter(u => u.id !== user.id && u.rol !== 'admin'));
+    } catch (err) {
+      showAlert('Error', 'No se pudieron cargar los conductores');
+      setShowDriverModal(false);
+    } finally {
+      setLoadingDrivers(false);
+    }
+  };
+
+  const handleConfirmPasarMando = (nuevoConductor: IUser) => {
+    if (!activeReserva) return;
+    showAlert(
+      '¿Pasar el Mando?',
+      `El vehículo y el rastreo GPS pasarán a ${nuevoConductor.nombre} ${nuevoConductor.apellido}. Se cerrará tu viaje actual.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Confirmar', 
+          onPress: async () => {
+            try {
+              setLoading(true);
+              setShowDriverModal(false);
+              await reservationService.cambioConductorTramo(activeReserva._id, (nuevoConductor as any)._id);
+              await locationService.stopTracking(); // Stop MY tracking
+              setIsTracking(false);
+              showAlert('Mando transferido', 'Se ha notificado al nuevo conductor.');
+              loadReservas(); // Reload to remove en_curso from me
+            } catch (err: any) {
+              showAlert('Error', err.response?.data?.message || 'Error al cambiar conductor');
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleNavigate = async () => {
     if (!activeReserva?.destino) return;
 
@@ -241,6 +289,13 @@ export default function HomeScreen({ route, navigation }: any) {
               <Text style={styles.btnText}>Finalizar</Text>
             </TouchableOpacity>
           </View>
+
+          <TouchableOpacity 
+            style={[styles.btnPrimary, { marginTop: 10, backgroundColor: COLORS.warning }]} 
+            onPress={handleOpenPasarMando}
+          >
+            <Text style={styles.btnText}>Pasar el Mando 🔑</Text>
+          </TouchableOpacity>
         </View>
       ) : upcomingReserva ? (
         <View style={styles.card}>
@@ -319,6 +374,40 @@ export default function HomeScreen({ route, navigation }: any) {
 
             <TouchableOpacity style={[styles.btnPrimary, { marginTop: 15, backgroundColor: COLORS.textMuted }]} onPress={() => setDevModalVisible(false)}>
               <Text style={styles.btnText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── Modal Pasar el Mando ─── */}
+      <Modal visible={showDriverModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Seleccionar Conductor</Text>
+            {loadingDrivers ? (
+              <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 20 }} />
+            ) : (
+              <ScrollView style={{ maxHeight: 300, width: '100%' }}>
+                {drivers.length === 0 && (
+                  <Text style={{ textAlign: 'center', marginTop: 20, color: COLORS.textMuted }}>No hay conductores disponibles</Text>
+                )}
+                {drivers.map(d => (
+                  <TouchableOpacity
+                    key={d.id}
+                    style={{ padding: 15, borderBottomWidth: 1, borderBottomColor: '#eee', width: '100%' }}
+                    onPress={() => handleConfirmPasarMando(d)}
+                  >
+                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: COLORS.text }}>{d.nombre} {d.apellido}</Text>
+                    <Text style={{ fontSize: 13, color: COLORS.textMuted }}>{d.departamento || 'Sin departamento'}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+            <TouchableOpacity 
+              style={[styles.btnPrimary, { marginTop: 15, backgroundColor: COLORS.textMuted, width: '100%' }]} 
+              onPress={() => setShowDriverModal(false)}
+            >
+              <Text style={styles.btnText}>Cancelar</Text>
             </TouchableOpacity>
           </View>
         </View>
