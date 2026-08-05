@@ -196,7 +196,7 @@ export default function PerfilScreen({ route }: any) {
           <Text style={styles.infoValue}>{user.departamento || 'No asignado'}</Text>
         </View>
 
-        <View style={styles.infoRow}>
+        <View style={[styles.infoRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
           <Text style={styles.infoLabel}>Teléfono:</Text>
           <Text style={styles.infoValue}>{user.telefono || 'No asignado'}</Text>
         </View>
@@ -259,8 +259,8 @@ export default function PerfilScreen({ route }: any) {
       </TouchableOpacity>
 
       <View style={styles.sectionHeader}>
-        <Ionicons name="flag" size={24} color={COLORS.primary} />
-        <Text style={styles.sectionTitle}>Historial de Banderas</Text>
+        <Ionicons name="flag" size={24} color={COLORS.primary} style={{ marginRight: 10 }} />
+        <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Historial de Banderas</Text>
       </View>
       <View style={styles.dataCard}>
         {flags.length === 0 ? (
@@ -437,9 +437,10 @@ const styles = StyleSheet.create({
   dataCard: {
     width: '100%',
     backgroundColor: COLORS.white,
-    marginHorizontal: 15,
     marginTop: 15,
+    marginBottom: 20,
     borderRadius: 15,
+    padding: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -450,13 +451,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: COLORS.text,
-    marginLeft: 10,
+    marginBottom: 10,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 15,
-    marginTop: 20,
+    width: '100%',
+    marginTop: 10,
+    marginBottom: -5,
   },
   flagItem: {
     flexDirection: 'row',
