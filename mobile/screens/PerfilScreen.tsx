@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator, TextInput, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator, TextInput, Modal, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../constants';
@@ -25,6 +25,18 @@ const FLAG_ICONS: Record<string, string> = {
 export default function PerfilScreen({ route }: any) {
   const { showAlert } = useAlert();
   const handleLogout = route.params?.handleLogout || (() => {});
+  
+  const confirmLogout = () => {
+    Alert.alert(
+      "Cerrar Sesión",
+      "¿Estás seguro de que deseas cerrar sesión?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Cerrar Sesión", style: "destructive", onPress: handleLogout }
+      ]
+    );
+  };
+
   const user = route.params?.user || {
     nombre: 'Joaquín',
     apellido: 'López',
@@ -284,7 +296,7 @@ export default function PerfilScreen({ route }: any) {
         )}
       </View>
 
-      <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+      <TouchableOpacity style={styles.logoutBtn} onPress={confirmLogout}>
         <Ionicons name="log-out-outline" size={20} color="#fff" />
         <Text style={styles.logoutBtnText}>Cerrar Sesión</Text>
       </TouchableOpacity>
