@@ -36,3 +36,28 @@ export const GRADIENTS = {
   cardBackground: isDarkMode ? (['#1E1E1E', '#252525'] as const) : (['#FFFFFF', '#F8FAFC'] as const),
   mainBackground: isDarkMode ? (['#121212', '#1A1A1A'] as const) : (['#F1F5F9', '#E2E8F0'] as const),
 };
+
+export const SHADOWS = {
+  subtleMauve: {
+    shadowColor: '#C4A4D4', // Rosa-malva sutil y elegante
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  elegant: {
+    shadowColor: '#3D9FD3', // Sombra tenue corporativa
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  }
+};
+
+export const BORDER_RADIUS = {
+  sm: 12,
+  md: 18,
+  lg: 24,
+  xl: 32,
+  round: 999,
+};

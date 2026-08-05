@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput, Modal, ScrollView, RefreshControl, Linking, Animated } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, GRADIENTS } from '../constants';
+import { COLORS, GRADIENTS, SHADOWS, BORDER_RADIUS } from '../constants';
 import { useAlert } from '../context/AlertContext';
 import { locationService } from '../services/location.service';
 import { reservationService, IReservation } from '../services/reservation.service';
@@ -627,17 +627,13 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: COLORS.white,
-    borderRadius: 14,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    elevation: 4,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: 24,
+    marginBottom: 20,
+    ...SHADOWS.subtleMauve,
   },
   cardActive: {
-    borderLeftWidth: 4,
+    borderLeftWidth: 5,
     borderLeftColor: COLORS.success,
   },
   cardHeader: {
@@ -715,36 +711,40 @@ const styles = StyleSheet.create({
   },
   btnPrimary: {
     backgroundColor: COLORS.primary,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
     marginTop: 15,
+    ...SHADOWS.elegant,
   },
   activeActionsRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 12,
     marginTop: 15,
   },
   btnNav: {
     flex: 1,
     backgroundColor: COLORS.primaryDark,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
+    ...SHADOWS.elegant,
   },
   btnDangerHalf: {
     flex: 1,
     backgroundColor: COLORS.danger,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
+    ...SHADOWS.elegant,
   },
   btnDanger: {
     backgroundColor: COLORS.danger,
-    borderRadius: 9,
-    padding: 13,
+    borderRadius: BORDER_RADIUS.md,
+    padding: 14,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 10,
+    ...SHADOWS.elegant,
   },
   btnText: {
     color: COLORS.white,
@@ -770,10 +770,11 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     backgroundColor: COLORS.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
-    paddingBottom: 36,
+    borderTopLeftRadius: BORDER_RADIUS.xl,
+    borderTopRightRadius: BORDER_RADIUS.xl,
+    padding: 28,
+    paddingBottom: 40,
+    ...SHADOWS.subtleMauve,
   },
   emptyIcon: {
     fontSize: 40,

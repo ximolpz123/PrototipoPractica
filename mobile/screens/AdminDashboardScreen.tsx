@@ -6,7 +6,7 @@ import {
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, GRADIENTS } from '../constants';
+import { COLORS, GRADIENTS, SHADOWS, BORDER_RADIUS } from '../constants';
 import { useAlert } from '../context/AlertContext';
 import { reservationService, IReservation } from '../services/reservation.service';
 import { userService } from '../services/user.service';
@@ -518,10 +518,10 @@ const styles = StyleSheet.create({
   },
 
   kpiScroll: { flexGrow: 0 },
-  kpiContainer: { paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
+  kpiContainer: { paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
   kpiCard: {
     backgroundColor: COLORS.white,
-    borderRadius: 12,
+    borderRadius: BORDER_RADIUS.lg,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderLeftWidth: 4,
@@ -552,22 +552,18 @@ const styles = StyleSheet.create({
   list: { paddingHorizontal: 16, paddingBottom: 30 },
   card: {
     backgroundColor: COLORS.white,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 3,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: 18,
+    marginBottom: 16,
+    ...SHADOWS.subtleMauve,
   },
-  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
-  cardConductor: { fontSize: 15, fontWeight: 'bold', color: COLORS.text },
-  cardVehiculo: { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
-  estadoBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginLeft: 8 },
-  estadoText: { fontSize: 10, fontWeight: 'bold' },
-  cardBody: { backgroundColor: '#F8FAFC', borderRadius: 8, padding: 10, gap: 4 },
-  infoLine: { fontSize: 13, color: COLORS.textMuted },
+  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
+  cardConductor: { fontSize: 16, fontWeight: '800', color: COLORS.text, letterSpacing: -0.3 },
+  cardVehiculo: { fontSize: 14, color: COLORS.textMuted, marginTop: 4, fontWeight: '500' },
+  estadoBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: BORDER_RADIUS.round, marginLeft: 8 },
+  estadoText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  cardBody: { backgroundColor: '#F8FAFC', borderRadius: BORDER_RADIUS.md, padding: 12, gap: 6 },
+  infoLine: { fontSize: 13, color: COLORS.textMuted, fontWeight: '500' },
 
   rejectReasonBox: {
     flexDirection: 'row',
@@ -597,8 +593,9 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     backgroundColor: COLORS.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: BORDER_RADIUS.xl,
+    borderTopRightRadius: BORDER_RADIUS.xl,
+    ...SHADOWS.subtleMauve,
     padding: 24,
     paddingBottom: 40,
   },
