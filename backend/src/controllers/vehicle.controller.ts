@@ -79,8 +79,8 @@ export const createVehicle = async (req: Request, res: Response): Promise<void> 
   try {
     const vehicle = await Vehicle.create(req.body);
     res.status(201).json(vehicle);
-  } catch (error) {
-    res.status(500).json({ message: 'Error al subir imagen', error });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error al crear vehículo', detail: error.message });
   }
 };
 
@@ -135,9 +135,9 @@ Extrae la siguiente información y devuélvela ÚNICAMENTE como un objeto JSON v
       console.error("Gemini returned invalid JSON:", text);
       res.status(500).json({ message: 'La IA no devolvió un formato válido', raw: text });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error en iaCreateVehicle:', error);
-    res.status(500).json({ message: 'Error procesando las imágenes con IA' });
+    res.status(500).json({ message: 'Error procesando las imágenes con IA', detail: error.message, stack: error.stack });
   }
 };
 

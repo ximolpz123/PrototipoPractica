@@ -30,7 +30,7 @@ export default function AddVehicleAIScreen({ navigation }: any) {
   const [modelo, setModelo] = useState('');
   const [anio, setAnio] = useState('');
   const [color, setColor] = useState('');
-  const [tipo, setTipo] = useState('Camioneta'); // o auto, suv, etc.
+  const [tipo, setTipo] = useState<'sedan'|'suv'|'pickup'|'van'>('pickup'); // Valores del enum
   const [kilometraje, setKilometraje] = useState('');
   // Guardamos nivel de bencina para el dashboard/referencia
   const [nivelBencina, setNivelBencina] = useState('');
@@ -78,7 +78,9 @@ export default function AddVehicleAIScreen({ navigation }: any) {
       showAlert('Éxito', 'La IA ha extraído los datos exitosamente. Revisa y completa el formulario.');
     } catch (error: any) {
       console.error(error);
-      showAlert('Error de IA', error.response?.data?.message || 'Hubo un error al procesar las fotos con la IA.');
+      const msg = error.response?.data?.message || 'Hubo un error al procesar las fotos con la IA.';
+      const detail = error.response?.data?.detail ? `\nDetalle: ${error.response.data.detail}` : '';
+      showAlert('Error de IA', msg + detail);
     } finally {
       setLoadingAI(false);
     }
@@ -96,10 +98,12 @@ export default function AddVehicleAIScreen({ navigation }: any) {
         marca,
         modelo,
         anio: parseInt(anio, 10),
-        color,
+        color: color || 'Blanco',
         tipo,
         estado: 'disponible',
         kilometraje: parseInt(kilometraje, 10),
+        nivelBencina: nivelBencina ? parseInt(nivelBencina, 10) : 100,
+        tipoIndicador: 'analogico'
       });
 
       showAlert('Vehículo Creado', `El vehículo patente ${patente} se agregó a la flota exitosamente.`);
