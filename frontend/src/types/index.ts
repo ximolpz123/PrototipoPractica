@@ -10,8 +10,17 @@ export interface IUser {
   rol: 'usuario' | 'admin';
   activo: boolean;
   licenciaAlDia?: boolean;
+  banderaActual?: 'verde' | 'amarilla' | 'naranja' | 'roja';
+  historialBanderas?: IFlag[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface IFlag {
+  tipo: 'verde' | 'amarilla' | 'naranja' | 'roja';
+  motivo: string;
+  fecha: string;
+  asignadoPor?: string;
 }
 
 export interface IVehicle {
@@ -24,6 +33,8 @@ export interface IVehicle {
   tipo: 'sedan' | 'suv' | 'pickup' | 'van';
   estado: 'disponible' | 'reservado' | 'mantenimiento' | 'fuera_de_servicio';
   kilometraje: number;
+  nivelBencina?: number;
+  tipoIndicador?: 'digital' | 'analogico';
   ultimoMantenimiento?: string;
   imagenUrl?: string;
   createdAt: string;
@@ -47,6 +58,22 @@ export interface IReservation {
   motivoRechazo?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface IRandomInspection {
+  _id: string;
+  conductorId: string;
+  conductorNombre: string;
+  vehiculoId: string;
+  vehiculoPlaca: string;
+  tarea: string;
+  estado: 'pendiente' | 'respondida' | 'vencida';
+  fechaActivacion: string;
+  respuesta?: {
+    texto?: string;
+    fotoUrl?: string;
+    fechaRespuesta: string;
+  };
 }
 
 export interface LoginCredentials {

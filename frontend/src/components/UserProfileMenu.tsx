@@ -80,7 +80,7 @@ function UserProfileMenu() {
           
           <div className="profile-panel-info">
             <p className="profile-panel-name">
-              <strong>{user.rol === 'admin' ? 'Administrador' : 'Conductor'}:</strong> {user.nombre} {user.apellido}
+              <strong>{user.rol === 'admin' ? 'Administrador' : (user.departamento || 'Sin Departamento')}:</strong> {user.nombre} {user.apellido}
             </p>
             {user.departamento && (
               <p className="profile-panel-name" style={{ marginTop: '-4px' }}>

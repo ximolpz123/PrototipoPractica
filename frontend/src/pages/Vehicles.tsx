@@ -5,6 +5,7 @@ import type { IUser, IReservation, IVehicle } from '../types';
 import camionetaBlancaImg from '../assets/camioneta-blanca.png'; // Fallback
 import autoCafeImg from '../assets/auto-cafe.png';
 import camionetaAzulImg from '../assets/camioneta-azul.png';
+import logo from '../assets/bit-mejorado.png';
 import camionetaRojaImg from '../assets/camioneta-roja.png';
 import nissanVersaNegroImg from '../assets/nissan versa negro.png';
 import toyotaHiluxBlancoImg from '../assets/toyota hilux srv blanco.png';
@@ -162,7 +163,22 @@ function Vehicles() {
       {/* ══════════ SIDEBAR AZUL ══════════ */}
       <aside className="dashboard-sidebar">
 
-        {/* Perfil */}
+        {/* Logo */}
+        <div style={{ textAlign: 'center', margin: '1rem 0' }}>
+          <img src={logo} alt="Bitnets" style={{ width: '120px', height: 'auto' }} />
+        </div>
+
+        {/* Bandera del usuario actual (esquina superior derecha del menú) */}
+        {user && (
+          <div style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 1001 }} title={`Tu bandera actual: ${user.rol === 'admin' ? 'verde' : 'amarilla'}`}>
+            <span style={{
+              display: 'inline-block', width: '16px', height: '16px', borderRadius: '50%',
+              backgroundColor: user.rol === 'admin' ? '#22c55e' : '#eab308',
+              border: '2px solid #fff', boxShadow: '0 0 0 1px rgba(0,0,0,0.2)'
+            }} />
+          </div>
+        )}
+
         <div className="sidebar-profile">
           <div className="sidebar-photo-upload" onClick={() => fileInputRef.current?.click()} title="Cambiar foto">
             <img src={profileImg} alt="Perfil" className="sidebar-profile-img" />
@@ -179,7 +195,7 @@ function Vehicles() {
             {user?.nombre ?? ''} {user?.apellido ?? ''}
           </span>
           <span className="sidebar-profile-role">
-            {user?.rol === 'admin' ? 'Administrador' : 'Conductor'}
+            {user?.rol === 'admin' ? 'Administrador' : (user?.departamento || 'Sin Departamento')}
           </span>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', marginTop: '4px', fontSize: '13px', color: 'rgba(255,255,255,0.9)' }}>
             {user?.rol !== 'admin' && (
@@ -191,7 +207,7 @@ function Vehicles() {
         {/* Navegación en orden */}
         <div className="sidebar-nav">
           <button className={`sidebar-btn${activeTab === 'catalogo' ? ' active' : ''}`} onClick={() => setActiveTab('catalogo')}>
-            <span className="btn-icon"></span> Ver Vehículos
+            <span className="btn-icon"></span> Vehículos
           </button>
           <button className={`sidebar-btn${activeTab === 'reservaciones' ? ' active' : ''}`} onClick={() => setActiveTab('reservaciones')}>
             <span className="btn-icon"></span> Mis Reservaciones
@@ -236,6 +252,16 @@ function Vehicles() {
                       <span><strong>Año:</strong> {v.anio}</span>
                       <span><strong>Color:</strong> {v.color}</span>
                       <span><strong>Kilometraje:</strong> {v.kilometraje} km</span>
+                      {v.nivelBencina !== undefined && (
+                        <div style={{ marginTop: '0.5rem', marginBottom: '0.2rem', display: 'flex', flexDirection: 'column' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '4px' }}>
+                            <strong>Bencina:</strong> <span>{v.nivelBencina}%</span>
+                          </div>
+                          <div style={{ width: '100%', backgroundColor: '#e5e7eb', borderRadius: '4px', height: '6px' }}>
+                            <div style={{ width: `${v.nivelBencina}%`, backgroundColor: v.nivelBencina > 50 ? '#10b981' : v.nivelBencina > 20 ? '#f59e0b' : '#ef4444', height: '100%', borderRadius: '4px' }} />
+                          </div>
+                        </div>
+                      )}
                       {v.ultimoMantenimiento && (
                         <span style={{ fontSize: '0.9rem', color: '#555', marginTop: '4px', display: 'block' }}>
                           <strong>Último Mantenimiento:</strong><br />
@@ -410,14 +436,27 @@ function Vehicles() {
                   </p>
                 )}
 
+                {selectedReservation.kmRetorno !== undefined && selectedReservation.kmRetorno !== null && (
+                  <div style={{ margin: '1rem 0', backgroundColor: '#e0f2fe', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #0ea5e9' }}>
+                    <p style={{ margin: 0, color: '#0369a1', fontSize: '1rem' }}>
+                      <strong>🚗 Kilometraje de Retorno (IA):</strong> {selectedReservation.kmRetorno.toLocaleString('es-CL')} km
+                    </p>
+                  </div>
+                )}
+
                 {['aprobada', 'en_curso', 'completada'].includes(selectedReservation.estado) && selectedReservation.fotosSalida && selectedReservation.fotosSalida.length > 0 && (
                   <div style={{ marginTop: '1rem' }}>
                     <strong>Fotos de Inicio del Viaje:</strong>
-                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
+                    <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', marginTop: '10px' }}>
                       {selectedReservation.fotosSalida.map((foto, idx) => {
+                        const PHOTO_LABELS = ['Frontal', 'Lateral Derecho', 'Lateral Izquierdo', 'Trasero', 'Tablero', 'Interior'];
+                        const label = PHOTO_LABELS[idx] || `Extra ${idx + 1}`;
                         const imgSrc = foto.startsWith('http') ? foto : `http://localhost:5000${foto}`;
                         return (
-                          <img key={idx} src={imgSrc} alt={`Inicio ${idx}`} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer' }} onClick={() => setModalImg(imgSrc)} />
+                          <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100px' }}>
+                            <img src={imgSrc} alt={label} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer' }} onClick={() => setModalImg(imgSrc)} />
+                            <span style={{ fontSize: '0.75rem', marginTop: '6px', color: '#555', textAlign: 'center', fontWeight: 'bold' }}>{label}</span>
+                          </div>
                         );
                       })}
                     </div>
@@ -427,11 +466,16 @@ function Vehicles() {
                 {['aprobada', 'en_curso', 'completada'].includes(selectedReservation.estado) && selectedReservation.fotosRetorno && selectedReservation.fotosRetorno.length > 0 && (
                   <div style={{ marginTop: '1rem' }}>
                     <strong>Fotos de Fin del Viaje:</strong>
-                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
+                    <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', marginTop: '10px' }}>
                       {selectedReservation.fotosRetorno.map((foto, idx) => {
+                        const PHOTO_LABELS = ['Frontal', 'Lateral Derecho', 'Lateral Izquierdo', 'Trasero', 'Tablero', 'Interior'];
+                        const label = PHOTO_LABELS[idx] || `Extra ${idx + 1}`;
                         const imgSrc = foto.startsWith('http') ? foto : `http://localhost:5000${foto}`;
                         return (
-                          <img key={idx} src={imgSrc} alt={`Fin ${idx}`} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer' }} onClick={() => setModalImg(imgSrc)} />
+                          <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100px' }}>
+                            <img src={imgSrc} alt={label} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer' }} onClick={() => setModalImg(imgSrc)} />
+                            <span style={{ fontSize: '0.75rem', marginTop: '6px', color: '#555', textAlign: 'center', fontWeight: 'bold' }}>{label}</span>
+                          </div>
                         );
                       })}
                     </div>

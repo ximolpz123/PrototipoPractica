@@ -5,6 +5,7 @@ import type { IUser, IVehicle } from '../types';
 import camionetaBlancaImg from '../assets/camioneta-blanca.png';
 import autoCafeImg from '../assets/auto-cafe.png';
 import camionetaAzulImg from '../assets/camioneta-azul.png';
+import logo from '../assets/bit-mejorado.png';
 import camionetaRojaImg from '../assets/camioneta-roja.png';
 import nissanVersaNegroImg from '../assets/nissan versa negro.png';
 import toyotaHiluxBlancoImg from '../assets/toyota hilux srv blanco.png';
@@ -151,7 +152,22 @@ function Reservations() {
     <div className="dashboard-layout">
       {/* ══════════ SIDEBAR AZUL ══════════ */}
       <aside className="dashboard-sidebar">
-        {/* Perfil */}
+
+        {/* Logo */}
+        <div style={{ textAlign: 'center', margin: '1rem 0' }}>
+          <img src={logo} alt="Bitnets" style={{ width: '120px', height: 'auto' }} />
+        </div>
+        {/* Bandera del usuario actual (esquina superior derecha del menú) */}
+        {user && (
+          <div style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 1001 }} title={`Tu bandera actual: ${user.rol === 'admin' ? 'verde' : 'amarilla'}`}>
+            <span style={{ 
+              display: 'inline-block', width: '16px', height: '16px', borderRadius: '50%',
+              backgroundColor: user.rol === 'admin' ? '#22c55e' : '#eab308',
+              border: '2px solid #fff', boxShadow: '0 0 0 1px rgba(0,0,0,0.2)'
+            }} />
+          </div>
+        )}
+
         <div className="sidebar-profile">
           <div className="sidebar-photo-upload" onClick={() => fileInputRef.current?.click()} title="Cambiar foto">
             <img src={profileImg} alt="Perfil" className="sidebar-profile-img" />
@@ -168,7 +184,7 @@ function Reservations() {
             {user?.nombre ?? ''} {user?.apellido ?? ''}
           </span>
           <span className="sidebar-profile-role">
-            {user?.rol === 'admin' ? 'Administrador' : 'Conductor'}
+            {user?.rol === 'admin' ? 'Administrador' : (user?.departamento || 'Sin Departamento')}
           </span>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', marginTop: '4px', fontSize: '13px', color: 'rgba(255,255,255,0.9)' }}>
             {user?.rol !== 'admin' && (

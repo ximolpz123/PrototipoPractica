@@ -20,6 +20,8 @@ interface ActiveVehicle {
     longitud: number;
     timestamp: string;
   };
+  conductor?: string;
+  departamento?: string;
 }
 
 interface ActiveVehiclesMapProps {
@@ -161,7 +163,9 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
         existing.setLatLng(latlng);
         existing.setPopupContent(`
           <div style="font-family:system-ui;min-width:160px">
-            <div style="font-weight:700;font-size:1rem;margin-bottom:4px">🚗 ${v.marca} ${v.modelo}</div>
+            <div style="font-weight:700;font-size:1rem;margin-bottom:4px;color:#000;">🚗 ${v.marca} ${v.modelo}</div>
+            <div style="color:#444;font-size:.85rem;margin-bottom:2px"><b>Conductor:</b> ${v.conductor || 'No asignado'}</div>
+            <div style="color:#444;font-size:.85rem;margin-bottom:4px"><b>Depto:</b> ${v.departamento || 'No asignado'}</div>
             <div style="color:#666;font-size:.85rem"><b>Patente:</b> ${v.placa}</div>
             <div style="color:#666;font-size:.85rem"><b>Última señal:</b><br>${lastSeen}</div>
           </div>`);
@@ -170,10 +174,12 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
           .addTo(map)
           .bindPopup(`
             <div style="font-family:system-ui;min-width:160px">
-              <div style="font-weight:700;font-size:1rem;margin-bottom:4px">🚗 ${v.marca} ${v.modelo}</div>
+              <div style="font-weight:700;font-size:1rem;margin-bottom:4px;color:#000;">🚗 ${v.marca} ${v.modelo}</div>
+              <div style="color:#444;font-size:.85rem;margin-bottom:2px"><b>Conductor:</b> ${v.conductor || 'No asignado'}</div>
+              <div style="color:#444;font-size:.85rem;margin-bottom:4px"><b>Depto:</b> ${v.departamento || 'No asignado'}</div>
               <div style="color:#666;font-size:.85rem"><b>Patente:</b> ${v.placa}</div>
               <div style="color:#666;font-size:.85rem"><b>Última señal:</b><br>${lastSeen}</div>
-            </div>`, { maxWidth: 220 });
+            </div>`, { maxWidth: 250 });
         vehicleMarkersRef.current.set(v._id, marker);
       }
     });

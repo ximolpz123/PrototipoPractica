@@ -664,7 +664,7 @@ input:checked+.theme-slider:before {
   grid-template-columns: repeat(2, 1fr);
   gap: 24px;
   width: 100%;
-  max-width: 860px;
+  max-width: 1060px;
 }
 
 @media (max-width: 640px) {
@@ -1192,6 +1192,7 @@ input:checked+.theme-slider:before {
 :root.dark-mode h2,
 :root.dark-mode p,
 :root.dark-mode span:not(.theme-icon-sun):not(.theme-icon-moon),
+:root.dark-mode strong,
 :root.dark-mode label,
 :root.dark-mode th,
 :root.dark-mode td,
