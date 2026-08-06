@@ -17,7 +17,7 @@ router.patch('/:id/push-token', updatePushToken);
 router.use(adminMiddleware);
 
 router.get('/', getUsers);
-router.post('/', createUser);
+router.post('/', upload.single('licenciaFoto'), createUser);
 router.put('/:id', updateUser);
 router.delete('/:id', deleteUser);
 

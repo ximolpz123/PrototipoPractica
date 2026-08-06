@@ -8,6 +8,13 @@ import { AuthRequest } from '../middleware/auth.js';
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
     const { nombre, apellido, email, password, departamento, telefono, fechaVencimientoLicencia, licenciaAlDia } = req.body;
+    
+    const file = req.file;
+    if (!file) {
+      res.status(400).json({ message: 'La foto de la licencia es obligatoria' });
+      return;
+    }
+    const licenciaFotoUrl = file.path;
 
     // Verificar si el usuario ya existe
     const existingUser = await User.findOne({ email });
@@ -30,6 +37,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       telefono,
       fechaVencimientoLicencia,
       licenciaAlDia,
+      licenciaFotoUrl,
+      licenciaEstado: licenciaFotoUrl ? 'vigente' : 'pendiente'
     });
 
     // Generar JWT

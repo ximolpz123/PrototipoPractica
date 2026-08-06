@@ -20,6 +20,13 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
   try {
     const { nombre, apellido, email, password, departamento, telefono, rol, activo } = req.body;
     
+    const file = req.file;
+    if (!file) {
+      res.status(400).json({ message: 'La foto de la licencia es obligatoria' });
+      return;
+    }
+    const licenciaFotoUrl = file.path;
+    
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       res.status(400).json({ message: 'El email ya está registrado' });
@@ -37,7 +44,8 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       departamento,
       telefono,
       rol: rol || 'usuario',
-      activo: activo !== undefined ? activo : true
+      activo: activo !== undefined ? activo : true,
+      licenciaFotoUrl
     });
 
     res.status(201).json(user);
