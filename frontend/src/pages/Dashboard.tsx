@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ActiveVehiclesMap } from '../components/ActiveVehiclesMap';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import type { IUser, IReservation, IVehicle } from '../types';
 import camionetaBlancaImg from '../assets/camioneta-blanca.png';
 import autoCafeImg from '../assets/auto-cafe.png';
@@ -34,7 +35,7 @@ const ESTADO_RES_COLORS: Record<string, string> = {
   cancelada: '#ef4444',
 };
 
-type DashTab = 'dashboard' | 'usuarios' | 'reservaciones' | 'vehiculos-activos' | 'vehiculos';
+type DashTab = 'dashboard' | 'usuarios' | 'reservaciones' | 'vehiculos-activos' | 'vehiculos' | 'reportes';
 
 // ─── Formulario vacío de vehículo ────────────────────────────────────────────
 const EMPTY_VEHICLE_FORM = {
@@ -113,10 +114,12 @@ function Dashboard() {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [errorUsers, setErrorUsers] = useState('');
   const [editUser, setEditUser] = useState<IUser | null>(null);
+  const [viewUser, setViewUser] = useState<IUser | null>(null);
   const [editForm, setEditForm] = useState({ nombre: '', apellido: '', email: '', departamento: '', telefono: '', rol: 'usuario' as 'usuario' | 'admin', activo: true });
   const [showDeleteUserConfirm, setShowDeleteUserConfirm] = useState<string | null>(null);
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [createForm, setCreateForm] = useState({ nombre: '', apellido: '', email: '', password: '', departamento: '', telefono: '', rol: 'usuario' as 'usuario' | 'admin' });
+  const [createUserLicenciaFile, setCreateUserLicenciaFile] = useState<File | null>(null);
 
   // ── Estado Reservaciones ──
   const [reservations, setReservations] = useState<IReservation[]>([]);
@@ -127,6 +130,10 @@ function Dashboard() {
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [isRejecting, setIsRejecting] = useState(false);
+  const [showCreateRes, setShowCreateRes] = useState(false);
+  const [createResForm, setCreateResForm] = useState({ usuarioId: 'me', vehiculoId: '', fechaInicio: '', fechaFin: '', destino: '', motivo: '' });
+  const [createResError, setCreateResError] = useState('');
+  const [isCreatingRes, setIsCreatingRes] = useState(false);
 
   // ── Filtros de Reservaciones ──
   const [resFilterVehicle, setResFilterVehicle] = useState('todos');
@@ -171,12 +178,43 @@ function Dashboard() {
 
   const fetchReservations = async () => {
     setLoadingRes(true); setErrorRes('');
+    fetch('http://localhost:5000/api/reservations', { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => res.json())
+      .then(data => setReservations(Array.isArray(data) ? data : []))
+      .catch(err => setErrorRes(err.message))
+      .finally(() => setLoadingRes(false));
+  };
+
+  const handleCreateReservationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateResError('');
+    setIsCreatingRes(true);
     try {
-      const res = await fetch('http://localhost:5000/api/reservations', { headers: { Authorization: `Bearer ${token}` } });
+      const payload: any = {
+        vehiculo: createResForm.vehiculoId,
+        fechaInicio: createResForm.fechaInicio,
+        fechaFin: createResForm.fechaFin,
+        destino: createResForm.destino,
+        motivo: createResForm.motivo,
+      };
+      if (createResForm.usuarioId && createResForm.usuarioId !== 'me') {
+        payload.usuarioId = createResForm.usuarioId;
+      }
+      const res = await fetch('http://localhost:5000/api/reservations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
       const data = await res.json();
-      setReservations(Array.isArray(data) ? data : []);
-    } catch { setErrorRes('Error al cargar reservaciones'); }
-    finally { setLoadingRes(false); }
+      if (!res.ok) throw new Error(data.message || 'Error al crear la reservación');
+      setShowCreateRes(false);
+      setCreateResForm({ usuarioId: 'me', vehiculoId: '', fechaInicio: '', fechaFin: '', destino: '', motivo: '' });
+      fetchReservations(); // Recargar reservaciones
+    } catch (err: any) {
+      setCreateResError(err.message);
+    } finally {
+      setIsCreatingRes(false);
+    }
   };
 
   const fetchVehicles = async () => {
@@ -240,13 +278,22 @@ function Dashboard() {
   const createUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const formData = new FormData();
+      Object.entries(createForm).forEach(([key, value]) => formData.append(key, value));
+      if (!createUserLicenciaFile) {
+        alert('La foto de la licencia es obligatoria');
+        return;
+      }
+      formData.append('licenciaFoto', createUserLicenciaFile);
+
       await fetch('http://localhost:5000/api/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(createForm),
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
       });
       setShowCreateUser(false);
       setCreateForm({ nombre: '', apellido: '', email: '', password: '', departamento: '', telefono: '', rol: 'usuario' });
+      setCreateUserLicenciaFile(null);
       fetchUsers();
     } catch { alert('Error al crear usuario'); }
   };
@@ -571,14 +618,14 @@ function Dashboard() {
             className={`sidebar-btn${activeTab === 'usuarios' ? ' active' : ''}`}
             onClick={() => setActiveTab('usuarios')}
           >
-            <span className="btn-icon"></span> Ver Usuarios
+            <span className="btn-icon"></span> Usuarios
           </button>
           <button
             id="sidebar-btn-reservaciones"
             className={`sidebar-btn${activeTab === 'reservaciones' ? ' active' : ''}`}
             onClick={() => setActiveTab('reservaciones')}
           >
-            <span className="btn-icon"></span> Ver Reservaciones
+            <span className="btn-icon"></span> Reservaciones
           </button>
           <button
             id="sidebar-btn-vehiculos-activos"
@@ -592,8 +639,17 @@ function Dashboard() {
             className={`sidebar-btn${activeTab === 'vehiculos' ? ' active' : ''}`}
             onClick={() => setActiveTab('vehiculos')}
           >
-            <span className="btn-icon"></span> Ver Vehículos
+            <span className="btn-icon"></span> Vehículos
           </button>
+          {user?.rol === 'admin' && (
+            <button
+              id="sidebar-btn-reportes"
+              className={`sidebar-btn${activeTab === 'reportes' ? ' active' : ''}`}
+              onClick={() => setActiveTab('reportes')}
+            >
+              <span className="btn-icon"></span> Reportes de Gastos
+            </button>
+          )}
         </nav>
 
         {/* Cerrar sesión */}
@@ -617,35 +673,88 @@ function Dashboard() {
         {/* ══════════ TAB: DASHBOARD ══════════ */}
         {activeTab === 'dashboard' && (
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '24px', alignItems: 'flex-start' }}>
-            <h2 style={{ textAlign: 'left', fontSize: '1.6rem', fontWeight: '700', color: '#000', margin: 0 }}>
+            <h2 style={{ textAlign: 'left', fontSize: '1.6rem', fontWeight: '700', color: 'var(--text-h)', margin: 0 }}>
               Resumen General
             </h2>
-            {/* Tarjetas de estadísticas — los valores se llenarán con datos reales */}
             <div className="dash-stats-grid">
-              <div className="dash-stat-card">
-                <span className="dash-stat-icon"></span>
-                <span className="dash-stat-label">Reservas Activas</span>
-                <span className="dash-stat-value" id="stat-reservas-activas">—</span>
-                <span className="dash-stat-sub">Pendientes + En curso</span>
+
+              {/* 1. Usuarios */}
+              <div className="dash-stat-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                <span className="dash-stat-label" style={{ marginBottom: '1rem' }}>Usuarios Registrados</span>
+                <div style={{ display: 'flex', justifyContent: 'space-around', width: '100%' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <span className="stat-color-blue" style={{ display: 'block', fontSize: '2.5rem', fontWeight: 'bold', lineHeight: 1 }}>{users.filter(u => u.activo).length}</span>
+                    <span className="stat-color-blue" style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Activos</span>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <span className="stat-color-gray" style={{ display: 'block', fontSize: '2.5rem', fontWeight: 'bold', lineHeight: 1 }}>{users.filter(u => !u.activo).length}</span>
+                    <span className="stat-color-gray" style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>No Activos</span>
+                  </div>
+                </div>
               </div>
-              <div className="dash-stat-card">
-                <span className="dash-stat-icon"></span>
-                <span className="dash-stat-label">Vehículos Disponibles</span>
-                <span className="dash-stat-value" id="stat-vehiculos-disponibles">—</span>
-                <span className="dash-stat-sub">De la flota total</span>
+
+              {/* 3. Vehículos Disponibles / En Curso */}
+              <div className="dash-stat-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                <span className="dash-stat-label" style={{ marginBottom: '1rem' }}>Estado de Vehículos</span>
+                <div style={{ display: 'flex', justifyContent: 'space-around', width: '100%' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <span className="stat-color-green" style={{ display: 'block', fontSize: '2.5rem', fontWeight: 'bold', lineHeight: 1 }}>{vehicles.filter(v => v.estado === 'disponible').length}</span>
+                    <span className="stat-color-green" style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Disponibles</span>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <span className="stat-color-orange" style={{ display: 'block', fontSize: '2.5rem', fontWeight: 'bold', lineHeight: 1 }}>{vehicles.filter(v => v.estado === 'reservado').length}</span>
+                    <span className="stat-color-orange" style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>En Curso</span>
+                  </div>
+                </div>
               </div>
-              <div className="dash-stat-card">
-                <span className="dash-stat-icon"></span>
-                <span className="dash-stat-label">Usuarios Registrados</span>
-                <span className="dash-stat-value" id="stat-usuarios-total">—</span>
-                <span className="dash-stat-sub">Conductores y Admins</span>
-              </div>
-              <div className="dash-stat-card">
-                <span className="dash-stat-icon"></span>
+
+              {/* 3. Mantenimiento */}
+              <div className="dash-stat-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
                 <span className="dash-stat-label">En Mantenimiento</span>
-                <span className="dash-stat-value" id="stat-mantenimiento">—</span>
-                <span className="dash-stat-sub">Vehículos no disponibles</span>
+                <span className="stat-color-red dash-stat-value" style={{ fontSize: '3rem', margin: '0.5rem 0' }}>{vehicles.filter(v => v.estado === 'mantenimiento').length}</span>
+                <span className="dash-stat-sub" style={{ fontWeight: 'bold' }}>Vehículos no disponibles</span>
               </div>
+
+              {/* 4. Reservas Pie Chart (Full Width) */}
+              <div className="dash-stat-card dash-stat-full" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'center', padding: '1.5rem' }}>
+                <span className="dash-stat-label" style={{ marginBottom: '1.5rem', fontSize: '1.2rem' }}>Estado de Reservas</span>
+                {(() => {
+                  const resCounts = {
+                    pendiente: reservations.filter(r => r.estado === 'pendiente').length,
+                    aprobada: reservations.filter(r => r.estado === 'aprobada').length,
+                    en_curso: reservations.filter(r => r.estado === 'en_curso').length,
+                    completada: reservations.filter(r => r.estado === 'completada').length,
+                    otras: reservations.filter(r => ['cancelada', 'rechazada'].includes(r.estado)).length,
+                  };
+                  const total = reservations.length || 1;
+                  const colors = { pendiente: '#f59e0b', aprobada: '#22c55e', en_curso: '#3b82f6', completada: '#8b5cf6', otras: '#ef4444' };
+
+                  let currentPercent = 0;
+                  const segments = [];
+                  if (resCounts.pendiente > 0) { const p = (resCounts.pendiente / total) * 100; segments.push(`${colors.pendiente} ${currentPercent}% ${currentPercent + p}%`); currentPercent += p; }
+                  if (resCounts.aprobada > 0) { const p = (resCounts.aprobada / total) * 100; segments.push(`${colors.aprobada} ${currentPercent}% ${currentPercent + p}%`); currentPercent += p; }
+                  if (resCounts.en_curso > 0) { const p = (resCounts.en_curso / total) * 100; segments.push(`${colors.en_curso} ${currentPercent}% ${currentPercent + p}%`); currentPercent += p; }
+                  if (resCounts.completada > 0) { const p = (resCounts.completada / total) * 100; segments.push(`${colors.completada} ${currentPercent}% ${currentPercent + p}%`); currentPercent += p; }
+                  if (resCounts.otras > 0) { const p = (resCounts.otras / total) * 100; segments.push(`${colors.otras} ${currentPercent}% ${currentPercent + p}%`); currentPercent += p; }
+
+                  const conicGradient = segments.length > 0 ? `conic-gradient(${segments.join(', ')})` : '#555';
+
+                  return (
+                    <div style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'center', gap: '3rem', flexWrap: 'wrap' }}>
+                      <div style={{ width: '150px', height: '150px', borderRadius: '50%', background: reservations.length ? conicGradient : '#555', flexShrink: 0, boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}></div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '1rem', fontWeight: 'bold' }}>
+                        {resCounts.pendiente > 0 && <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '16px', height: '16px', borderRadius: '4px', backgroundColor: colors.pendiente }}></div> Pendientes ({resCounts.pendiente})</div>}
+                        {resCounts.aprobada > 0 && <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '16px', height: '16px', borderRadius: '4px', backgroundColor: colors.aprobada }}></div> Aprobadas ({resCounts.aprobada})</div>}
+                        {resCounts.en_curso > 0 && <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '16px', height: '16px', borderRadius: '4px', backgroundColor: colors.en_curso }}></div> En Curso ({resCounts.en_curso})</div>}
+                        {resCounts.completada > 0 && <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '16px', height: '16px', borderRadius: '4px', backgroundColor: colors.completada }}></div> Completadas ({resCounts.completada})</div>}
+                        {resCounts.otras > 0 && <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '16px', height: '16px', borderRadius: '4px', backgroundColor: colors.otras }}></div> Canceladas / Rechazadas ({resCounts.otras})</div>}
+                        {reservations.length === 0 && <span className="stat-color-gray">Sin reservas registradas</span>}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
             </div>
           </div>
         )}
@@ -680,14 +789,7 @@ function Dashboard() {
                       <td><span className="status-badge" style={{ backgroundColor: u.id === user?.id ? '#22c55e' : '#ef4444' }}>{u.id === user?.id ? 'Sí' : 'No'}</span></td>
                       <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
                         <div style={{ display: 'inline-flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center' }}>
-                          {u.rol !== 'admin' ? (
-                            <button className="btn btn-sm" onClick={() => openEdit(u)}> Editar</button>
-                          ) : (
-                            <span style={{ fontSize: '0.8rem', color: '#888', fontStyle: 'italic', padding: '0.25rem 0.5rem' }}>Protegido</span>
-                          )}
-                          {u.rol !== 'admin' && (
-                            <button className="btn btn-sm" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black' }} onClick={() => setShowDeleteUserConfirm(u.id)}> Eliminar</button>
-                          )}
+                          <button className="btn btn-sm" onClick={() => setViewUser(u)}>Ver</button>
                         </div>
                       </td>
                     </tr>
@@ -701,81 +803,141 @@ function Dashboard() {
         {/* ══════════ TAB: RESERVACIONES ══════════ */}
         {activeTab === 'reservaciones' && (
           <div className="reservations-panel" style={{ maxWidth: '100%' }}>
-            <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '700', color: '#000', marginBottom: '1rem' }}> Reservaciones</h2>
-
-            {user?.rol === 'admin' && (
-              <div className="filter-panel" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem', padding: '1rem', borderRadius: '8px', width: '100%', boxSizing: 'border-box', alignItems: 'flex-end' }}>
-                <div style={{ flex: '1' }}>
-                  <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>Filtro de Estado de las Reservas</label>
-                  <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '44px' }} value={resFilterStatus} onChange={e => setResFilterStatus(e.target.value)}>
-                    <option value="todos">Todos los Estados</option>
-                    <option value="en_curso">En Curso</option>
-                    <option value="aprobada">Aprobada</option>
-                    <option value="pendiente">Pendiente</option>
-                    <option value="completada">Completada</option>
-                    <option value="cancelada">Cancelada</option>
-                  </select>
-                </div>
-                <div style={{ flex: '1' }}>
-                  <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>Vehículo</label>
-                  <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '44px' }} value={resFilterVehicle} onChange={e => setResFilterVehicle(e.target.value)}>
-                    <option value="todos">Todos los Vehículos</option>
-                    {vehicles.map(v => (
-                      <option key={v._id} value={v._id}>{v.marca} {v.modelo} - {v.placa}</option>
-                    ))}
-                  </select>
-                </div>
-                <div style={{ flex: '1' }}>
-                  <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>Fecha de Creación</label>
-                  <input type="date" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '44px' }} value={resFilterDate} onChange={e => setResFilterDate(e.target.value)} />
-                </div>
-                <div style={{ flex: '1' }}>
-                  <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>Evidencia</label>
-                  <div style={{ display: 'flex', gap: '0.5rem', height: '44px' }}>
-                    <select className="reserv-input" style={{ flex: '1', boxSizing: 'border-box', height: '100%' }} value={resFilterPhotos} onChange={e => setResFilterPhotos(e.target.value)}>
-                      <option value="todas">Toda la evidencia</option>
-                      <option value="inicio">Solo de inicio</option>
-                      <option value="fin">Solo de fin</option>
-                    </select>
-                    <button
-                      className="btn"
-                      style={{ background: '#3D9FD3', color: 'black', padding: 0, width: '58px', height: '44px', border: '2px solid black', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', borderRadius: '8px', cursor: 'pointer' }}
-                      onClick={fetchReservations}
-                      title="Recargar reservaciones"
-                    >
-                      ⟳
+            {!showCreateRes ? (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', width: '100%' }}>
+                  <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '700', color: 'var(--text-h)' }}> Reservaciones</h2>
+                  {user?.rol === 'admin' && (
+                    <button className="btn" style={{ margin: 0 }} onClick={() => setShowCreateRes(true)}>
+                      Crear Reservación
                     </button>
-                  </div>
+                  )}
                 </div>
+
+                {user?.rol === 'admin' && (
+                  <div className="filter-panel" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem', padding: '1rem', borderRadius: '8px', width: '100%', boxSizing: 'border-box', alignItems: 'flex-end' }}>
+                    <div style={{ flex: '1' }}>
+                      <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>Filtro de Estado de las Reservas</label>
+                      <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '44px' }} value={resFilterStatus} onChange={e => setResFilterStatus(e.target.value)}>
+                        <option value="todos">Todos los Estados</option>
+                        <option value="en_curso">En Curso</option>
+                        <option value="aprobada">Aprobada</option>
+                        <option value="pendiente">Pendiente</option>
+                        <option value="completada">Completada</option>
+                        <option value="cancelada">Cancelada</option>
+                      </select>
+                    </div>
+                    <div style={{ flex: '1' }}>
+                      <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>Vehículo</label>
+                      <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '44px' }} value={resFilterVehicle} onChange={e => setResFilterVehicle(e.target.value)}>
+                        <option value="todos">Todos los Vehículos</option>
+                        {vehicles.map(v => (
+                          <option key={v._id} value={v._id}>{v.marca} {v.modelo} - {v.placa}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ flex: '1' }}>
+                      <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>Fecha de Creación</label>
+                      <input type="date" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '44px' }} value={resFilterDate} onChange={e => setResFilterDate(e.target.value)} />
+                    </div>
+                    <div style={{ flex: '1' }}>
+                      <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>Evidencia</label>
+                      <div style={{ display: 'flex', gap: '0.5rem', height: '44px' }}>
+                        <select className="reserv-input" style={{ flex: '1', boxSizing: 'border-box', height: '100%' }} value={resFilterPhotos} onChange={e => setResFilterPhotos(e.target.value)}>
+                          <option value="todas">Toda la evidencia</option>
+                          <option value="inicio">Solo de inicio</option>
+                          <option value="fin">Solo de fin</option>
+                        </select>
+                        <button
+                          className="btn"
+                          style={{ background: '#3D9FD3', color: 'black', padding: 0, width: '58px', height: '44px', border: '2px solid black', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', borderRadius: '8px', cursor: 'pointer' }}
+                          onClick={fetchReservations}
+                          title="Recargar reservaciones"
+                        >
+                          ⟳
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {loadingRes && <p className="res-status">Cargando reservaciones…</p>}
+                {errorRes && <p className="res-status res-error">{errorRes}</p>}
+                {!loadingRes && !errorRes && filteredReservations.length === 0 && <p className="res-status">No se encontraron reservaciones con estos filtros.</p>}
+                <div className="reservations-list">
+                  {filteredReservations.map(r => (
+                    <div key={r._id} className="reservation-card">
+                      <div className="reservation-card-header">
+                        <span className="res-vehicle-name"> {getVehicleName(r.vehiculo)}</span>
+                        <span className="status-badge" style={{ backgroundColor: ESTADO_RES_COLORS[r.estado] ?? '#6b7280' }}>
+                          {r.estado.charAt(0).toUpperCase() + r.estado.slice(1).replace('_', ' ')}
+                        </span>
+                      </div>
+                      <div className="reservation-card-info">
+                        {user?.rol === 'admin' && (
+                          <span> <strong>Usuario:</strong> {typeof r.usuario === 'object' && r.usuario !== null ? `${(r.usuario as any).nombre} ${(r.usuario as any).apellido}` : 'Desconocido'}</span>
+                        )}
+                        <span> <strong>Inicio:</strong> {new Date(r.fechaInicio).toLocaleDateString('es-CL')}</span>
+                        <span> <strong>Fin:</strong>    {new Date(r.fechaFin).toLocaleDateString('es-CL')}</span>
+                        {r.destino && <span> <strong>Destino:</strong> {r.destino}</span>}
+                      </div>
+                      <button className="btn" style={{ marginTop: '1rem', width: '100%' }} onClick={() => setSelectedReservation(r)}>
+                        Ver Reservación
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="filter-panel" style={{ padding: '1.5rem', borderRadius: '8px', width: '100%', maxWidth: '800px', margin: '0 auto', boxSizing: 'border-box' }}>
+                <h3 style={{ marginTop: 0, color: 'var(--text-h)', marginBottom: '1rem', textAlign: 'center' }}>Crear Nueva Reservación</h3>
+                {createResError && <p className="reserv-field-error" style={{ marginBottom: '1rem', color: '#ef4444', textAlign: 'center' }}>{createResError}</p>}
+                <form onSubmit={handleCreateReservationSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div>
+                    <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Usuario</label>
+                    <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={createResForm.usuarioId} onChange={e => setCreateResForm({ ...createResForm, usuarioId: e.target.value })} required>
+                      <option value="me">Para mí (Administrador)</option>
+                      {users.filter(u => u.activo).map(u => (
+                        <option key={u.id} value={u.id}>{u.nombre} {u.apellido}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Vehículo</label>
+                    <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={createResForm.vehiculoId} onChange={e => setCreateResForm({ ...createResForm, vehiculoId: e.target.value })} required>
+                      <option value="">Seleccione un vehículo</option>
+                      {vehicles.filter(v => v.estado === 'disponible').map(v => (
+                        <option key={v._id} value={v._id}>{v.marca} {v.modelo} - {v.placa}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', gap: '1rem' }}>
+                    <div style={{ flex: 1 }}>
+                      <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Fecha de Inicio</label>
+                      <input type="date" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={createResForm.fechaInicio} onChange={e => setCreateResForm({ ...createResForm, fechaInicio: e.target.value })} required />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Fecha de Fin</label>
+                      <input type="date" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={createResForm.fechaFin} onChange={e => setCreateResForm({ ...createResForm, fechaFin: e.target.value })} required />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Destino</label>
+                    <input type="text" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={createResForm.destino} onChange={e => setCreateResForm({ ...createResForm, destino: e.target.value })} required placeholder="Ej: Santiago Centro" />
+                  </div>
+                  <div>
+                    <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Motivo</label>
+                    <textarea className="reserv-textarea" style={{ width: '100%', boxSizing: 'border-box', minHeight: '60px', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-p)' }} value={createResForm.motivo} onChange={e => setCreateResForm({ ...createResForm, motivo: e.target.value })} required placeholder="Describa el motivo de uso..." />
+                  </div>
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', justifyContent: 'center' }}>
+                    <button type="submit" className="btn" disabled={isCreatingRes} style={{ background: 'linear-gradient(to right, #3D9FD3, #FFFFFF, #B5B8BE)', color: 'black', border: '2px solid black', borderRadius: '8px', padding: '0.5rem 1rem', margin: 0 }}>
+                      {isCreatingRes ? 'Creando...' : '➕ Crear Reservación'}
+                    </button>
+                    <button type="button" className="btn" onClick={() => setShowCreateRes(false)} disabled={isCreatingRes} style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black', borderRadius: '8px', padding: '0.5rem 1rem', margin: 0 }}>Cancelar</button>
+                  </div>
+                </form>
               </div>
             )}
-
-            {loadingRes && <p className="res-status">Cargando reservaciones…</p>}
-            {errorRes && <p className="res-status res-error">{errorRes}</p>}
-            {!loadingRes && !errorRes && filteredReservations.length === 0 && <p className="res-status">No se encontraron reservaciones con estos filtros.</p>}
-            <div className="reservations-list">
-              {filteredReservations.map(r => (
-                <div key={r._id} className="reservation-card">
-                  <div className="reservation-card-header">
-                    <span className="res-vehicle-name"> {getVehicleName(r.vehiculo)}</span>
-                    <span className="status-badge" style={{ backgroundColor: ESTADO_RES_COLORS[r.estado] ?? '#6b7280' }}>
-                      {r.estado.charAt(0).toUpperCase() + r.estado.slice(1).replace('_', ' ')}
-                    </span>
-                  </div>
-                  <div className="reservation-card-info">
-                    {user?.rol === 'admin' && (
-                      <span> <strong>Usuario:</strong> {typeof r.usuario === 'object' && r.usuario !== null ? `${(r.usuario as any).nombre} ${(r.usuario as any).apellido}` : 'Desconocido'}</span>
-                    )}
-                    <span> <strong>Inicio:</strong> {new Date(r.fechaInicio).toLocaleDateString('es-CL')}</span>
-                    <span> <strong>Fin:</strong>    {new Date(r.fechaFin).toLocaleDateString('es-CL')}</span>
-                    {r.destino && <span> <strong>Destino:</strong> {r.destino}</span>}
-                  </div>
-                  <button className="btn" style={{ marginTop: '1rem', width: '100%' }} onClick={() => setSelectedReservation(r)}>
-                    Ver Reservación
-                  </button>
-                </div>
-              ))}
-            </div>
           </div>
         )}
 
@@ -834,6 +996,108 @@ function Dashboard() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* ══════════ TAB: REPORTES DE GASTOS (MOCK) ══════════ */}
+        {activeTab === 'reportes' && (
+          <div className="reportes-panel" style={{ width: '100%' }}>
+            <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '700', color: 'var(--text-h)', marginBottom: '1.5rem' }}>Reportes de Gastos por Departamento</h2>
+
+            {/* KPIs Globales */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+              <div className="filter-panel stat-card" style={{ padding: '1.5rem', borderRadius: '12px' }}>
+                <h3 style={{ marginTop: 0, color: 'var(--text-h)' }}>Gasto Total Estimado</h3>
+                <div className="value" style={{ color: 'var(--text-h)', fontSize: '1.8rem', fontWeight: 'bold' }}>$345.000</div>
+                <div className="label" style={{ color: 'var(--text-p)' }}>Mes actual</div>
+              </div>
+              <div className="filter-panel stat-card" style={{ padding: '1.5rem', borderRadius: '12px' }}>
+                <h3 style={{ marginTop: 0, color: 'var(--text-h)' }}>Departamento Mayor Gasto</h3>
+                <div className="value" style={{ color: '#3b82f6', fontSize: '1.8rem', fontWeight: 'bold' }}>Ventas</div>
+                <div className="label" style={{ color: 'var(--text-p)' }}>12 Reservas completadas</div>
+              </div>
+              <div className="filter-panel stat-card" style={{ padding: '1.5rem', borderRadius: '12px' }}>
+                <h3 style={{ marginTop: 0, color: 'var(--text-h)' }}>Total Km Recorridos</h3>
+                <div className="value" style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--text-h)' }}>2.300 km</div>
+                <div className="label" style={{ color: 'var(--text-p)' }}>Todos los departamentos</div>
+              </div>
+            </div>
+
+            {/* Filtros */}
+            <div className="filter-panel" style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', marginBottom: '2rem', flexWrap: 'nowrap', width: 'fit-content', margin: '0 auto', padding: '0.4rem 1rem', borderRadius: '16px' }}>
+              <div style={{ width: '180px' }}>
+                <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.4rem' }}>Mes</label>
+                <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '45px' }}>
+                  <option>Agosto 2026</option>
+                  <option>Julio 2026</option>
+                  <option>Junio 2026</option>
+                </select>
+              </div>
+              <div style={{ width: '180px' }}>
+                <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.4rem' }}>Desde</label>
+                <input type="date" className="reserv-input" defaultValue="2026-08-01" style={{ width: '100%', boxSizing: 'border-box', height: '45px' }} />
+              </div>
+              <div style={{ width: '180px' }}>
+                <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.4rem' }}>Hasta</label>
+                <input type="date" className="reserv-input" defaultValue="2026-08-31" style={{ width: '100%', boxSizing: 'border-box', height: '45px' }} />
+              </div>
+              <button className="btn" style={{ padding: '0 1.2rem', height: '45px' }}>Generar Reporte</button>
+            </div>
+
+            {/* Gráfico y Tabla */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem' }}>
+              <div className="filter-panel" style={{ padding: '1.5rem', borderRadius: '12px' }}>
+                <h3 style={{ marginTop: 0, color: '#fff', backgroundColor: '#175fbd', padding: '12px 16px', borderRadius: '8px', marginBottom: '1rem' }}>Costo Estimado por Departamento ($)</h3>
+                <div style={{ width: '100%', height: '300px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={[
+                      { name: 'Ventas', costo: 120000, km: 800, horas: 45 },
+                      { name: 'Soporte', costo: 85000, km: 560, horas: 30 },
+                      { name: 'Gerencia', costo: 40000, km: 260, horas: 15 },
+                      { name: 'RRHH', costo: 25000, km: 160, horas: 10 },
+                      { name: 'Logística', costo: 75000, km: 500, horas: 25 },
+                    ]}>
+                      <XAxis dataKey="name" tick={{ fill: 'var(--text-p)' }} stroke="var(--border)" />
+                      <YAxis tick={{ fill: 'var(--text-p)' }} stroke="var(--border)" />
+                      <Tooltip contentStyle={{ backgroundColor: 'var(--bg-input)', borderColor: 'var(--border)' }} itemStyle={{ color: 'var(--text-p)', textAlign: 'center' }} labelStyle={{ color: 'var(--text-h)', textAlign: 'center' }} />
+                      <Bar dataKey="costo" fill="#3D9FD3" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="filter-panel" style={{ padding: '1.5rem', borderRadius: '12px', overflowX: 'auto' }}>
+                <h3 style={{ marginTop: 0, color: '#fff', backgroundColor: '#175fbd', padding: '12px 16px', borderRadius: '8px', marginBottom: '1rem' }}>Detalle por Departamento</h3>
+                <table style={{ width: '100%', borderCollapse: 'collapse', color: 'var(--text-p)' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                      <th style={{ padding: '1rem', textAlign: 'left' }}>Departamento</th>
+                      <th style={{ padding: '1rem', textAlign: 'left' }}>Reservas</th>
+                      <th style={{ padding: '1rem', textAlign: 'left' }}>Km Totales</th>
+                      <th style={{ padding: '1rem', textAlign: 'left' }}>Horas Uso</th>
+                      <th style={{ padding: '1rem', textAlign: 'left' }}>Costo Total ($)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { name: 'Ventas', res: 12, costo: 120000, km: 800, horas: 45 },
+                      { name: 'Soporte', res: 8, costo: 85000, km: 560, horas: 30 },
+                      { name: 'Logística', res: 6, costo: 75000, km: 500, horas: 25 },
+                      { name: 'Gerencia', res: 3, costo: 40000, km: 260, horas: 15 },
+                      { name: 'RRHH', res: 2, costo: 25000, km: 160, horas: 10 },
+                    ].map((d, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '1rem', fontWeight: 'bold', textAlign: 'left' }}>{d.name}</td>
+                        <td style={{ padding: '1rem', textAlign: 'left' }}>{d.res}</td>
+                        <td style={{ padding: '1rem', textAlign: 'left' }}>{d.km} km</td>
+                        <td style={{ padding: '1rem', textAlign: 'left' }}>{d.horas} hrs</td>
+                        <td style={{ padding: '1rem', color: 'var(--text-h)', fontWeight: 'bold', textAlign: 'left' }}>${d.costo.toLocaleString('es-CL')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
@@ -1063,6 +1327,34 @@ function Dashboard() {
         </div>
       )}
 
+      {/* ══════════ MODAL: VER USUARIO ══════════ */}
+      {viewUser && (
+        <div className="modal-overlay" onClick={() => setViewUser(null)}>
+          <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '480px', width: '90%', color: '#000', textAlign: 'left', position: 'relative' }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setViewUser(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
+            <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}>Detalles del Usuario</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem', fontSize: '1.05rem' }}>
+              <p style={{ margin: 0 }}><strong>Nombre:</strong> {viewUser.nombre} {viewUser.apellido}</p>
+              <p style={{ margin: 0 }}><strong>Email:</strong> {viewUser.email}</p>
+              <p style={{ margin: 0 }}><strong>Departamento:</strong> {viewUser.departamento}</p>
+              <p style={{ margin: 0 }}><strong>Teléfono:</strong> {viewUser.telefono || 'N/A'}</p>
+              <p style={{ margin: 0 }}><strong>Rol:</strong> {viewUser.rol === 'admin' ? 'Administrador' : 'Usuario'}</p>
+              <p style={{ margin: 0 }}><strong>Licencia:</strong> {viewUser.licenciaAlDia ? 'Al Día' : 'No Al Día'}</p>
+            </div>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              {viewUser.rol !== 'admin' ? (
+                <>
+                  <button className="btn" style={{ backgroundColor: '#175fbd', color: 'black' }} onClick={() => { setViewUser(null); openEdit(viewUser); }}>Editar</button>
+                  <button className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black' }} onClick={() => { setViewUser(null); setShowDeleteUserConfirm(viewUser.id); }}>Eliminar</button>
+                </>
+              ) : (
+                <span style={{ fontSize: '0.9rem', color: '#888', fontStyle: 'italic', padding: '0.5rem' }}>Usuario protegido (no se puede editar ni eliminar)</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ══════════ MODAL: EDITAR USUARIO ══════════ */}
       {editUser && (
         <div className="modal-overlay" onClick={() => setEditUser(null)}>
@@ -1121,7 +1413,7 @@ function Dashboard() {
               {([['nombre', 'Nombre'], ['apellido', 'Apellido'], ['email', 'Email'], ['password', 'Contraseña'], ['departamento', 'Departamento'], ['telefono', 'Teléfono']] as [keyof typeof createForm, string][]).map(([field, label]) => (
                 <div key={field}>
                   <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>{label}:</label>
-                  <input className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} type={field === 'password' ? 'password' : 'text'} value={createForm[field]} onChange={e => setCreateForm(f => ({ ...f, [field]: e.target.value }))} required={field !== 'departamento'} />
+                  <input className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} type={field === 'password' ? 'password' : 'text'} value={createForm[field]} onChange={e => setCreateForm(f => ({ ...f, [field]: e.target.value }))} required={field !== 'departamento' && field !== 'telefono'} />
                 </div>
               ))}
               <div>
@@ -1131,6 +1423,10 @@ function Dashboard() {
                   <option value="admin">Admin</option>
                 </select>
               </div>
+              <div>
+                <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Foto de la Licencia:</label>
+                <input className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} type="file" accept="image/*" onChange={e => setCreateUserLicenciaFile(e.target.files?.[0] || null)} required />
+              </div>
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', justifyContent: 'center' }}>
                 <button type="submit" className="btn" style={{ backgroundColor: '#175fbd', color: 'black' }}>➕ Crear</button>
                 <button type="button" className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black' }} onClick={() => setShowCreateUser(false)}>Cancelar</button>
@@ -1139,6 +1435,8 @@ function Dashboard() {
           </div>
         </div>
       )}
+
+
 
       {/* ── Modal Logout ── */}
       {showLogoutModal && (

@@ -211,6 +211,37 @@ body::before {
   outline: none;
   transition: border-color 0.2s;
   box-sizing: border-box;
+  min-width: 0;
+}
+
+.form-group input[type="file"] {
+  padding: 9px;
+  cursor: pointer;
+}
+
+.form-group input[type="file"]::file-selector-button {
+  background-color: #e0e0e0;
+  color: #333;
+  border: 1px solid #ccc;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 10px;
+  transition: background-color 0.2s;
+}
+
+:root.dark-mode .form-group input[type="file"]::file-selector-button {
+  background-color: #333;
+  color: #fff;
+  border: 1px solid #555;
+}
+
+.form-group input[type="file"]::file-selector-button:hover {
+  background-color: #d0d0d0;
+}
+
+:root.dark-mode .form-group input[type="file"]::file-selector-button:hover {
+  background-color: #444;
 }
 
 .form-group input:focus {
@@ -358,7 +389,7 @@ body::before {
 }
 
 .sidebar-btn.active {
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(23, 95, 189, 0.4);
   color: white;
   box-shadow: inset 3px 0 0 white;
 }
@@ -557,14 +588,33 @@ input:checked+.theme-slider:before {
   border-color: #000;
 }
 
-/* ── Dashboard stat cards ── */
 .dash-stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 20px;
   width: 100%;
-  max-width: 900px;
+  max-width: 1000px; /* Made slightly wider to fit 3 cards better */
 }
+
+.dash-stat-full {
+  grid-column: 1 / -1;
+}
+
+/* Stat color utilities for light/dark mode */
+.stat-color-blue { color: #3b82f6 !important; }
+:root.dark-mode .stat-color-blue { color: #60a5fa !important; }
+
+.stat-color-gray { color: #6b7280 !important; }
+:root.dark-mode .stat-color-gray { color: #d1d5db !important; }
+
+.stat-color-green { color: #22c55e !important; }
+:root.dark-mode .stat-color-green { color: #4ade80 !important; }
+
+.stat-color-orange { color: #f59e0b !important; }
+:root.dark-mode .stat-color-orange { color: #fbbf24 !important; }
+
+.stat-color-red { color: #ef4444 !important; }
+:root.dark-mode .stat-color-red { color: #f87171 !important; }
 
 .dash-stat-card {
   background: #D6D7D9;

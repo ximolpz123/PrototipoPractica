@@ -13,6 +13,7 @@ function Login() {
   const [departamento, setDepartamento] = useState('');
   const [telefono, setTelefono] = useState('');
   const [fechaVencimientoLicencia, setFechaVencimientoLicencia] = useState('');
+  const [licenciaFotoFile, setLicenciaFotoFile] = useState<File | null>(null);
   const [error, setError] = useState('');
 
   const isLicenciaAlDia = fechaVencimientoLicencia
@@ -39,16 +40,42 @@ function Login() {
     }
 
     try {
-      const endpoint = isRegistering ? 'http://localhost:5000/api/auth/register' : 'http://localhost:5000/api/auth/login';
-      const bodyPayload = isRegistering
-        ? { nombre, apellido, email, password, departamento, telefono: `+569${telefono}`, fechaVencimientoLicencia, licenciaAlDia: isLicenciaAlDia }
-        : { email, password };
+      let fetchOptions: RequestInit = {};
+      const endpoint = isRegistering
+        ? 'http://localhost:5000/api/auth/register'
+        : 'http://localhost:5000/api/auth/login';
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyPayload),
-      });
+      if (isRegistering) {
+        if (!licenciaFotoFile) {
+          setError('La foto de la licencia es obligatoria');
+          return;
+        }
+        const formData = new FormData();
+        formData.append('nombre', nombre);
+        formData.append('apellido', apellido);
+        formData.append('email', email);
+        formData.append('password', password);
+        formData.append('departamento', departamento || 'Operaciones');
+        formData.append('telefono', `+569${telefono}`);
+        formData.append('fechaVencimientoLicencia', fechaVencimientoLicencia);
+        if (isLicenciaAlDia !== null) {
+          formData.append('licenciaAlDia', String(isLicenciaAlDia));
+        }
+        formData.append('licenciaFoto', licenciaFotoFile);
+
+        fetchOptions = {
+          method: 'POST',
+          body: formData,
+        };
+      } else {
+        fetchOptions = {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        };
+      }
+
+      const response = await fetch(endpoint, fetchOptions);
 
       const data = await response.json();
 
@@ -146,6 +173,10 @@ function Login() {
                   </p>
                 )}
               </div>
+            </div>
+            <div className="form-group">
+              <label>Foto de la Licencia</label>
+              <input type="file" accept="image/*" onChange={e => setLicenciaFotoFile(e.target.files?.[0] || null)} required />
             </div>
           </>
         )}
