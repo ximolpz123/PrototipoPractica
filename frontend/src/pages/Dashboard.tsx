@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ActiveVehiclesMap } from '../components/ActiveVehiclesMap';
+import { RandomInspectionsPanel } from '../components/RandomInspectionsPanel';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import type { IUser, IReservation, IVehicle } from '../types';
 import camionetaBlancaImg from '../assets/camioneta-blanca.png';
@@ -13,6 +14,7 @@ import toyotaHiluxPlataImg from '../assets/toyota hilux srv plata.png';
 import vwAmarokBlancoImg from '../assets/volkswagen amarok blanco.png';
 import vwAmarokGrisImg from '../assets/volkswagen amarok gris.png';
 import defaultProfileImg from '../assets/foto-preterminada.png';
+import logo from '../assets/bit-mejorado.png';
 
 // ─── Helpers de colores/etiquetas ────────────────────────────────────────────
 const ESTADO_VEHICLE_COLORS: Record<string, string> = {
@@ -35,7 +37,7 @@ const ESTADO_RES_COLORS: Record<string, string> = {
   cancelada: '#ef4444',
 };
 
-type DashTab = 'dashboard' | 'usuarios' | 'reservaciones' | 'vehiculos-activos' | 'vehiculos' | 'reportes';
+type DashTab = 'dashboard' | 'usuarios' | 'reservaciones' | 'vehiculos-activos' | 'vehiculos' | 'reportes' | 'inspecciones';
 
 // ─── Formulario vacío de vehículo ────────────────────────────────────────────
 const EMPTY_VEHICLE_FORM = {
@@ -170,7 +172,11 @@ function Dashboard() {
       const res = await fetch('http://localhost:5000/api/users', { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       // Normaliza _id → id por si la API devuelve _id
-      const normalized = Array.isArray(data) ? data.map(normalizeUser) : [];
+      const normalized = Array.isArray(data) ? data.map(u => {
+        const n = normalizeUser(u);
+        n.banderaActual = n.rol === 'admin' ? 'verde' : 'amarilla';
+        return n;
+      }) : [];
       setUsers(normalized);
     } catch { setErrorUsers('Error al cargar usuarios. Verifica que el servidor esté activo.'); }
     finally { setLoadingUsers(false); }
@@ -583,6 +589,22 @@ function Dashboard() {
       {/* ══════════ SIDEBAR AZUL ══════════ */}
       <aside className="dashboard-sidebar">
 
+        {/* Logo */}
+        <div style={{ textAlign: 'center', margin: '1rem 0' }}>
+          <img src={logo} alt="Bitnets" style={{ width: '120px', height: 'auto' }} />
+        </div>
+
+        {/* Bandera del usuario actual (esquina superior derecha del menú) */}
+        {user && (
+          <div style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 1001 }} title={`Tu bandera actual: ${user.rol === 'admin' ? 'verde' : 'amarilla'}`}>
+            <span style={{
+              display: 'inline-block', width: '16px', height: '16px', borderRadius: '50%',
+              backgroundColor: user.rol === 'admin' ? '#22c55e' : '#eab308',
+              border: '2px solid #fff', boxShadow: '0 0 0 1px rgba(0,0,0,0.2)'
+            }} />
+          </div>
+        )}
+
         {/* Perfil */}
         <div className="sidebar-profile">
           <div className="sidebar-photo-upload" onClick={() => fileInputRef.current?.click()} title="Cambiar foto">
@@ -600,7 +622,7 @@ function Dashboard() {
             {user?.nombre ?? ''} {user?.apellido ?? ''}
           </span>
           <span className="sidebar-profile-role">
-            {user?.rol === 'admin' ? 'Administrador' : 'Conductor'}
+            {user?.rol === 'admin' ? 'Administrador' : (user?.departamento || 'Sin Departamento')}
           </span>
         </div>
 
@@ -639,7 +661,14 @@ function Dashboard() {
             className={`sidebar-btn${activeTab === 'vehiculos' ? ' active' : ''}`}
             onClick={() => setActiveTab('vehiculos')}
           >
-            <span className="btn-icon"></span> Vehículos
+            <span className="btn-icon"></span> Configuración Flota
+          </button>
+          <button
+            id="sidebar-btn-inspecciones"
+            className={`sidebar-btn${activeTab === 'inspecciones' ? ' active' : ''}`}
+            onClick={() => setActiveTab('inspecciones')}
+          >
+            <span className="btn-icon"></span> Insp. Aleatorias
           </button>
           {user?.rol === 'admin' && (
             <button
@@ -974,6 +1003,16 @@ function Dashboard() {
                         <span><strong>Año:</strong> {v.anio}</span>
                         <span><strong>Color:</strong> {v.color}</span>
                         <span><strong>Km:</strong> {v.kilometraje.toLocaleString('es-CL')}</span>
+                        {v.nivelBencina !== undefined && (
+                          <div style={{ marginTop: '0.5rem', marginBottom: '0.2rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '4px' }}>
+                              <strong>Bencina:</strong> <span>{v.nivelBencina}%</span>
+                            </div>
+                            <div style={{ width: '100%', backgroundColor: '#e5e7eb', borderRadius: '4px', height: '6px' }}>
+                              <div style={{ width: `${v.nivelBencina}%`, backgroundColor: v.nivelBencina > 50 ? '#10b981' : v.nivelBencina > 20 ? '#f59e0b' : '#ef4444', height: '100%', borderRadius: '4px' }} />
+                            </div>
+                          </div>
+                        )}
                         {v.ultimoMantenimiento && (
                           <span style={{ fontSize: '0.85rem', marginTop: '4px', display: 'block' }}>
                             <strong>Último Mantenimiento:</strong><br />
@@ -998,6 +1037,11 @@ function Dashboard() {
               })}
             </div>
           </div>
+        )}
+
+        {/* ══════════ TAB: INSPECCIONES ALEATORIAS ══════════ */}
+        {activeTab === 'inspecciones' && (
+          <RandomInspectionsPanel token={token} />
         )}
 
         {/* ══════════ TAB: REPORTES DE GASTOS (MOCK) ══════════ */}
@@ -1047,7 +1091,7 @@ function Dashboard() {
 
             {/* Gráfico y Tabla */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem' }}>
-              <div className="filter-panel" style={{ padding: '1.5rem', borderRadius: '12px' }}>
+              <div className="filter-panel" style={{ borderRadius: '12px' }}>
                 <h3 style={{ marginTop: 0, color: '#fff', backgroundColor: '#175fbd', padding: '12px 16px', borderRadius: '8px', marginBottom: '1rem' }}>Costo Estimado por Departamento ($)</h3>
                 <div style={{ width: '100%', height: '300px' }}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -1067,16 +1111,16 @@ function Dashboard() {
                 </div>
               </div>
 
-              <div className="filter-panel" style={{ padding: '1.5rem', borderRadius: '12px', overflowX: 'auto' }}>
+              <div className="filter-panel" style={{ borderRadius: '12px', overflowX: 'auto' }}>
                 <h3 style={{ marginTop: 0, color: '#fff', backgroundColor: '#175fbd', padding: '12px 16px', borderRadius: '8px', marginBottom: '1rem' }}>Detalle por Departamento</h3>
                 <table style={{ width: '100%', borderCollapse: 'collapse', color: 'var(--text-p)' }}>
                   <thead>
                     <tr style={{ borderBottom: '2px solid var(--border)' }}>
-                      <th style={{ padding: '1rem', textAlign: 'left' }}>Departamento</th>
-                      <th style={{ padding: '1rem', textAlign: 'left' }}>Reservas</th>
-                      <th style={{ padding: '1rem', textAlign: 'left' }}>Km Totales</th>
-                      <th style={{ padding: '1rem', textAlign: 'left' }}>Horas Uso</th>
-                      <th style={{ padding: '1rem', textAlign: 'left' }}>Costo Total ($)</th>
+                      <th style={{ backgroundColor: '#48a2d3ff', padding: '0.3rem', textAlign: 'left' }}>Departamento</th>
+                      <th style={{ backgroundColor: '#48a2d3ff', padding: '0.3rem', textAlign: 'left' }}>Reservas</th>
+                      <th style={{ backgroundColor: '#48a2d3ff', padding: '0.3rem', textAlign: 'left' }}>Km Totales</th>
+                      <th style={{ backgroundColor: '#48a2d3ff', padding: '0.3rem', textAlign: 'left' }}>Horas Uso</th>
+                      <th style={{ backgroundColor: '#48a2d3ff', padding: '0.3rem', textAlign: 'left' }}>Costo Total ($)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1088,11 +1132,11 @@ function Dashboard() {
                       { name: 'RRHH', res: 2, costo: 25000, km: 160, horas: 10 },
                     ].map((d, i) => (
                       <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ padding: '1rem', fontWeight: 'bold', textAlign: 'left' }}>{d.name}</td>
-                        <td style={{ padding: '1rem', textAlign: 'left' }}>{d.res}</td>
-                        <td style={{ padding: '1rem', textAlign: 'left' }}>{d.km} km</td>
-                        <td style={{ padding: '1rem', textAlign: 'left' }}>{d.horas} hrs</td>
-                        <td style={{ padding: '1rem', color: 'var(--text-h)', fontWeight: 'bold', textAlign: 'left' }}>${d.costo.toLocaleString('es-CL')}</td>
+                        <td style={{ padding: '0.5rem', fontWeight: 'bold', textAlign: 'left' }}>{d.name}</td>
+                        <td style={{ padding: '0.5rem', textAlign: 'left' }}>{d.res}</td>
+                        <td style={{ padding: '0.5rem', textAlign: 'left' }}>{d.km} km</td>
+                        <td style={{ padding: '0.5rem', textAlign: 'left' }}>{d.horas} hrs</td>
+                        <td style={{ padding: '0.5rem', color: 'var(--text-h)', fontWeight: 'bold', textAlign: 'left' }}>${d.costo.toLocaleString('es-CL')}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1141,6 +1185,16 @@ function Dashboard() {
                 <p style={{ margin: 0 }}><strong>Color:</strong> {selectedVehicle.color}</p>
                 <p style={{ margin: 0 }}><strong>Tipo:</strong> {selectedVehicle.tipo}</p>
                 <p style={{ margin: 0 }}><strong>Kilometraje:</strong> {selectedVehicle.kilometraje.toLocaleString('es-CL')} km</p>
+                {selectedVehicle.nivelBencina !== undefined && (
+                  <div style={{ marginTop: '0.2rem', marginBottom: '0.2rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', marginBottom: '4px' }}>
+                      <strong>Nivel de Bencina:</strong> <span>{selectedVehicle.nivelBencina}%</span>
+                    </div>
+                    <div style={{ width: '100%', backgroundColor: '#e5e7eb', borderRadius: '6px', height: '8px' }}>
+                      <div style={{ width: `${selectedVehicle.nivelBencina}%`, backgroundColor: selectedVehicle.nivelBencina > 50 ? '#10b981' : selectedVehicle.nivelBencina > 20 ? '#f59e0b' : '#ef4444', height: '100%', borderRadius: '6px' }} />
+                    </div>
+                  </div>
+                )}
                 <p style={{ margin: 0 }}>
                   <strong>Estado:</strong>{' '}
                   <span className="status-badge" style={{ backgroundColor: ESTADO_VEHICLE_COLORS[selectedVehicle.estado] }}>
@@ -1239,14 +1293,27 @@ function Dashboard() {
                 </p>
               )}
 
+              {selectedReservation.kmRetorno !== undefined && selectedReservation.kmRetorno !== null && (
+                <div style={{ margin: '1rem 0', backgroundColor: '#e0f2fe', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #0ea5e9' }}>
+                  <p style={{ margin: 0, color: '#0369a1', fontSize: '1rem' }}>
+                    <strong>🚗 Kilometraje de Retorno (IA):</strong> {selectedReservation.kmRetorno.toLocaleString('es-CL')} km
+                  </p>
+                </div>
+              )}
+
               {selectedReservation.fotosSalida && selectedReservation.fotosSalida.length > 0 && (
                 <div style={{ marginTop: '1rem' }}>
                   <strong>Fotos de Inicio del Viaje:</strong>
-                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
+                  <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', marginTop: '10px' }}>
                     {selectedReservation.fotosSalida.map((foto, idx) => {
+                      const PHOTO_LABELS = ['Frontal', 'Lateral Derecho', 'Lateral Izquierdo', 'Trasero', 'Tablero', 'Interior'];
+                      const label = PHOTO_LABELS[idx] || `Extra ${idx + 1}`;
                       const imgSrc = foto.startsWith('http') ? foto : `http://localhost:5000${foto}`;
                       return (
-                        <img key={idx} src={imgSrc} alt={`Inicio ${idx}`} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer' }} onClick={() => setFullScreenImage(imgSrc)} />
+                        <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100px' }}>
+                          <img src={imgSrc} alt={label} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer' }} onClick={() => setFullScreenImage(imgSrc)} />
+                          <span style={{ fontSize: '0.75rem', marginTop: '6px', color: '#555', textAlign: 'center', fontWeight: 'bold' }}>{label}</span>
+                        </div>
                       );
                     })}
                   </div>
@@ -1256,11 +1323,16 @@ function Dashboard() {
               {selectedReservation.fotosRetorno && selectedReservation.fotosRetorno.length > 0 && (
                 <div style={{ marginTop: '1rem' }}>
                   <strong>Fotos de Fin del Viaje:</strong>
-                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' }}>
+                  <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', marginTop: '10px' }}>
                     {selectedReservation.fotosRetorno.map((foto, idx) => {
+                      const PHOTO_LABELS = ['Frontal', 'Lateral Derecho', 'Lateral Izquierdo', 'Trasero', 'Tablero', 'Interior'];
+                      const label = PHOTO_LABELS[idx] || `Extra ${idx + 1}`;
                       const imgSrc = foto.startsWith('http') ? foto : `http://localhost:5000${foto}`;
                       return (
-                        <img key={idx} src={imgSrc} alt={`Fin ${idx}`} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer' }} onClick={() => setFullScreenImage(imgSrc)} />
+                        <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100px' }}>
+                          <img src={imgSrc} alt={label} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer' }} onClick={() => setFullScreenImage(imgSrc)} />
+                          <span style={{ fontSize: '0.75rem', marginTop: '6px', color: '#555', textAlign: 'center', fontWeight: 'bold' }}>{label}</span>
+                        </div>
                       );
                     })}
                   </div>
@@ -1334,12 +1406,41 @@ function Dashboard() {
             <button onClick={() => setViewUser(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}>Detalles del Usuario</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem', fontSize: '1.05rem' }}>
-              <p style={{ margin: 0 }}><strong>Nombre:</strong> {viewUser.nombre} {viewUser.apellido}</p>
+              <p style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
+                <strong>Nombre:</strong> <span style={{ marginLeft: '4px' }}>{viewUser.nombre} {viewUser.apellido}</span>
+                {viewUser.banderaActual && (
+                  <span style={{
+                    display: 'inline-block', width: '14px', height: '14px', borderRadius: '50%',
+                    backgroundColor: viewUser.banderaActual === 'verde' ? '#22c55e' : viewUser.banderaActual === 'amarilla' ? '#eab308' : viewUser.banderaActual === 'naranja' ? '#f97316' : '#ef4444',
+                    border: '1px solid #fff', boxShadow: '0 0 0 1px #ccc', marginLeft: '8px'
+                  }} title={`Bandera ${viewUser.banderaActual}`} />
+                )}
+              </p>
               <p style={{ margin: 0 }}><strong>Email:</strong> {viewUser.email}</p>
               <p style={{ margin: 0 }}><strong>Departamento:</strong> {viewUser.departamento}</p>
               <p style={{ margin: 0 }}><strong>Teléfono:</strong> {viewUser.telefono || 'N/A'}</p>
               <p style={{ margin: 0 }}><strong>Rol:</strong> {viewUser.rol === 'admin' ? 'Administrador' : 'Usuario'}</p>
               <p style={{ margin: 0 }}><strong>Licencia:</strong> {viewUser.licenciaAlDia ? 'Al Día' : 'No Al Día'}</p>
+
+              {viewUser.historialBanderas && viewUser.historialBanderas.length > 0 && (
+                <div style={{ marginTop: '0.5rem', borderTop: '1px solid #e5e7eb', paddingTop: '1rem' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', color: '#374151' }}>Historial de Banderas</h4>
+                  <ul style={{ paddingLeft: '0', listStyleType: 'none', margin: 0, fontSize: '0.95rem' }}>
+                    {viewUser.historialBanderas.map((bandera, i) => (
+                      <li key={i} style={{ marginBottom: '8px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                        <span style={{
+                          display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', flexShrink: 0, marginTop: '4px',
+                          backgroundColor: bandera.tipo === 'verde' ? '#22c55e' : bandera.tipo === 'amarilla' ? '#eab308' : bandera.tipo === 'naranja' ? '#f97316' : '#ef4444'
+                        }} />
+                        <div>
+                          <strong>{new Date(bandera.fecha).toLocaleDateString('es-CL')}</strong>: {bandera.motivo}
+                          {bandera.asignadoPor && <span style={{ color: '#6b7280', fontSize: '0.85rem' }}> (por {bandera.asignadoPor})</span>}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
               {viewUser.rol !== 'admin' ? (
