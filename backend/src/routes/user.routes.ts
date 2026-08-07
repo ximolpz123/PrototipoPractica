@@ -8,6 +8,9 @@ const router = Router();
 // Todas las rutas de usuarios requieren autenticación
 router.use(authMiddleware);
 
+// Rutas accesibles por cualquier usuario autenticado (para pasar el mando)
+router.get('/', getUsers);
+
 // Rutas accesibles por el propio usuario (o admin)
 router.get('/:id/flags', getUserFlags);
 router.patch('/:id/perfil', upload.single('avatar'), updatePerfil);
@@ -17,7 +20,6 @@ router.patch('/:id/push-token', updatePushToken);
 // Rutas administrativas
 router.use(adminMiddleware);
 
-router.get('/', getUsers);
 router.post('/', upload.single('licenciaFoto'), createUser);
 router.put('/:id', updateUser);
 router.delete('/:id', deleteUser);

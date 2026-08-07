@@ -8,6 +8,7 @@ import { COLORS } from '../constants';
 import { useAlert } from '../context/AlertContext';
 import { vehicleService, IVehicle } from '../services/vehicle.service';
 import { reservationService } from '../services/reservation.service';
+import { authService } from '../services/auth.service';
 
 const TIPO_ICON: Record<string, string> = {
   pickup: '🛻', sedan: '🚗', suv: '🚙', van: '🚐',
@@ -15,6 +16,7 @@ const TIPO_ICON: Record<string, string> = {
 
 export default function CreateReservationScreen({ navigation }: any) {
   const { showAlert } = useAlert();
+  const [user, setUser] = useState<any>(null);
   const [vehicles, setVehicles] = useState<IVehicle[]>([]);
   const [loadingVehicles, setLoadingVehicles] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -31,18 +33,22 @@ export default function CreateReservationScreen({ navigation }: any) {
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
   useEffect(() => {
-    loadAvailableVehicles();
+    loadData();
   }, []);
 
-  const loadAvailableVehicles = async () => {
+  const loadData = async () => {
     try {
       setLoadingVehicles(true);
+      
+      const currentUser = await authService.getCurrentUser();
+      setUser(currentUser);
+      
       const all = await vehicleService.getAll();
       // Mostrar todos los vehículos operativos (no los de mantenimiento o fuera de servicio)
       // Los reservados/en_curso aún se pueden seleccionar para reservar en otro horario
       setVehicles(all.filter((v) => v.estado !== 'mantenimiento' && v.estado !== 'fuera_de_servicio'));
     } catch (err) {
-      showAlert('Error', 'No se pudo cargar la lista de vehículos.');
+      showAlert('Error', 'No se pudo cargar la información.');
     } finally {
       setLoadingVehicles(false);
     }
@@ -105,6 +111,36 @@ export default function CreateReservationScreen({ navigation }: any) {
 
   const formatTime = (d: Date) =>
     d.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+
+  // Validación de Licencia
+  if (loadingVehicles) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
+  const licenciaVigente = user?.licenciaEstado === 'vigente' || user?.licenciaAlDia === true;
+  const fechaVencimiento = user?.licenciaVencimiento || user?.fechaVencimientoLicencia;
+  const isLicenciaValida = licenciaVigente && fechaVencimiento && new Date(fechaVencimiento) > new Date();
+
+  if (!isLicenciaValida) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+        <Text style={{ fontSize: 40, marginBottom: 10 }}>⚠️</Text>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: COLORS.danger, textAlign: 'center', marginBottom: 10 }}>
+          Licencia Inválida o No Escaneada
+        </Text>
+        <Text style={{ fontSize: 16, color: COLORS.text, textAlign: 'center', marginBottom: 20 }}>
+          Para poder realizar reservas valida primero tu carnet de conducir en tu perfil.
+        </Text>
+        <TouchableOpacity style={styles.confirmBtn} onPress={() => navigation.goBack()}>
+          <Text style={styles.confirmBtnText}>Volver al Inicio</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

@@ -187,7 +187,11 @@ export default function HomeScreen({ route, navigation }: any) {
       setLoadingDrivers(true);
       setShowDriverModal(true);
       const allUsers = await userService.getAll();
-      setDrivers(allUsers.filter(u => u.id !== user.id && u.rol !== 'admin'));
+      const currentUserId = user.id || user._id;
+      setDrivers(allUsers.filter(u => {
+        const uid = u.id || u._id;
+        return uid !== currentUserId && u.rol !== 'admin';
+      }));
     } catch (err) {
       showAlert('Error', 'No se pudieron cargar los conductores');
       setShowDriverModal(false);

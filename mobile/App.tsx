@@ -49,6 +49,7 @@ import AdminHistoryScreen from './screens/AdminHistoryScreen';
 import AdminMapScreen from './screens/AdminMapScreen';
 import AddVehicleAIScreen from './screens/AddVehicleAIScreen';
 import AdminCreateReservationScreen from './screens/AdminCreateReservationScreen';
+import AdminBanderasScreen from './screens/AdminBanderasScreen';
 import { AlertProvider, useAlert } from './context/AlertContext';
 
 const Stack = createNativeStackNavigator();
@@ -115,6 +116,8 @@ function AdminTabNavigator({ route }: any) {
             iconName = focused ? 'car' : 'car-outline';
           } else if (route.name === 'Historial Admin') {
             iconName = focused ? 'list' : 'list-outline';
+          } else if (route.name === 'Banderas') {
+            iconName = focused ? 'flag' : 'flag-outline';
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -161,6 +164,11 @@ function AdminTabNavigator({ route }: any) {
         component={AdminHistoryScreen}
         options={{ title: 'Auditoría y Evidencia', tabBarLabel: 'Historial' }}
       />
+      <Tab.Screen
+        name="Banderas"
+        component={AdminBanderasScreen}
+        options={{ title: 'Gestión de Banderas', tabBarLabel: 'Banderas' }}
+      />
     </Tab.Navigator>
     
       {/* Modal de confirmación de cierre de sesión con el diseño de la app */}
@@ -194,6 +202,7 @@ function MainApp() {
   const [user, setUser] = useState<any>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
 
@@ -437,14 +446,26 @@ function MainApp() {
               keyboardType="email-address"
             />
 
-            <TextInput
-              style={styles.inputNew}
-              placeholder="Contraseña"
-              placeholderTextColor={COLORS.textMuted}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+            <View style={styles.passwordContainerNew}>
+              <TextInput
+                style={styles.passwordInputNew}
+                placeholder="Contraseña"
+                placeholderTextColor={COLORS.textMuted}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity 
+                style={styles.eyeButtonNew} 
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <Ionicons 
+                  name={showPassword ? 'eye-off' : 'eye'} 
+                  size={22} 
+                  color={COLORS.textMuted} 
+                />
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
               style={[styles.loginBtnNew, loading && styles.loginBtnDisabled]}
@@ -678,5 +699,25 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  passwordContainerNew: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    backgroundColor: '#f8fafc',
+    marginBottom: 14,
+  },
+  passwordInputNew: {
+    flex: 1,
+    padding: 14,
+    fontSize: 15,
+    color: COLORS.text,
+  },
+  eyeButtonNew: {
+    padding: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
