@@ -28,6 +28,7 @@ export interface IReservation {
   fotosRetorno?: string[];
   observaciones?: string;
   motivoRechazo?: string;
+  motivoCancelacion?: string;
   createdAt: string;
 }
 
@@ -71,8 +72,8 @@ export const reservationService = {
     return response.data.reservation;
   },
 
-  cancel: async (id: string, motivoRechazo?: string): Promise<void> => {
-    await api.patch(`/reservations/${id}/cancel`, { motivoRechazo });
+  cancel: async (id: string, motivoCancelacion: string): Promise<void> => {
+    await api.patch(`/reservations/${id}/cancel`, { motivoCancelacion });
   },
 
   cambioConductorTramo: async (id: string, nuevoConductorId: string, kmActual?: number): Promise<any> => {

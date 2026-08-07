@@ -57,7 +57,7 @@ export default function CameraScreen({ route, navigation }: any) {
           onPress: async () => {
             if (tipo === 'salida') {
               try {
-                await reservationService.cancel(reservaId);
+                await reservationService.cancel(reservaId, 'Cancelada automáticamente por abandonar captura de fotos.');
                 await locationService.stopTracking();
               } catch (error) {
                 showAlert('Error', 'No se pudo cancelar el viaje.');

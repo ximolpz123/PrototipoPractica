@@ -43,6 +43,7 @@ export interface IReservation extends Document {
   tramos?: ITramo[];
   observaciones?: string;
   motivoRechazo?: string;
+  motivoCancelacion?: string;
   // ── Notificaciones de retraso ──
   notificadoRetraso?: boolean;
   notificadoAdmin?: boolean;
@@ -134,6 +135,10 @@ const reservationSchema = new Schema<IReservation>(
     tramos: [tramoSchema],
     observaciones:  { type: String, trim: true },
     motivoRechazo: {
+      type: String,
+      trim: true,
+    },
+    motivoCancelacion: {
       type: String,
       trim: true,
     },

@@ -269,13 +269,16 @@ export const cancelReservation = async (req: AuthRequest, res: Response): Promis
       return;
     }
 
-    const { motivoRechazo } = req.body;
+    const { motivoCancelacion } = req.body;
+
+    if (!motivoCancelacion || motivoCancelacion.trim() === '') {
+      res.status(400).json({ message: 'El motivo de la cancelación es obligatorio' });
+      return;
+    }
 
     reservation.estado = 'cancelada';
-    // Si es un admin rechazando, guarda el motivo
-    if (motivoRechazo && req.userRol === 'admin') {
-      reservation.motivoRechazo = motivoRechazo;
-    }
+    reservation.motivoCancelacion = motivoCancelacion.trim();
+    
     await reservation.save();
 
     // Actualizar el estado del vehículo a 'disponible'

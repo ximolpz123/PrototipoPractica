@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, ScrollView, TextInput, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, AppColors } from '../constants';
@@ -37,6 +37,10 @@ export default function MisReservasScreen({ navigation }: any) {
   const [error, setError] = useState<string | null>(null);
   const [selectedReserva, setSelectedReserva] = useState<IReservation | null>(null);
 
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [canceling, setCanceling] = useState(false);
+
   const fetchReservations = async () => {
     try {
       setError(null);
@@ -47,6 +51,28 @@ export default function MisReservasScreen({ navigation }: any) {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const handleCancelReservation = async () => {
+    if (!selectedReserva) return;
+    if (!cancelReason.trim()) {
+      Alert.alert('Error', 'El motivo de cancelación es obligatorio.');
+      return;
+    }
+    
+    setCanceling(true);
+    try {
+      await reservationService.cancel(selectedReserva._id, cancelReason.trim());
+      Alert.alert('Éxito', 'La reserva ha sido cancelada.');
+      setCancelModalVisible(false);
+      setSelectedReserva(null);
+      setCancelReason('');
+      fetchReservations();
+    } catch (err: any) {
+      Alert.alert('Error', err.response?.data?.message || 'No se pudo cancelar la reserva.');
+    } finally {
+      setCanceling(false);
     }
   };
 
@@ -181,6 +207,13 @@ export default function MisReservasScreen({ navigation }: any) {
                   </View>
                 ) : null}
 
+                {selectedReserva.estado === 'cancelada' && selectedReserva.motivoCancelacion ? (
+                  <View style={styles.modalSection}>
+                    <Text style={[styles.modalSectionTitle, { color: colors.danger }]}>Motivo de Cancelación</Text>
+                    <Text style={styles.modalSectionText}>{selectedReserva.motivoCancelacion}</Text>
+                  </View>
+                ) : null}
+
                 {selectedReserva.observaciones && (
                   <View style={styles.modalSection}>
                     <Text style={styles.modalSectionTitle}>Observaciones (Retorno)</Text>
@@ -189,6 +222,56 @@ export default function MisReservasScreen({ navigation }: any) {
                 )}
               </ScrollView>
             )}
+
+            {selectedReserva && (selectedReserva.estado === 'pendiente' || selectedReserva.estado === 'aprobada') && (
+              <TouchableOpacity 
+                style={[styles.modalBtn, { backgroundColor: colors.danger, marginTop: 15 }]} 
+                onPress={() => setCancelModalVisible(true)}
+              >
+                <Text style={styles.modalBtnText}>Cancelar Reserva</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Cancelación */}
+      <Modal visible={cancelModalVisible} animationType="fade" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.cancelModalContainer}>
+            <Text style={styles.modalTitle}>Cancelar Reserva</Text>
+            <Text style={{ color: colors.text, marginBottom: 12 }}>Por favor ingresa el motivo de la cancelación:</Text>
+            
+            <TextInput
+              style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+              placeholder="Motivo (obligatorio)"
+              placeholderTextColor={colors.textMuted}
+              multiline
+              value={cancelReason}
+              onChangeText={setCancelReason}
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity 
+                style={styles.modalCancelBtn} 
+                onPress={() => { setCancelModalVisible(false); setCancelReason(''); }} 
+                disabled={canceling}
+              >
+                <Text style={styles.modalCancelBtnText}>Atrás</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.modalConfirmBtn} 
+                onPress={handleCancelReservation} 
+                disabled={canceling}
+              >
+                {canceling ? (
+                  <ActivityIndicator color={colors.white} />
+                ) : (
+                  <Text style={styles.modalConfirmBtnText}>Confirmar</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -372,5 +455,61 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     color: colors.text,
     lineHeight: 22,
   },
+  modalBtn: {
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalBtnText: {
+    color: colors.white,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  cancelModalContainer: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 24,
+    marginHorizontal: 20,
+    marginBottom: 'auto',
+    marginTop: 'auto',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 15,
+    color: colors.text,
+    backgroundColor: colors.background,
+    marginBottom: 20,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  modalCancelBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalCancelBtnText: {
+    color: colors.text,
+    fontWeight: 'bold',
+  },
+  modalConfirmBtn: {
+    backgroundColor: colors.danger,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 100,
+  },
+  modalConfirmBtnText: {
+    color: colors.white,
+    fontWeight: 'bold',
+  },
 });
-
