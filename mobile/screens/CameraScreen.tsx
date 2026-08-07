@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Modal, TextInput } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { COLORS, API_URL } from '../constants';
+import { COLORS, AppColors, API_URL } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
 import axios from 'axios';
 import { authService } from '../services/auth.service';
@@ -12,6 +13,10 @@ const POSITIONS = ['frontal', 'lateralDer', 'lateralIzq', 'trasero', 'tablero', 
 const LABELS = ['Frontal', 'Lateral Derecho', 'Lateral Izquierdo', 'Trasero', 'Tablero', 'Interior'];
 
 export default function CameraScreen({ route, navigation }: any) {
+  const { colors, isDark } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
+  
+
   const { showAlert } = useAlert();
   const { reservaId, tipo, tipoIndicador } = route.params;
 
@@ -71,7 +76,7 @@ export default function CameraScreen({ route, navigation }: any) {
   }, [navigation, canGoBack, tipo, reservaId]);
 
   if (!permission) {
-    return <View style={styles.container}><ActivityIndicator size="large" color={COLORS.primary} /></View>;
+    return <View style={styles.container}><ActivityIndicator size="large" color={colors.primary} /></View>;
   }
 
   if (!permission.granted) {
@@ -299,7 +304,7 @@ export default function CameraScreen({ route, navigation }: any) {
             disabled={uploading}
           >
             {uploading ? (
-              <ActivityIndicator color={COLORS.white} />
+              <ActivityIndicator color={colors.white} />
             ) : (
               <Text style={styles.uploadBtnText}>
                 {tipo === 'salida' ? 'Subir e Iniciar Viaje' : 'Subir y Finalizar Viaje'}
@@ -353,8 +358,8 @@ export default function CameraScreen({ route, navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+const getStyles = (colors: AppColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   camera: { flex: 1 },
   overlay: {
@@ -372,7 +377,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   stepText: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: 'bold',
     fontSize: 16,
     marginBottom: 5,
@@ -416,7 +421,7 @@ const styles = StyleSheet.create({
   finalTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -437,10 +442,10 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   thumbnailLabel: {
-    color: COLORS.text,
+    color: colors.text,
     fontSize: 11,
     marginTop: 5,
     textAlign: 'center',
@@ -449,7 +454,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -5,
     right: -5,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     width: 24,
     height: 24,
     borderRadius: 12,
@@ -458,7 +463,7 @@ const styles = StyleSheet.create({
   },
   retakeText: { color: '#fff', fontWeight: 'bold' },
   bencinaContainer: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     padding: 15,
     borderRadius: 10,
     marginBottom: 20,
@@ -466,7 +471,7 @@ const styles = StyleSheet.create({
   bencinaTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: 15,
     textAlign: 'center',
   },
@@ -478,23 +483,23 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   analogBtnActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   analogText: {
-    color: COLORS.text,
+    color: colors.text,
     fontWeight: 'bold',
   },
   analogTextActive: {
     color: '#fff',
   },
   uploadBtn: {
-    backgroundColor: COLORS.success,
+    backgroundColor: colors.success,
     padding: 18,
     borderRadius: 10,
     alignItems: 'center',
@@ -511,7 +516,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     width: '100%',
     borderRadius: 12,
     padding: 25,
@@ -520,25 +525,25 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: colors.primary,
     marginBottom: 15,
   },
   modalText: {
     fontSize: 16,
-    color: COLORS.text,
+    color: colors.text,
     textAlign: 'center',
   },
   boldKm: {
     fontSize: 24,
     fontWeight: '900',
-    color: COLORS.text,
+    color: colors.text,
   },
   modalQuestion: {
     fontSize: 18,
     fontWeight: '600',
     marginTop: 15,
     marginBottom: 25,
-    color: COLORS.text,
+    color: colors.text,
   },
   modalBtns: {
     flexDirection: 'row',
@@ -555,14 +560,14 @@ const styles = StyleSheet.create({
   btnNo: {
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   btnNoText: {
-    color: COLORS.text,
+    color: colors.text,
     fontWeight: 'bold',
   },
   btnYes: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
   },
   btnYesText: {
     color: '#fff',
@@ -570,16 +575,16 @@ const styles = StyleSheet.create({
   },
   kmInput: {
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 8,
     width: '100%',
     padding: 15,
     fontSize: 20,
     marginTop: 15,
     textAlign: 'center',
-    color: COLORS.text,
+    color: colors.text,
   },
-  text: { color: COLORS.text, fontSize: 16, marginBottom: 20 },
-  btn: { backgroundColor: COLORS.primary, padding: 12, borderRadius: 8 },
+  text: { color: colors.text, fontSize: 16, marginBottom: 20 },
+  btn: { backgroundColor: colors.primary, padding: 12, borderRadius: 8 },
   btnText: { color: '#fff', fontWeight: 'bold' },
 });

@@ -7,13 +7,12 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, GRADIENTS, SHADOWS, BORDER_RADIUS } from '../constants';
+import { COLORS, AppColors, GRADIENTS, SHADOWS, BORDER_RADIUS } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
 import api from '../services/api';
-
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 type TipoFlag = 'verde' | 'amarilla' | 'naranja' | 'roja' | 'todas';
-
 interface IFlag {
   _id: string;
   tipo: 'verde' | 'amarilla' | 'naranja' | 'roja';
@@ -36,25 +35,23 @@ interface IFlag {
     fechaFin: string;
   };
 }
-
 // ─── Constantes de Banderas ──────────────────────────────────────────────────
-const FLAG_CONFIG = {
-  verde:    { emoji: '🟢', label: 'Verde',    color: COLORS.success,  bg: '#F0FDF4', border: COLORS.success },
-  amarilla: { emoji: '🟡', label: 'Amarilla', color: '#D97706',       bg: '#FFFBEB', border: '#FBBF24' },
-  naranja:  { emoji: '🟠', label: 'Naranja',  color: '#EA580C',       bg: '#FFF7ED', border: '#FB923C' },
-  roja:     { emoji: '🔴', label: 'Roja',     color: COLORS.danger,   bg: '#FEF2F2', border: COLORS.danger },
-};
-
+const getFlagConfig = (colors: AppColors, isDark: boolean) => ({
+  todas:    { emoji: '📋', label: 'Todas',    color: isDark ? colors.text : '#333333', bg: isDark ? '#334155' : '#F8FAFC', border: isDark ? '#475569' : '#E2E8F0' },
+  verde:    { emoji: '🟢', label: 'Verde',    color: colors.success,  bg: isDark ? colors.success + '20' : '#F0FDF4', border: colors.success },
+  amarilla: { emoji: '🟡', label: 'Amarilla', color: '#D97706',       bg: isDark ? '#D9770620' : '#FFFBEB', border: '#FBBF24' },
+  naranja:  { emoji: '🟠', label: 'Naranja',  color: '#EA580C',       bg: isDark ? '#EA580C20' : '#FFF7ED', border: '#FB923C' },
+  roja:     { emoji: '🔴', label: 'Roja',     color: colors.danger,   bg: isDark ? colors.danger + '20' : '#FEF2F2', border: colors.danger },
+});
 function formatFecha(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('es-CL', {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
 }
-
 // ─── Componente de Tarjeta ───────────────────────────────────────────────────
-function FlagCard({ flag, onPress }: { flag: IFlag; onPress: () => void }) {
-  const cfg = FLAG_CONFIG[flag.tipo];
+function FlagCard({ flag, onPress, colors, isDark, styles }: { flag: IFlag; onPress: () => void; colors: AppColors; isDark: boolean; styles: any }) {
+  const cfg = getFlagConfig(colors, isDark)[flag.tipo];
   return (
     <TouchableOpacity
       style={[styles.card, { borderLeftColor: cfg.border, borderLeftWidth: 4 }]}
@@ -66,20 +63,19 @@ function FlagCard({ flag, onPress }: { flag: IFlag; onPress: () => void }) {
           <Text style={styles.flagEmoji}>{cfg.emoji}</Text>
           <Text style={[styles.flagLabel, { color: cfg.color }]}>{cfg.label}</Text>
         </View>
-        <View style={[styles.origenBadge, { backgroundColor: flag.asignadoPor === 'admin' ? '#EFF6FF' : '#F0FDF4' }]}>
+        <View style={[styles.origenBadge, { backgroundColor: flag.asignadoPor === 'admin' ? (isDark ? colors.info+'20' : '#EFF6FF') : (isDark ? colors.success+'20' : '#F0FDF4') }]}>
           <Ionicons
             name={flag.asignadoPor === 'admin' ? 'person' : 'hardware-chip'}
             size={11}
-            color={flag.asignadoPor === 'admin' ? COLORS.info : COLORS.success}
+            color={flag.asignadoPor === 'admin' ? colors.info : colors.success}
           />
-          <Text style={[styles.origenText, { color: flag.asignadoPor === 'admin' ? COLORS.info : COLORS.success }]}>
+          <Text style={[styles.origenText, { color: flag.asignadoPor === 'admin' ? colors.info : colors.success }]}>
             {flag.asignadoPor === 'admin' ? 'Manual' : 'Sistema'}
           </Text>
         </View>
       </View>
-
       <View style={styles.cardUser}>
-        <Ionicons name="person-circle-outline" size={18} color={COLORS.primary} />
+        <Ionicons name="person-circle-outline" size={18} color={colors.primary} />
         <Text style={styles.cardUserName}>
           {flag.usuario?.nombre} {flag.usuario?.apellido}
         </Text>
@@ -87,19 +83,18 @@ function FlagCard({ flag, onPress }: { flag: IFlag; onPress: () => void }) {
           <Text style={styles.cardDept}> · {flag.usuario.departamento}</Text>
         )}
       </View>
-
       <Text style={styles.cardMotivo} numberOfLines={2}>{flag.motivo}</Text>
       <Text style={styles.cardFecha}>{formatFecha(flag.createdAt)}</Text>
-
       <View style={styles.cardFooter}>
         <Text style={styles.verDetalle}>Ver detalle →</Text>
       </View>
     </TouchableOpacity>
   );
 }
-
 // ─── Pantalla Principal ──────────────────────────────────────────────────────
 export default function AdminBanderasScreen() {
+  const { colors, isDark } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const { showAlert } = useAlert();
   const [banderas, setBanderas] = useState<IFlag[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,7 +102,6 @@ export default function AdminBanderasScreen() {
   const [filtro, setFiltro] = useState<TipoFlag>('todas');
   const [detailFlag, setDetailFlag] = useState<IFlag | null>(null);
   const [fadeAnim] = useState(new Animated.Value(0));
-
   const cargarBanderas = async (isRefresh = false) => {
     try {
       if (!isRefresh) setLoading(true);
@@ -121,34 +115,22 @@ export default function AdminBanderasScreen() {
       setRefreshing(false);
     }
   };
-
   useFocusEffect(
     useCallback(() => {
       cargarBanderas();
       Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
     }, [])
   );
-
   const banderasFiltradas = filtro === 'todas'
     ? banderas
     : banderas.filter(b => b.tipo === filtro);
-
-  const conteo = {
+  const conteo: Record<TipoFlag, number> = {
     todas: banderas.length,
     verde: banderas.filter(b => b.tipo === 'verde').length,
     amarilla: banderas.filter(b => b.tipo === 'amarilla').length,
     naranja: banderas.filter(b => b.tipo === 'naranja').length,
     roja: banderas.filter(b => b.tipo === 'roja').length,
   };
-
-  const FILTROS: { key: TipoFlag; emoji: string; label: string }[] = [
-    { key: 'todas',    emoji: '📋', label: 'Todas' },
-    { key: 'roja',     emoji: '🔴', label: 'Rojas' },
-    { key: 'naranja',  emoji: '🟠', label: 'Naranjas' },
-    { key: 'amarilla', emoji: '🟡', label: 'Amarillas' },
-    { key: 'verde',    emoji: '🟢', label: 'Verdes' },
-  ];
-
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -156,13 +138,22 @@ export default function AdminBanderasScreen() {
         <Text style={styles.headerTitle}>🏴 Gestión de Banderas</Text>
         <Text style={styles.headerSub}>Solo lectura — {banderas.length} registros en total</Text>
       </LinearGradient>
-
       {/* Resumen por color */}
       <Animated.View style={[styles.statsRow, { opacity: fadeAnim }]}>
-        {(['roja', 'naranja', 'amarilla', 'verde'] as const).map(tipo => {
-          const cfg = FLAG_CONFIG[tipo];
+        {(['todas', 'roja', 'naranja', 'amarilla', 'verde'] as const).map(tipo => {
+          const cfg = getFlagConfig(colors, isDark)[tipo];
+          const isActive = filtro === tipo;
           return (
-            <TouchableOpacity key={tipo} style={[styles.statCard, { borderColor: cfg.border }]} onPress={() => setFiltro(tipo)}>
+            <TouchableOpacity 
+              key={tipo} 
+              style={[
+                styles.statCard, 
+                { borderColor: cfg.border },
+                isActive && styles.statCardActive,
+                !isActive && { opacity: 0.6 }
+              ]} 
+              onPress={() => setFiltro(tipo)}
+            >
               <Text style={styles.statEmoji}>{cfg.emoji}</Text>
               <Text style={[styles.statCount, { color: cfg.color }]}>{conteo[tipo]}</Text>
               <Text style={styles.statLabel}>{cfg.label}</Text>
@@ -171,25 +162,10 @@ export default function AdminBanderasScreen() {
         })}
       </Animated.View>
 
-      {/* Filtros */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtrosRow}>
-        {FILTROS.map(f => (
-          <TouchableOpacity
-            key={f.key}
-            style={[styles.filtroBtn, filtro === f.key && styles.filtroBtnActive]}
-            onPress={() => setFiltro(f.key)}
-          >
-            <Text style={[styles.filtroText, filtro === f.key && styles.filtroTextActive]}>
-              {f.emoji} {f.label} ({conteo[f.key]})
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
       {/* Lista */}
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Cargando banderas...</Text>
         </View>
       ) : banderasFiltradas.length === 0 ? (
@@ -203,8 +179,9 @@ export default function AdminBanderasScreen() {
           data={banderasFiltradas}
           keyExtractor={item => item._id}
           renderItem={({ item }) => (
-            <FlagCard flag={item} onPress={() => setDetailFlag(item)} />
+            <FlagCard flag={item} onPress={() => setDetailFlag(item)} colors={colors} isDark={isDark} styles={styles} />
           )}
+          style={{ flex: 1 }}
           contentContainerStyle={styles.list}
           refreshControl={
             <RefreshControl
@@ -215,7 +192,6 @@ export default function AdminBanderasScreen() {
           }
         />
       )}
-
       {/* Modal de Detalle */}
       <Modal
         visible={!!detailFlag}
@@ -226,7 +202,7 @@ export default function AdminBanderasScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             {detailFlag && (() => {
-              const cfg = FLAG_CONFIG[detailFlag.tipo];
+              const cfg = getFlagConfig(colors, isDark)[detailFlag.tipo];
               return (
                 <ScrollView showsVerticalScrollIndicator={false}>
                   {/* Encabezado del modal */}
@@ -236,14 +212,12 @@ export default function AdminBanderasScreen() {
                       <Ionicons name="close" size={22} color="white" />
                     </TouchableOpacity>
                   </LinearGradient>
-
                   <View style={styles.modalBody}>
                     {/* Tipo de bandera */}
                     <View style={[styles.modalFlagBadge, { backgroundColor: cfg.bg, borderColor: cfg.border }]}>
                       <Text style={styles.modalFlagEmoji}>{cfg.emoji}</Text>
                       <Text style={[styles.modalFlagTipo, { color: cfg.color }]}>Bandera {cfg.label}</Text>
                     </View>
-
                     {/* Conductor */}
                     <View style={styles.detailSection}>
                       <Text style={styles.detailSectionTitle}>👤 Conductor</Text>
@@ -260,7 +234,6 @@ export default function AdminBanderasScreen() {
                         </View>
                       )}
                     </View>
-
                     {/* Motivo */}
                     <View style={styles.detailSection}>
                       <Text style={styles.detailSectionTitle}>📝 Motivo</Text>
@@ -268,19 +241,18 @@ export default function AdminBanderasScreen() {
                         <Text style={[styles.motivoText, { color: cfg.color }]}>{detailFlag.motivo}</Text>
                       </View>
                     </View>
-
                     {/* Origen */}
                     <View style={styles.detailSection}>
                       <Text style={styles.detailSectionTitle}>🔍 Origen</Text>
                       <View style={styles.detailRow}>
                         <Text style={styles.detailLabel}>Asignado por</Text>
-                        <View style={[styles.origenBadge, { backgroundColor: detailFlag.asignadoPor === 'admin' ? '#EFF6FF' : '#F0FDF4' }]}>
+                        <View style={[styles.origenBadge, { backgroundColor: detailFlag.asignadoPor === 'admin' ? (isDark ? colors.info+'20' : '#EFF6FF') : (isDark ? colors.success+'20' : '#F0FDF4') }]}>
                           <Ionicons
                             name={detailFlag.asignadoPor === 'admin' ? 'person' : 'hardware-chip'}
                             size={12}
-                            color={detailFlag.asignadoPor === 'admin' ? COLORS.info : COLORS.success}
+                            color={detailFlag.asignadoPor === 'admin' ? colors.info : colors.success}
                           />
-                          <Text style={[styles.origenText, { color: detailFlag.asignadoPor === 'admin' ? COLORS.info : COLORS.success }]}>
+                          <Text style={[styles.origenText, { color: detailFlag.asignadoPor === 'admin' ? colors.info : colors.success }]}>
                             {detailFlag.asignadoPor === 'admin' ? 'Admin Manual' : 'Sistema Automático'}
                           </Text>
                         </View>
@@ -294,7 +266,6 @@ export default function AdminBanderasScreen() {
                         </View>
                       )}
                     </View>
-
                     {/* Fecha */}
                     <View style={styles.detailSection}>
                       <Text style={styles.detailSectionTitle}>📅 Fecha</Text>
@@ -303,7 +274,6 @@ export default function AdminBanderasScreen() {
                         <Text style={styles.detailValue}>{formatFecha(detailFlag.createdAt)}</Text>
                       </View>
                     </View>
-
                     {/* Reserva vinculada */}
                     {detailFlag.reserva && (
                       <View style={styles.detailSection}>
@@ -318,7 +288,6 @@ export default function AdminBanderasScreen() {
                         </View>
                       </View>
                     )}
-
                     <TouchableOpacity style={styles.modalCloseButton} onPress={() => setDetailFlag(null)}>
                       <Text style={styles.modalCloseButtonText}>Cerrar</Text>
                     </TouchableOpacity>
@@ -332,22 +301,21 @@ export default function AdminBanderasScreen() {
     </View>
   );
 }
-
 // ─── Estilos ─────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+const getStyles = (colors: AppColors, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   header: {
     paddingTop: 16,
-    paddingBottom: 20,
+    paddingBottom: 24,
     paddingHorizontal: 20,
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: 'white',
+    color: colors.white,
   },
   headerSub: {
     fontSize: 13,
@@ -357,18 +325,22 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     marginHorizontal: 16,
-    marginTop: -14,
-    marginBottom: 12,
+    marginTop: -20,
+    marginBottom: 16,
     gap: 8,
   },
   statCard: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: BORDER_RADIUS.sm,
-    padding: 10,
+    padding: 6,
     alignItems: 'center',
-    borderWidth: 1.5,
+    borderWidth: 1,
     ...SHADOWS.elegant,
+  },
+  statCardActive: {
+    borderWidth: 2,
+    transform: [{ scale: 1.02 }],
   },
   statEmoji: {
     fontSize: 18,
@@ -380,34 +352,8 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 10,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginTop: 1,
-  },
-  filtrosRow: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    gap: 8,
-  },
-  filtroBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: BORDER_RADIUS.round,
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  filtroBtnActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  filtroText: {
-    fontSize: 13,
-    color: COLORS.textMuted,
-    fontWeight: '500',
-  },
-  filtroTextActive: {
-    color: 'white',
-    fontWeight: '700',
   },
   list: {
     paddingHorizontal: 16,
@@ -415,9 +361,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   card: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: BORDER_RADIUS.sm,
-    padding: 14,
+    padding: 10,
     ...SHADOWS.elegant,
   },
   cardRow: {
@@ -462,21 +408,21 @@ const styles = StyleSheet.create({
   cardUserName: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.text,
   },
   cardDept: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   cardMotivo: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     lineHeight: 18,
     marginBottom: 6,
   },
   cardFecha: {
     fontSize: 11,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginBottom: 6,
   },
   cardFooter: {
@@ -484,7 +430,7 @@ const styles = StyleSheet.create({
   },
   verDetalle: {
     fontSize: 12,
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: '700',
   },
   centered: {
@@ -494,7 +440,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   loadingText: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontSize: 14,
   },
   emptyEmoji: {
@@ -503,11 +449,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
   },
   emptyText: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     textAlign: 'center',
   },
   // Modal
@@ -517,7 +463,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '90%',
@@ -534,7 +480,7 @@ const styles = StyleSheet.create({
   modalHeaderTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: 'white',
+    color: colors.white,
   },
   modalCloseBtn: {
     padding: 4,
@@ -550,7 +496,7 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 14,
     borderRadius: BORDER_RADIUS.md,
-    borderWidth: 1.5,
+    borderWidth: 1,
   },
   modalFlagEmoji: {
     fontSize: 28,
@@ -565,7 +511,7 @@ const styles = StyleSheet.create({
   detailSectionTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -575,17 +521,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
   },
   detailLabel: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     flex: 1,
   },
   detailValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.text,
     flex: 2,
     textAlign: 'right',
   },
@@ -600,14 +546,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   modalCloseButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: BORDER_RADIUS.sm,
     padding: 15,
     alignItems: 'center',
     marginTop: 8,
   },
   modalCloseButtonText: {
-    color: 'white',
+    color: colors.white,
     fontSize: 16,
     fontWeight: 'bold',
   },

@@ -325,8 +325,8 @@ Estas tareas surgen del testing del Happy Path realizado el 7 de agosto. Se orga
 #### Joaquín (Backend + Móvil)
 - [x] 🔵 **Backend & Móvil (Obs. 3):** Fix — El campo `telefono` existe en la DB pero no se muestra en el Perfil. Ajustar controlador y `PerfilScreen`.
 - [x] 🔵 **Móvil (Obs. 6):** Agregar botón **"ojito"** (mostrar/ocultar contraseña) en la pantalla de Login.
-- [ ] 🎨 **Móvil (Obs. 2):** Rediseñar el botón **"+ Crear Reserva"** en el Inicio para que sea más grande, llamativo (gradiente, ícono, sombra).
-- [ ] 🎨 **Móvil (Nueva Idea):** Implementar **Modo Oscuro** automático/manual usando `Appearance` de React Native y un toggle en el Perfil.
+- [x] 🎨 **Móvil (Obs. 2):** Rediseñar el botón **"+ Crear Reserva"** en el Inicio para que sea más grande, llamativo (gradiente, ícono, sombra).
+- [x] 🎨 **Móvil (Nueva Idea):** Implementar **Modo Oscuro** automático/manual usando `Appearance` de React Native y un toggle en el Perfil.
 
 ---
 

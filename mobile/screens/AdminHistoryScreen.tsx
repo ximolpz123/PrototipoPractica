@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, 
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../constants';
+import { COLORS, AppColors } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
 import { reservationService, IReservation } from '../services/reservation.service';
 import { vehicleService, IVehicle } from '../services/vehicle.service';
@@ -112,6 +113,10 @@ const pickerStyles = StyleSheet.create({
 
 // ─── Pantalla principal ────────────────────────────────────────────────────────
 export default function AdminHistoryScreen() {
+  const { colors, isDark } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
+  
+
   const { showAlert } = useAlert();
   const [reservas, setReservas] = useState<IReservation[]>([]);
   const [vehiculos, setVehiculos] = useState<IVehicle[]>([]);
@@ -197,7 +202,7 @@ export default function AdminHistoryScreen() {
 
   // ─── Render de tarjeta ────────────────────────────────────────────────────────
   const renderReserva = ({ item }: { item: IReservation }) => {
-    const color = ESTADO_COLOR[item.estado] ?? COLORS.textMuted;
+    const color = ESTADO_COLOR[item.estado] ?? colors.textMuted;
     const vehiculo = item.vehiculo
       ? `${item.vehiculo.marca} ${item.vehiculo.modelo} · ${item.vehiculo.placa}`
       : 'Vehículo desconocido';
@@ -223,8 +228,8 @@ export default function AdminHistoryScreen() {
         <View style={styles.cardFooter}>
           <Text style={styles.cardDate}>📅 {formatFecha(item.fechaInicio)}</Text>
           <View style={styles.photoChip}>
-            <Ionicons name="camera-outline" size={12} color={totalFotos > 0 ? COLORS.success : COLORS.textMuted} />
-            <Text style={[styles.photoChipText, totalFotos > 0 && { color: COLORS.success }]}>
+            <Ionicons name="camera-outline" size={12} color={totalFotos > 0 ? colors.success : colors.textMuted} />
+            <Text style={[styles.photoChipText, totalFotos > 0 && { color: colors.success }]}>
               {totalFotos} foto{totalFotos !== 1 ? 's' : ''}
             </Text>
           </View>
@@ -270,7 +275,7 @@ export default function AdminHistoryScreen() {
             <Text style={[pickerStyles.triggerText, filtroFecha && pickerStyles.triggerTextActive]} numberOfLines={1}>
               {filtroFecha ? filtroFecha.toLocaleDateString('es-CL') : 'Cualquier fecha'}
             </Text>
-            <Ionicons name="calendar-outline" size={14} color={COLORS.textMuted} />
+            <Ionicons name="calendar-outline" size={14} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
 
@@ -285,7 +290,7 @@ export default function AdminHistoryScreen() {
 
         {hayFiltros && (
           <TouchableOpacity style={styles.clearBtn} onPress={limpiarFiltros}>
-            <Ionicons name="close-circle" size={14} color={COLORS.danger} />
+            <Ionicons name="close-circle" size={14} color={colors.danger} />
             <Text style={styles.clearBtnText}>Limpiar filtros</Text>
           </TouchableOpacity>
         )}
@@ -296,7 +301,7 @@ export default function AdminHistoryScreen() {
 
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Cargando historial...</Text>
         </View>
       ) : filtered.length === 0 ? (
@@ -316,7 +321,7 @@ export default function AdminHistoryScreen() {
           renderItem={renderReserva}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
         />
       )}
 
@@ -326,7 +331,7 @@ export default function AdminHistoryScreen() {
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Detalle del Viaje</Text>
             <TouchableOpacity onPress={() => setSelectedReserva(null)}>
-              <Ionicons name="close" size={28} color={COLORS.text} />
+              <Ionicons name="close" size={28} color={colors.text} />
             </TouchableOpacity>
           </View>
 
@@ -373,14 +378,14 @@ export default function AdminHistoryScreen() {
 
               {(selectedReserva.estado === 'cancelada' || selectedReserva.estado === 'rechazada') && selectedReserva.motivoRechazo ? (
                 <View style={styles.section}>
-                  <Text style={[styles.sectionTitle, { color: COLORS.danger }]}>Motivo de Rechazo</Text>
+                  <Text style={[styles.sectionTitle, { color: colors.danger }]}>Motivo de Rechazo</Text>
                   <Text style={styles.sectionText}>{selectedReserva.motivoRechazo}</Text>
                 </View>
               ) : null}
 
               <View style={styles.section}>
                 <View style={styles.sectionTitleRow}>
-                  <Ionicons name="camera" size={16} color={COLORS.primary} />
+                  <Ionicons name="camera" size={16} color={colors.primary} />
                   <Text style={[styles.sectionTitle, { marginLeft: 6 }]}>
                     Evidencia al Salir ({getFotosArray(selectedReserva.fotosSalida).length})
                   </Text>
@@ -390,7 +395,7 @@ export default function AdminHistoryScreen() {
 
               <View style={styles.section}>
                 <View style={styles.sectionTitleRow}>
-                  <Ionicons name="camera" size={16} color={COLORS.success} />
+                  <Ionicons name="camera" size={16} color={colors.success} />
                   <Text style={[styles.sectionTitle, { marginLeft: 6 }]}>
                     Evidencia al Retornar ({getFotosArray(selectedReserva.fotosRetorno).length})
                   </Text>
@@ -417,58 +422,58 @@ export default function AdminHistoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+const getStyles = (colors: AppColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  loadingText: { marginTop: 10, color: COLORS.textMuted, fontSize: 14 },
+  loadingText: { marginTop: 10, color: colors.textMuted, fontSize: 14 },
   emptyIcon: { fontSize: 44, marginBottom: 10 },
-  emptyText: { fontSize: 15, color: COLORS.textMuted, textAlign: 'center' },
+  emptyText: { fontSize: 15, color: colors.textMuted, textAlign: 'center' },
 
   // Filters
-  filtersPanel: { backgroundColor: COLORS.white, padding: 14, borderBottomWidth: 1, borderColor: COLORS.border, gap: 10 },
+  filtersPanel: { backgroundColor: colors.white, padding: 14, borderBottomWidth: 1, borderColor: colors.border, gap: 10 },
   filterRow: { flexDirection: 'row' },
   clearBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start' },
-  clearBtnText: { fontSize: 12, color: COLORS.danger, fontWeight: '600' },
+  clearBtnText: { fontSize: 12, color: colors.danger, fontWeight: '600' },
   clearBtnLarge: {
     marginTop: 16, paddingHorizontal: 20, paddingVertical: 10,
-    backgroundColor: COLORS.danger + '15', borderRadius: 8,
+    backgroundColor: colors.danger + '15', borderRadius: 8,
   },
-  clearBtnLargeText: { color: COLORS.danger, fontWeight: 'bold', fontSize: 14 },
+  clearBtnLargeText: { color: colors.danger, fontWeight: 'bold', fontSize: 14 },
 
-  resultCount: { fontSize: 12, color: COLORS.textMuted, paddingHorizontal: 16, paddingVertical: 8 },
+  resultCount: { fontSize: 12, color: colors.textMuted, paddingHorizontal: 16, paddingVertical: 8 },
 
   // List
   list: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 30 },
   card: {
-    backgroundColor: COLORS.white, borderRadius: 12, padding: 14, marginBottom: 10,
-    borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: colors.white, borderRadius: 12, padding: 14, marginBottom: 10,
+    borderWidth: 1, borderColor: colors.border,
   },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
-  cardConductor: { fontSize: 15, fontWeight: 'bold', color: COLORS.text },
-  cardVehiculo: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  cardConductor: { fontSize: 15, fontWeight: 'bold', color: colors.text },
+  cardVehiculo: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   estadoBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, marginLeft: 8 },
   estadoText: { fontSize: 9, fontWeight: 'bold' },
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardDate: { fontSize: 12, color: COLORS.textMuted },
+  cardDate: { fontSize: 12, color: colors.textMuted },
   photoChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  photoChipText: { fontSize: 12, color: COLORS.textMuted },
+  photoChipText: { fontSize: 12, color: colors.textMuted },
 
   // Modal
-  modalContainer: { flex: 1, backgroundColor: COLORS.background },
+  modalContainer: { flex: 1, backgroundColor: colors.background },
   modalHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 20, backgroundColor: COLORS.white, borderBottomWidth: 1, borderColor: COLORS.border,
+    padding: 20, backgroundColor: colors.white, borderBottomWidth: 1, borderColor: colors.border,
   },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', color: colors.text },
   modalScroll: { flex: 1, padding: 20 },
   section: { marginBottom: 20 },
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
   halfSection: { flex: 1, marginRight: 10 },
   sectionTitleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  sectionTitle: { fontSize: 11, fontWeight: 'bold', color: COLORS.textMuted, textTransform: 'uppercase', marginBottom: 4 },
-  sectionText: { fontSize: 16, color: COLORS.text },
+  sectionTitle: { fontSize: 11, fontWeight: 'bold', color: colors.textMuted, textTransform: 'uppercase', marginBottom: 4 },
+  sectionText: { fontSize: 16, color: colors.text },
   photo: { width: 150, height: 200, borderRadius: 10, marginRight: 10, backgroundColor: '#eee' },
-  noPhotos: { fontSize: 14, color: COLORS.textMuted, fontStyle: 'italic', marginTop: 5 },
+  noPhotos: { fontSize: 14, color: colors.textMuted, fontStyle: 'italic', marginTop: 5 },
 
   // Fullscreen Image
   fullscreenModal: {

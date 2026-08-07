@@ -6,7 +6,8 @@ import {
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, GRADIENTS, SHADOWS, BORDER_RADIUS } from '../constants';
+import { COLORS, AppColors, GRADIENTS, SHADOWS, BORDER_RADIUS } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
 import { reservationService, IReservation } from '../services/reservation.service';
 import { userService } from '../services/user.service';
@@ -29,6 +30,10 @@ function formatFecha(dateStr: string) {
 }
 
 export default function AdminDashboardScreen() {
+  const { colors, isDark } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
+  
+
   const { showAlert } = useAlert();
   const navigation = useNavigation<any>();
   const [reservas, setReservas] = useState<IReservation[]>([]);
@@ -174,7 +179,7 @@ export default function AdminDashboardScreen() {
   const listaFiltrada = filtro === 'pendiente' ? pendientes : reservas;
 
   const renderInspeccion = ({ item }: { item: IInspeccion }) => {
-    const color = item.estado === 'pendiente' ? COLORS.warning : item.estado === 'respondida' ? COLORS.success : COLORS.danger;
+    const color = item.estado === 'pendiente' ? colors.warning : item.estado === 'respondida' ? colors.success : colors.danger;
     const vehiculo = item.reserva?.vehiculo ? `${item.reserva.vehiculo.marca} ${item.reserva.vehiculo.modelo}` : 'Vehículo';
     
     return (
@@ -194,14 +199,14 @@ export default function AdminDashboardScreen() {
           <Text style={[styles.infoLine, { marginTop: 5 }]}>📋 {item.descripcion}</Text>
           <Text style={styles.infoLine}>🕒 Creada: {formatFecha(item.fechaActivacion)}</Text>
           {item.respuestaTexto ? <Text style={styles.infoLine}>🗣️ {item.respuestaTexto}</Text> : null}
-          {item.respuestaFotoUrl ? <Text style={[styles.infoLine, {color: COLORS.primary}]}>🖼️ Contiene foto adjunta</Text> : null}
+          {item.respuestaFotoUrl ? <Text style={[styles.infoLine, {color: colors.primary}]}>🖼️ Contiene foto adjunta</Text> : null}
         </View>
       </View>
     );
   };
 
   const renderReserva = ({ item }: { item: IReservation }) => {
-    const color = ESTADO_COLOR[item.estado] ?? COLORS.textMuted;
+    const color = ESTADO_COLOR[item.estado] ?? colors.textMuted;
     const vehiculo = item.vehiculo
       ? `${item.vehiculo.marca} ${item.vehiculo.modelo} · ${item.vehiculo.placa}`
       : 'Vehículo desconocido';
@@ -220,7 +225,7 @@ export default function AdminDashboardScreen() {
                   style={{ marginLeft: 8 }}
                   onPress={() => handleOpenFlagModal(item.usuario._id, item.usuario.nombre)}
                 >
-                  <Ionicons name="flag" size={16} color={COLORS.primary} />
+                  <Ionicons name="flag" size={16} color={colors.primary} />
                 </TouchableOpacity>
               )}
             </View>
@@ -240,7 +245,7 @@ export default function AdminDashboardScreen() {
           {/* Motivo de rechazo visible para el admin */}
           {item.motivoRechazo ? (
             <View style={styles.rejectReasonBox}>
-              <Ionicons name="alert-circle-outline" size={14} color={COLORS.danger} />
+              <Ionicons name="alert-circle-outline" size={14} color={colors.danger} />
               <Text style={styles.rejectReasonText}>
                 Motivo de rechazo: {item.motivoRechazo}
               </Text>
@@ -251,7 +256,7 @@ export default function AdminDashboardScreen() {
         {item.estado === 'pendiente' && (
           <View style={styles.actionRow}>
             {actionLoading === item._id ? (
-              <ActivityIndicator color={COLORS.primary} />
+              <ActivityIndicator color={colors.primary} />
             ) : (
               <>
                 <TouchableOpacity
@@ -288,7 +293,7 @@ export default function AdminDashboardScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Ionicons name="close-circle" size={28} color={COLORS.danger} />
+              <Ionicons name="close-circle" size={28} color={colors.danger} />
               <Text style={styles.modalTitle}>Motivo de Rechazo</Text>
             </View>
             <Text style={styles.modalSubtitle}>
@@ -299,7 +304,7 @@ export default function AdminDashboardScreen() {
               value={rejectMotivo}
               onChangeText={setRejectMotivo}
               placeholder="Ej: El vehículo ya está reservado para esa fecha..."
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={colors.textMuted}
               multiline
               numberOfLines={4}
               textAlignVertical="top"
@@ -332,7 +337,7 @@ export default function AdminDashboardScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Ionicons name="flag" size={28} color={COLORS.primary} />
+              <Ionicons name="flag" size={28} color={colors.primary} />
               <Text style={styles.modalTitle}>Asignar Bandera Manual</Text>
             </View>
             <Text style={styles.modalSubtitle}>
@@ -366,7 +371,7 @@ export default function AdminDashboardScreen() {
               value={flagMotivo}
               onChangeText={setFlagMotivo}
               placeholder="Escribe el motivo..."
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={colors.textMuted}
               multiline
               numberOfLines={4}
               textAlignVertical="top"
@@ -379,7 +384,7 @@ export default function AdminDashboardScreen() {
                 <Text style={styles.cancelModalBtnText}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: COLORS.primary }]}
+                style={[styles.modalBtn, { backgroundColor: colors.primary }]}
                 onPress={handleAssignFlag}
                 disabled={flagLoading}
               >
@@ -403,29 +408,29 @@ export default function AdminDashboardScreen() {
       >
         <LinearGradient colors={GRADIENTS.warning} style={[styles.kpiCard, { padding: 0 }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
           <View style={{ padding: 15, width: '100%' }}>
-            <Text style={[styles.kpiNum, { color: COLORS.white }]}>{pendientes.length}</Text>
+            <Text style={[styles.kpiNum, { color: colors.white }]}>{pendientes.length}</Text>
             <Text style={[styles.kpiLabel, { color: 'rgba(255,255,255,0.8)' }]}>Pendientes</Text>
           </View>
         </LinearGradient>
         
         <LinearGradient colors={GRADIENTS.success} style={[styles.kpiCard, { padding: 0 }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
           <View style={{ padding: 15, width: '100%' }}>
-            <Text style={[styles.kpiNum, { color: COLORS.white }]}>{enCurso.length}</Text>
+            <Text style={[styles.kpiNum, { color: colors.white }]}>{enCurso.length}</Text>
             <Text style={[styles.kpiLabel, { color: 'rgba(255,255,255,0.8)' }]}>En Ruta</Text>
           </View>
         </LinearGradient>
 
         <LinearGradient colors={GRADIENTS.primary} style={[styles.kpiCard, { padding: 0 }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
           <View style={{ padding: 15, width: '100%' }}>
-            <Text style={[styles.kpiNum, { color: COLORS.white }]}>{hoyCompletadas.length}</Text>
+            <Text style={[styles.kpiNum, { color: colors.white }]}>{hoyCompletadas.length}</Text>
             <Text style={[styles.kpiLabel, { color: 'rgba(255,255,255,0.8)' }]}>Finalizadas Hoy</Text>
           </View>
         </LinearGradient>
 
-        <LinearGradient colors={GRADIENTS.cardBackground} style={[styles.kpiCard, { padding: 0, borderWidth: 1, borderColor: COLORS.border }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+        <LinearGradient colors={GRADIENTS.cardBackground} style={[styles.kpiCard, { padding: 0, borderWidth: 1, borderColor: colors.border }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
           <View style={{ padding: 15, width: '100%' }}>
-            <Text style={[styles.kpiNum, { color: COLORS.text }]}>{reservas.length}</Text>
-            <Text style={[styles.kpiLabel, { color: COLORS.textMuted }]}>Total</Text>
+            <Text style={[styles.kpiNum, { color: colors.text }]}>{reservas.length}</Text>
+            <Text style={[styles.kpiLabel, { color: colors.textMuted }]}>Total</Text>
           </View>
         </LinearGradient>
       </ScrollView>
@@ -460,7 +465,7 @@ export default function AdminDashboardScreen() {
 
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Cargando reservas...</Text>
         </View>
       ) : (filtro === 'inspecciones' && inspecciones.length === 0) || (filtro !== 'inspecciones' && listaFiltrada.length === 0) ? (
@@ -478,7 +483,7 @@ export default function AdminDashboardScreen() {
           renderItem={filtro === 'inspecciones' ? renderInspeccion as any : renderReserva}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
         />
       )}
 
@@ -493,24 +498,24 @@ export default function AdminDashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+const getStyles = (colors: AppColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  loadingText: { marginTop: 10, color: COLORS.textMuted, fontSize: 14 },
+  loadingText: { marginTop: 10, color: colors.textMuted, fontSize: 14 },
   emptyIcon: { fontSize: 44, marginBottom: 10 },
-  emptyText: { fontSize: 15, color: COLORS.textMuted, textAlign: 'center' },
+  emptyText: { fontSize: 15, color: colors.textMuted, textAlign: 'center' },
 
   fab: {
     position: 'absolute',
     bottom: 20,
     right: 20,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     width: 60,
     height: 60,
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: COLORS.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 6,
@@ -520,7 +525,7 @@ const styles = StyleSheet.create({
   kpiScroll: { flexGrow: 0 },
   kpiContainer: { paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
   kpiCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: BORDER_RADIUS.lg,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -533,8 +538,8 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  kpiNum: { fontSize: 28, fontWeight: 'bold', color: COLORS.text },
-  kpiLabel: { fontSize: 11, color: COLORS.textMuted, marginTop: 2, textAlign: 'center' },
+  kpiNum: { fontSize: 28, fontWeight: 'bold', color: colors.text },
+  kpiLabel: { fontSize: 11, color: colors.textMuted, marginTop: 2, textAlign: 'center' },
 
   filtroRow: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 10, gap: 8 },
   filtroBtn: {
@@ -542,28 +547,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.white,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
   },
-  filtroBtnActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  filtroBtnText: { fontSize: 13, color: COLORS.textMuted, fontWeight: '600' },
-  filtroBtnTextActive: { color: COLORS.white },
+  filtroBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  filtroBtnText: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
+  filtroBtnTextActive: { color: colors.white },
 
   list: { paddingHorizontal: 16, paddingBottom: 30 },
   card: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: BORDER_RADIUS.lg,
     padding: 18,
     marginBottom: 16,
     ...SHADOWS.subtleMauve,
   },
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
-  cardConductor: { fontSize: 16, fontWeight: '800', color: COLORS.text, letterSpacing: -0.3 },
-  cardVehiculo: { fontSize: 14, color: COLORS.textMuted, marginTop: 4, fontWeight: '500' },
+  cardConductor: { fontSize: 16, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
+  cardVehiculo: { fontSize: 14, color: colors.textMuted, marginTop: 4, fontWeight: '500' },
   estadoBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: BORDER_RADIUS.round, marginLeft: 8 },
   estadoText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
   cardBody: { backgroundColor: '#F8FAFC', borderRadius: BORDER_RADIUS.md, padding: 12, gap: 6 },
-  infoLine: { fontSize: 13, color: COLORS.textMuted, fontWeight: '500' },
+  infoLine: { fontSize: 13, color: colors.textMuted, fontWeight: '500' },
 
   rejectReasonBox: {
     flexDirection: 'row',
@@ -574,15 +579,15 @@ const styles = StyleSheet.create({
     padding: 8,
     gap: 6,
   },
-  rejectReasonText: { fontSize: 12, color: COLORS.danger, flex: 1 },
+  rejectReasonText: { fontSize: 12, color: colors.danger, flex: 1 },
 
   actionRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
   actionBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     paddingVertical: 9, borderRadius: 8, gap: 5,
   },
-  approveBtn: { backgroundColor: COLORS.success },
-  rejectBtn: { backgroundColor: COLORS.danger },
+  approveBtn: { backgroundColor: colors.success },
+  rejectBtn: { backgroundColor: colors.danger },
   actionBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 13 },
 
   // Modal de rechazo
@@ -592,7 +597,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderTopLeftRadius: BORDER_RADIUS.xl,
     borderTopRightRadius: BORDER_RADIUS.xl,
     ...SHADOWS.subtleMauve,
@@ -608,21 +613,21 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
   },
   modalSubtitle: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginBottom: 16,
     lineHeight: 20,
   },
   motivoInput: {
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 12,
     padding: 14,
     fontSize: 14,
-    color: COLORS.text,
+    color: colors.text,
     backgroundColor: '#F8FAFC',
     minHeight: 110,
     marginBottom: 20,
@@ -641,12 +646,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
   },
   cancelModalBtnText: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontWeight: '700',
     fontSize: 14,
   },
   confirmRejectBtn: {
-    backgroundColor: COLORS.danger,
+    backgroundColor: colors.danger,
   },
   confirmRejectBtnText: {
     color: '#fff',
@@ -663,7 +668,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -671,6 +676,6 @@ const styles = StyleSheet.create({
   },
   flagOptionText: {
     fontSize: 13,
-    color: COLORS.text,
+    color: colors.text,
   }
 });

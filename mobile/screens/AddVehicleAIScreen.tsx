@@ -12,11 +12,16 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../constants';
+import { COLORS, AppColors } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
 import { vehicleService } from '../services/vehicle.service';
 
 export default function AddVehicleAIScreen({ navigation }: any) {
+  const { colors, isDark } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
+  
+
   const { showAlert } = useAlert();
   
   const [fotos, setFotos] = useState<string[]>([]);
@@ -134,13 +139,13 @@ export default function AddVehicleAIScreen({ navigation }: any) {
               style={styles.deleteFotoBtn} 
               onPress={() => setFotos(fotos.filter((_, i) => i !== index))}
             >
-              <Ionicons name="close-circle" size={24} color={COLORS.danger} />
+              <Ionicons name="close-circle" size={24} color={colors.danger} />
             </TouchableOpacity>
           </View>
         ))}
         {fotos.length < 5 && (
           <TouchableOpacity style={styles.addFotoBtn} onPress={handleTomarFoto}>
-            <Ionicons name="camera" size={32} color={COLORS.primary} />
+            <Ionicons name="camera" size={32} color={colors.primary} />
             <Text style={styles.addFotoText}>Tomar Foto</Text>
           </TouchableOpacity>
         )}
@@ -168,7 +173,7 @@ export default function AddVehicleAIScreen({ navigation }: any) {
       <View style={[styles.formContainer, aiDataLoaded && styles.formContainerActive]}>
         {aiDataLoaded && (
           <View style={styles.aiSuccessBadge}>
-            <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
+            <Ionicons name="checkmark-circle" size={16} color={colors.success} />
             <Text style={styles.aiSuccessText}>¡Datos extraídos! Revisa y completa los campos vacíos.</Text>
           </View>
         )}
@@ -254,35 +259,35 @@ export default function AddVehicleAIScreen({ navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+const getStyles = (colors: AppColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   header: { marginBottom: 20 },
-  title: { fontSize: 22, fontWeight: 'bold', color: COLORS.text, marginBottom: 5 },
-  subtitle: { fontSize: 14, color: COLORS.textMuted },
+  title: { fontSize: 22, fontWeight: 'bold', color: colors.text, marginBottom: 5 },
+  subtitle: { fontSize: 14, color: colors.textMuted },
   
   fotosContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
   fotoWrapper: { width: 100, height: 100, borderRadius: 10, overflow: 'hidden', position: 'relative' },
   foto: { width: '100%', height: '100%' },
   deleteFotoBtn: { position: 'absolute', top: 5, right: 5, backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 12 },
   
-  addFotoBtn: { width: 100, height: 100, borderRadius: 10, backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.border, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' },
-  addFotoText: { fontSize: 12, color: COLORS.primary, marginTop: 5, fontWeight: '600' },
+  addFotoBtn: { width: 100, height: 100, borderRadius: 10, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' },
+  addFotoText: { fontSize: 12, color: colors.primary, marginTop: 5, fontWeight: '600' },
 
   aiBtn: { backgroundColor: '#8B5CF6', padding: 15, borderRadius: 10, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 20, gap: 10 },
   aiBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   btnDisabled: { opacity: 0.5 },
 
-  formContainer: { backgroundColor: COLORS.white, padding: 20, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border },
+  formContainer: { backgroundColor: colors.white, padding: 20, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
   formContainerActive: { borderColor: '#8B5CF6', borderWidth: 2 },
-  aiSuccessBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.success + '15', padding: 10, borderRadius: 8, marginBottom: 15, gap: 8 },
-  aiSuccessText: { color: COLORS.success, fontSize: 13, fontWeight: '600', flex: 1 },
+  aiSuccessBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.success + '15', padding: 10, borderRadius: 8, marginBottom: 15, gap: 8 },
+  aiSuccessText: { color: colors.success, fontSize: 13, fontWeight: '600', flex: 1 },
 
   row: { flexDirection: 'row', marginBottom: 15 },
-  label: { fontSize: 14, fontWeight: '600', color: COLORS.text, marginBottom: 5 },
-  input: { backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 12, fontSize: 15, color: COLORS.text, marginBottom: 15 },
+  label: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 5 },
+  input: { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, fontSize: 15, color: colors.text, marginBottom: 15 },
   
-  infoText: { fontSize: 13, color: COLORS.textMuted, fontStyle: 'italic', marginBottom: 15 },
+  infoText: { fontSize: 13, color: colors.textMuted, fontStyle: 'italic', marginBottom: 15 },
 
-  saveBtn: { backgroundColor: COLORS.primary, padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 10 },
-  saveBtnText: { color: COLORS.white, fontSize: 16, fontWeight: 'bold' },
+  saveBtn: { backgroundColor: colors.primary, padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 10 },
+  saveBtnText: { color: colors.white, fontSize: 16, fontWeight: 'bold' },
 });

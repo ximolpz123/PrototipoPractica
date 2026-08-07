@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { authService } from '../services/auth.service';
-import { COLORS } from '../constants';
+import { COLORS, AppColors } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 import { vehicleService, IVehicle } from '../services/vehicle.service';
 
 const TIPO_ICON: Record<string, string> = {
@@ -20,6 +21,10 @@ const ESTADO_COLORS: Record<string, { bg: string; text: string; label: string }>
 };
 
 export default function FlotaScreen() {
+  const { colors, isDark } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
+  
+
   const [vehicles, setVehicles] = useState<IVehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -103,7 +108,7 @@ export default function FlotaScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Cargando flota...</Text>
       </View>
     );
@@ -130,7 +135,7 @@ export default function FlotaScreen() {
         keyExtractor={(item) => item._id}
         renderItem={renderItem}
         contentContainerStyle={styles.listContainer}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No hay vehículos registrados en la flota.</Text>
@@ -149,50 +154,50 @@ export default function FlotaScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     paddingTop: 20,
   },
   centered: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   loadingText: {
     marginTop: 12,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontSize: 14,
   },
   errorText: {
-    color: COLORS.danger,
+    color: colors.danger,
     fontSize: 15,
     textAlign: 'center',
     marginBottom: 16,
   },
   retryBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 10,
     borderRadius: 8,
   },
   retryBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: 'bold',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
     paddingHorizontal: 20,
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     paddingHorizontal: 20,
     marginBottom: 20,
   },
@@ -223,12 +228,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontSize: 16,
     textAlign: 'center',
   },
   card: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 12,
     padding: 16,
     marginBottom: 14,
@@ -259,11 +264,11 @@ const styles = StyleSheet.create({
   vehicleName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
   },
   vehicleDetail: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginBottom: 4,
   },
   conductorContainer: {
@@ -276,11 +281,11 @@ const styles = StyleSheet.create({
   conductorText: {
     fontSize: 13,
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.text,
   },
   conductorDepto: {
     fontSize: 11,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginLeft: 18,
     marginTop: 2,
   },
@@ -314,7 +319,7 @@ const styles = StyleSheet.create({
   },
   historyTime: {
     fontSize: 12,
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: '600',
     width: 90,
   },

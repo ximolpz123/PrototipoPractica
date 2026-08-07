@@ -2,7 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput, Modal, ScrollView, RefreshControl, Linking, Animated } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, GRADIENTS, SHADOWS, BORDER_RADIUS } from '../constants';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS, AppColors, GRADIENTS, SHADOWS, BORDER_RADIUS } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
 import { locationService } from '../services/location.service';
 import { reservationService, IReservation } from '../services/reservation.service';
@@ -13,6 +15,10 @@ import api from '../services/api';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function HomeScreen({ route, navigation }: any) {
+  const { colors, isDark } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
+  
+
   const { showAlert } = useAlert();
   const { user } = route.params;
 
@@ -299,7 +305,7 @@ export default function HomeScreen({ route, navigation }: any) {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -309,7 +315,7 @@ export default function HomeScreen({ route, navigation }: any) {
       style={styles.container}
       contentContainerStyle={styles.scrollContent}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
       }
     >
       {/* Bienvenida */}
@@ -352,8 +358,8 @@ export default function HomeScreen({ route, navigation }: any) {
               <Text style={styles.cardTitle}>🚗 VIAJE EN CURSO</Text>
               <Text style={styles.cardVehiculo}>{vehiculoNombre(activeReserva)}</Text>
             </View>
-            <View style={[styles.badge, { backgroundColor: COLORS.success + '20' }]}>
-              <Text style={[styles.badgeText, { color: COLORS.success }]}>ACTIVO</Text>
+            <View style={[styles.badge, { backgroundColor: colors.success + '20' }]}>
+              <Text style={[styles.badgeText, { color: colors.success }]}>ACTIVO</Text>
             </View>
           </View>
 
@@ -380,7 +386,7 @@ export default function HomeScreen({ route, navigation }: any) {
           </View>
 
           <TouchableOpacity 
-            style={[styles.btnPrimary, { marginTop: 10, backgroundColor: COLORS.warning }]} 
+            style={[styles.btnPrimary, { marginTop: 10, backgroundColor: colors.warning }]} 
             onPress={handleOpenPasarMando}
           >
             <Text style={styles.btnText}>Pasar el Mando 🔑</Text>
@@ -410,8 +416,20 @@ export default function HomeScreen({ route, navigation }: any) {
         <Animated.View style={[styles.centered, { opacity: fadeAnim }]}>
           <Text style={styles.emptyIcon}>🏖️</Text>
           <Text style={styles.emptyText}>No tienes reservas activas ni próximas.</Text>
-          <TouchableOpacity style={styles.btnPrimary} onPress={() => navigation.navigate('CreateReservation')}>
-            <Text style={styles.btnText}>+ Crear Reserva</Text>
+          <TouchableOpacity 
+            style={styles.btnCrearReservaContainer} 
+            onPress={() => navigation.navigate('CreateReservation')}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={GRADIENTS.primary}
+              style={styles.btnCrearReservaGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Ionicons name="add-circle" size={28} color="#FFF" style={{ marginRight: 10 }} />
+              <Text style={styles.btnCrearReservaText}>Nueva Reserva</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
       )}
@@ -428,7 +446,7 @@ export default function HomeScreen({ route, navigation }: any) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>🕒 Máquina del Tiempo</Text>
-            <Text style={{ marginBottom: 15, textAlign: 'center', color: COLORS.textMuted }}>Solo para pruebas. Afecta al backend.</Text>
+            <Text style={{ marginBottom: 15, textAlign: 'center', color: colors.textMuted }}>Solo para pruebas. Afecta al backend.</Text>
 
             <TouchableOpacity style={styles.btnPrimary} onPress={() => changeDevTime(1, 0)}>
               <Text style={styles.btnText}>Adelantar 1 Hora</Text>
@@ -448,7 +466,7 @@ export default function HomeScreen({ route, navigation }: any) {
                 value={manualMinutes}
                 onChangeText={setManualMinutes}
                 placeholder="Minutos..."
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={colors.textMuted}
                 keyboardType="numeric"
               />
               <TouchableOpacity
@@ -469,7 +487,7 @@ export default function HomeScreen({ route, navigation }: any) {
               <Text style={styles.btnText}>Reiniciar Tiempo Real</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.btnPrimary, { marginTop: 15, backgroundColor: COLORS.textMuted }]} onPress={() => setDevModalVisible(false)}>
+            <TouchableOpacity style={[styles.btnPrimary, { marginTop: 15, backgroundColor: colors.textMuted }]} onPress={() => setDevModalVisible(false)}>
               <Text style={styles.btnText}>Cerrar</Text>
             </TouchableOpacity>
           </View>
@@ -482,11 +500,11 @@ export default function HomeScreen({ route, navigation }: any) {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Seleccionar Conductor</Text>
             {loadingDrivers ? (
-              <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 20 }} />
+              <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: 20 }} />
             ) : (
               <ScrollView style={{ maxHeight: 300, width: '100%' }}>
                 {drivers.length === 0 && (
-                  <Text style={{ textAlign: 'center', marginTop: 20, color: COLORS.textMuted }}>No hay conductores disponibles</Text>
+                  <Text style={{ textAlign: 'center', marginTop: 20, color: colors.textMuted }}>No hay conductores disponibles</Text>
                 )}
                 {drivers.map(d => (
                   <TouchableOpacity
@@ -494,14 +512,14 @@ export default function HomeScreen({ route, navigation }: any) {
                     style={{ padding: 15, borderBottomWidth: 1, borderBottomColor: '#eee', width: '100%' }}
                     onPress={() => handleConfirmPasarMando(d)}
                   >
-                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: COLORS.text }}>{d.nombre} {d.apellido}</Text>
-                    <Text style={{ fontSize: 13, color: COLORS.textMuted }}>{d.departamento || 'Sin departamento'}</Text>
+                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: colors.text }}>{d.nombre} {d.apellido}</Text>
+                    <Text style={{ fontSize: 13, color: colors.textMuted }}>{d.departamento || 'Sin departamento'}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
             )}
             <TouchableOpacity 
-              style={[styles.btnPrimary, { marginTop: 15, backgroundColor: COLORS.textMuted, width: '100%' }]} 
+              style={[styles.btnPrimary, { marginTop: 15, backgroundColor: colors.textMuted, width: '100%' }]} 
               onPress={() => setShowDriverModal(false)}
             >
               <Text style={styles.btnText}>Cancelar</Text>
@@ -515,7 +533,7 @@ export default function HomeScreen({ route, navigation }: any) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>🚨 Inspección Aleatoria</Text>
-            <Text style={{ fontSize: 16, color: COLORS.danger, fontWeight: 'bold', marginBottom: 5 }}>
+            <Text style={{ fontSize: 16, color: colors.danger, fontWeight: 'bold', marginBottom: 5 }}>
               Tiempo límite: {activeInspection ? new Date(activeInspection.fechaLimite).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : ''}
             </Text>
             <Text style={{ textAlign: 'center', marginBottom: 20, fontSize: 15 }}>
@@ -525,14 +543,14 @@ export default function HomeScreen({ route, navigation }: any) {
             <TextInput
               style={[styles.kmInput, { minHeight: 60, textAlignVertical: 'top', width: '100%', marginBottom: 15 }]}
               placeholder="Escribe un comentario o reporte..."
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={colors.textMuted}
               multiline
               value={inspectionText}
               onChangeText={setInspectionText}
             />
 
             <View style={{ flexDirection: 'row', width: '100%', gap: 10, marginBottom: 15 }}>
-              <TouchableOpacity style={[styles.btnPrimary, { flex: 1, backgroundColor: inspectionPhoto ? COLORS.success : COLORS.primaryDark }]} onPress={handleTakeInspectionPhoto}>
+              <TouchableOpacity style={[styles.btnPrimary, { flex: 1, backgroundColor: inspectionPhoto ? colors.success : colors.primaryDark }]} onPress={handleTakeInspectionPhoto}>
                 <Text style={styles.btnText}>{inspectionPhoto ? '📸 Foto Lista (Reemplazar)' : '📸 Tomar Foto'}</Text>
               </TouchableOpacity>
             </View>
@@ -543,7 +561,7 @@ export default function HomeScreen({ route, navigation }: any) {
               disabled={submittingInspection}
             >
               {submittingInspection ? (
-                <ActivityIndicator color={COLORS.white} />
+                <ActivityIndicator color={colors.white} />
               ) : (
                 <Text style={styles.btnText}>Enviar Reporte</Text>
               )}
@@ -555,10 +573,10 @@ export default function HomeScreen({ route, navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     padding: 20,
@@ -569,23 +587,23 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   welcomeTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: 2,
   },
   welcomeName: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.primary,
+    color: colors.primary,
     marginBottom: 2,
   },
   welcomeRole: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     textTransform: 'capitalize',
   },
   headerRow: {
@@ -600,17 +618,17 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   clockTime: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: colors.primary,
     fontVariant: ['tabular-nums'],
   },
   clockDate: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginTop: 2,
   },
   clockDevBadge: {
@@ -626,11 +644,11 @@ const styles = StyleSheet.create({
   },
   welcomeDept: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginBottom: 20,
   },
   card: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: BORDER_RADIUS.lg,
     padding: 24,
     marginBottom: 20,
@@ -638,7 +656,7 @@ const styles = StyleSheet.create({
   },
   cardActive: {
     borderLeftWidth: 5,
-    borderLeftColor: COLORS.success,
+    borderLeftColor: colors.success,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -649,21 +667,21 @@ const styles = StyleSheet.create({
   cardLabel: {
     fontSize: 11,
     fontWeight: '800',
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     letterSpacing: 0.5,
     marginBottom: 6,
   },
   cardTitle: {
     fontSize: 12,
     fontWeight: '800',
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     letterSpacing: 0.5,
     marginBottom: 4,
   },
   cardVehiculo: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
   },
   badge: {
     paddingHorizontal: 8,
@@ -679,27 +697,27 @@ const styles = StyleSheet.create({
   },
   infoLine: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginBottom: 6,
   },
   bold: {
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.text,
   },
   cardVehicle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: 8,
   },
   cardInfo: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginBottom: 4,
   },
   cardSub: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     lineHeight: 20,
     marginBottom: 16,
   },
@@ -711,10 +729,10 @@ const styles = StyleSheet.create({
   },
   gpsIndicatorText: {
     fontSize: 11,
-    color: COLORS.success,
+    color: colors.success,
   },
   btnPrimary: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 14,
     borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
@@ -728,7 +746,7 @@ const styles = StyleSheet.create({
   },
   btnNav: {
     flex: 1,
-    backgroundColor: COLORS.primaryDark,
+    backgroundColor: colors.primaryDark,
     paddingVertical: 14,
     borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
@@ -736,14 +754,14 @@ const styles = StyleSheet.create({
   },
   btnDangerHalf: {
     flex: 1,
-    backgroundColor: COLORS.danger,
+    backgroundColor: colors.danger,
     paddingVertical: 14,
     borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
     ...SHADOWS.elegant,
   },
   btnDanger: {
-    backgroundColor: COLORS.danger,
+    backgroundColor: colors.danger,
     borderRadius: BORDER_RADIUS.md,
     padding: 14,
     alignItems: 'center',
@@ -751,7 +769,7 @@ const styles = StyleSheet.create({
     ...SHADOWS.elegant,
   },
   btnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: 'bold',
     fontSize: 15,
   },
@@ -763,7 +781,7 @@ const styles = StyleSheet.create({
   },
   gpsStatusText: {
     fontSize: 12,
-    color: COLORS.success,
+    color: colors.success,
     fontWeight: '600',
   },
   // Modal de km retorno
@@ -773,7 +791,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderTopLeftRadius: BORDER_RADIUS.xl,
     borderTopRightRadius: BORDER_RADIUS.xl,
     padding: 28,
@@ -786,25 +804,25 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     textAlign: 'center',
     marginBottom: 20,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: 6,
   },
   modalSubtitle: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginBottom: 10,
     lineHeight: 20,
   },
   modalHint: {
     fontSize: 13,
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: '600',
     marginBottom: 12,
     backgroundColor: '#EBF5FB',
@@ -813,18 +831,18 @@ const styles = StyleSheet.create({
   },
   kmInput: {
     borderWidth: 1.5,
-    borderColor: COLORS.primary,
+    borderColor: colors.primary,
     borderRadius: 10,
     padding: 14,
     fontSize: 22,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: 8,
     textAlign: 'center',
   },
   kmCalculated: {
     fontSize: 14,
-    color: COLORS.success,
+    color: colors.success,
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 16,
@@ -840,26 +858,49 @@ const styles = StyleSheet.create({
   modalBtnCancel: {
     flex: 1,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 10,
     padding: 14,
     alignItems: 'center',
   },
   modalBtnCancelText: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontWeight: '600',
     fontSize: 15,
   },
   modalBtnConfirm: {
     flex: 2,
-    backgroundColor: COLORS.danger,
+    backgroundColor: colors.danger,
     borderRadius: 10,
     padding: 14,
     alignItems: 'center',
   },
   modalBtnConfirmText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: 'bold',
     fontSize: 15,
+  },
+  btnCrearReservaContainer: {
+    width: '100%',
+    marginTop: 15,
+    borderRadius: 16,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  btnCrearReservaGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    borderRadius: 16,
+  },
+  btnCrearReservaText: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
   },
 });

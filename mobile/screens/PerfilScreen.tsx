@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator, TextInput, Modal, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { COLORS } from '../constants';
+import { useTheme } from '../context/ThemeContext';
+import { COLORS, AppColors } from '../constants';
 import { useAlert } from '../context/AlertContext';
 import { userService } from '../services/user.service';
 import { authService } from '../services/auth.service';
@@ -24,6 +25,8 @@ const FLAG_ICONS: Record<string, string> = {
 };
 
 export default function PerfilScreen({ route }: any) {
+  const { colors, themePreference, setThemePreference } = useTheme();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const { showAlert } = useAlert();
   const handleLogout = route.params?.handleLogout || (() => {});
   
@@ -180,7 +183,7 @@ export default function PerfilScreen({ route }: any) {
         <TouchableOpacity onPress={handleChangePhoto} style={styles.avatarContainer}>
           {uploading ? (
             <View style={styles.avatarLoading}>
-              <ActivityIndicator color={COLORS.white} />
+              <ActivityIndicator color={colors.white} />
             </View>
           ) : (
             <Image source={{ uri: avatarUri }} style={styles.avatar} />
@@ -210,13 +213,13 @@ export default function PerfilScreen({ route }: any) {
             <View style={styles.modalHeaderRow}>
               <Text style={styles.modalTitle}>Licencia Subida</Text>
               <TouchableOpacity onPress={() => setShowLicenciaModal(false)}>
-                <Ionicons name="close" size={24} color={COLORS.text} />
+                <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
             {licenciaFotoUrl ? (
               <Image source={{ uri: licenciaFotoUrl }} style={{ width: '100%', height: 200, resizeMode: 'contain', borderRadius: 10, marginTop: 10 }} />
             ) : (
-              <Text style={{ textAlign: 'center', marginTop: 20, color: COLORS.textMuted }}>No hay foto disponible</Text>
+              <Text style={{ textAlign: 'center', marginTop: 20, color: colors.textMuted }}>No hay foto disponible</Text>
             )}
           </View>
         </View>
@@ -240,8 +243,8 @@ export default function PerfilScreen({ route }: any) {
       {/* LICENSE STATUS SECTION */}
       <View style={[styles.licenseCard, isLicenciaValida ? styles.licenseValid : styles.licenseInvalid]}>
         <View style={styles.licenseHeader}>
-          <Ionicons name="card" size={24} color={isLicenciaValida ? COLORS.success : COLORS.danger} />
-          <Text style={[styles.licenseTitle, { color: isLicenciaValida ? COLORS.success : COLORS.danger }]}>
+          <Ionicons name="card" size={24} color={isLicenciaValida ? colors.success : colors.danger} />
+          <Text style={[styles.licenseTitle, { color: isLicenciaValida ? colors.success : colors.danger }]}>
             Estado de Licencia
           </Text>
         </View>
@@ -255,17 +258,17 @@ export default function PerfilScreen({ route }: any) {
           </View>
         ) : (
           <View>
-            <Text style={[styles.licenseStatus, { color: COLORS.danger }]}>❌ VENCIDA O INVÁLIDA</Text>
-            <Text style={[styles.licenseDate, { color: COLORS.danger }]}>No puedes solicitar nuevas reservas de vehículos.</Text>
+            <Text style={[styles.licenseStatus, { color: colors.danger }]}>❌ VENCIDA O INVÁLIDA</Text>
+            <Text style={[styles.licenseDate, { color: colors.danger }]}>No puedes solicitar nuevas reservas de vehículos.</Text>
           </View>
         )}
         
         {licenciaFotoUrl ? (
           <TouchableOpacity 
-            style={[styles.scanBtn, { backgroundColor: COLORS.textMuted, marginBottom: 10 }]} 
+            style={[styles.scanBtn, { backgroundColor: colors.textMuted, marginBottom: 10 }]} 
             onPress={() => setShowLicenciaModal(true)}
           >
-            <Ionicons name="eye-outline" size={20} color={COLORS.white} />
+            <Ionicons name="eye-outline" size={20} color={colors.white} />
             <Text style={styles.scanBtnText}>Ver Licencia Subida</Text>
           </TouchableOpacity>
         ) : null}
@@ -276,10 +279,10 @@ export default function PerfilScreen({ route }: any) {
           disabled={scanningLicense}
         >
           {scanningLicense ? (
-            <ActivityIndicator color={COLORS.white} />
+            <ActivityIndicator color={colors.white} />
           ) : (
             <>
-              <Ionicons name="scan-outline" size={20} color={COLORS.white} />
+              <Ionicons name="scan-outline" size={20} color={colors.white} />
               <Text style={styles.scanBtnText}>{licenciaFotoUrl ? 'Renovar Licencia (IA)' : 'Escanear Licencia (IA)'}</Text>
             </>
           )}
@@ -288,13 +291,13 @@ export default function PerfilScreen({ route }: any) {
 
       {/* ACTIONS SECTION */}
       <TouchableOpacity style={styles.actionBtn} onPress={handleChangePhoto}>
-        <Ionicons name="image-outline" size={20} color={COLORS.text} />
+        <Ionicons name="image-outline" size={20} color={colors.text} />
         <Text style={styles.actionBtnText}>Cambiar foto de perfil</Text>
-        <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} style={styles.actionIconRight} />
+        <Ionicons name="chevron-forward" size={20} color={colors.textMuted} style={styles.actionIconRight} />
       </TouchableOpacity>
 
       <View style={styles.sectionHeader}>
-        <Ionicons name="flag" size={24} color={COLORS.primary} style={{ marginRight: 10 }} />
+        <Ionicons name="flag" size={24} color={colors.primary} style={{ marginRight: 10 }} />
         <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Historial de Banderas</Text>
       </View>
       <View style={styles.dataCard}>
@@ -319,6 +322,36 @@ export default function PerfilScreen({ route }: any) {
         )}
       </View>
 
+      {/* Selector de Tema */}
+      <View style={styles.themeSection}>
+        <Text style={styles.sectionTitle}>Apariencia</Text>
+        <View style={styles.themeOptions}>
+          <TouchableOpacity 
+            style={[styles.themeOption, themePreference === 'light' && styles.themeOptionActive]}
+            onPress={() => setThemePreference('light')}
+          >
+            <Ionicons name="sunny" size={28} color={themePreference === 'light' ? colors.primary : colors.textMuted} />
+            <Text style={[styles.themeOptionText, themePreference === 'light' && styles.themeOptionTextActive]}>Claro</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.themeOption, themePreference === 'system' && styles.themeOptionActive]}
+            onPress={() => setThemePreference('system')}
+          >
+            <Ionicons name="phone-portrait-outline" size={28} color={themePreference === 'system' ? colors.primary : colors.textMuted} />
+            <Text style={[styles.themeOptionText, themePreference === 'system' && styles.themeOptionTextActive]}>Sistema</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.themeOption, themePreference === 'dark' && styles.themeOptionActive]}
+            onPress={() => setThemePreference('dark')}
+          >
+            <Ionicons name="moon" size={28} color={themePreference === 'dark' ? colors.primary : colors.textMuted} />
+            <Text style={[styles.themeOptionText, themePreference === 'dark' && styles.themeOptionTextActive]}>Oscuro</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <TouchableOpacity style={styles.logoutBtn} onPress={confirmLogout}>
         <Ionicons name="log-out-outline" size={20} color="#fff" />
         <Text style={styles.logoutBtnText}>Cerrar Sesión</Text>
@@ -327,10 +360,10 @@ export default function PerfilScreen({ route }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   contentContainer: {
     padding: 20,
@@ -350,13 +383,13 @@ const styles = StyleSheet.create({
     height: 110,
     borderRadius: 55,
     borderWidth: 3,
-    borderColor: COLORS.primary,
+    borderColor: colors.primary,
   },
   avatarLoading: {
     width: 110,
     height: 110,
     borderRadius: 55,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -365,40 +398,40 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 4,
     right: 4,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 14,
     width: 28,
     height: 28,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: COLORS.white,
+    borderColor: colors.white,
   },
   name: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
   },
   email: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginBottom: 8,
   },
   badge: {
-    backgroundColor: COLORS.primary + '20',
+    backgroundColor: colors.primary + '20',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
     marginTop: 5,
   },
   badgeText: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: 'bold',
     fontSize: 12,
   },
   licenseCard: {
     width: '100%',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     padding: 20,
     borderRadius: 12,
     marginBottom: 20,
@@ -410,10 +443,10 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   licenseValid: {
-    borderColor: COLORS.success,
+    borderColor: colors.success,
   },
   licenseInvalid: {
-    borderColor: COLORS.danger,
+    borderColor: colors.danger,
   },
   licenseHeader: {
     flexDirection: 'row',
@@ -429,17 +462,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 5,
-    color: COLORS.text,
+    color: colors.text,
   },
   licenseDate: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     padding: 15,
     borderRadius: 10,
     marginBottom: 10,
@@ -447,7 +480,7 @@ const styles = StyleSheet.create({
   actionBtnText: {
     marginLeft: 15,
     fontSize: 16,
-    color: COLORS.text,
+    color: colors.text,
     flex: 1,
   },
   actionIconRight: {
@@ -456,7 +489,7 @@ const styles = StyleSheet.create({
   logoutBtn: {
     flexDirection: 'row',
     marginTop: 15,
-    backgroundColor: COLORS.danger,
+    backgroundColor: colors.danger,
     padding: 15,
     borderRadius: 10,
     width: '100%',
@@ -471,7 +504,7 @@ const styles = StyleSheet.create({
   },
   dataCard: {
     width: '100%',
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     marginTop: 15,
     marginBottom: 20,
     borderRadius: 15,
@@ -485,7 +518,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: 10,
   },
   sectionHeader: {
@@ -509,24 +542,24 @@ const styles = StyleSheet.create({
   flagType: {
     fontSize: 15,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: 4,
   },
   flagReason: {
     fontSize: 14,
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: 4,
   },
   flagDate: {
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   borderBottom: {
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
   },
   emptyText: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     textAlign: 'center',
     fontStyle: 'italic',
     padding: 15,
@@ -536,40 +569,40 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
   },
   infoLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.text,
   },
   infoValue: {
     fontSize: 16,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   label: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginBottom: 5,
     fontWeight: '600',
   },
   input: {
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 8,
     padding: 12,
     marginBottom: 15,
     fontSize: 16,
-    color: COLORS.text,
+    color: colors.text,
   },
   saveBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     padding: 14,
     borderRadius: 8,
     alignItems: 'center',
   },
   saveBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: 'bold',
     fontSize: 16,
   },
@@ -577,15 +610,53 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.primaryDark,
+    backgroundColor: colors.primaryDark,
     padding: 12,
     borderRadius: 8,
     marginTop: 15,
   },
   scanBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  themeSection: {
+    width: '100%',
+    marginTop: 15,
+    marginBottom: 25,
+  },
+  themeOptions: {
+    flexDirection: 'row',
+    backgroundColor: colors.background,
+    borderRadius: 16,
+    padding: 8,
+    gap: 8,
+  },
+  themeOption: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    borderRadius: 14,
+  },
+  themeOptionActive: {
+    backgroundColor: colors.white,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  themeOptionText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: colors.textMuted,
+    fontWeight: '600',
+  },
+  themeOptionTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
   },
   modalOverlay: {
     flex: 1,
@@ -594,7 +665,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 15,
     padding: 20,
   },
@@ -606,6 +677,6 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
   }
 });

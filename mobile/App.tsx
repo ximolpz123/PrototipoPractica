@@ -51,6 +51,7 @@ import AddVehicleAIScreen from './screens/AddVehicleAIScreen';
 import AdminCreateReservationScreen from './screens/AdminCreateReservationScreen';
 import AdminBanderasScreen from './screens/AdminBanderasScreen';
 import { AlertProvider, useAlert } from './context/AlertContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -58,6 +59,7 @@ const Tab = createBottomTabNavigator();
 // ── Navegación del CONDUCTOR ────────────────────────────────────────────────
 function MainTabNavigator({ route }: any) {
   const { user, handleLogout } = route.params;
+  const { colors } = useTheme();
 
   return (
     <Tab.Navigator
@@ -77,8 +79,11 @@ function MainTabNavigator({ route }: any) {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textMuted,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarStyle: { backgroundColor: colors.background, borderTopColor: colors.border },
+        headerStyle: { backgroundColor: colors.background },
+        headerTintColor: colors.text,
         headerShown: true,
         headerLeft: () => (
           <Image 
@@ -101,6 +106,7 @@ function MainTabNavigator({ route }: any) {
 function AdminTabNavigator({ route }: any) {
   const { user, handleLogout } = route.params;
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const { themePreference, setThemePreference, colors } = useTheme();
 
   return (
     <>
@@ -121,8 +127,11 @@ function AdminTabNavigator({ route }: any) {
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textMuted,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarStyle: { backgroundColor: colors.background, borderTopColor: colors.border },
+        headerStyle: { backgroundColor: colors.background },
+        headerTintColor: colors.text,
         headerShown: true,
         headerLeft: () => (
           <Image 
@@ -140,12 +149,25 @@ function AdminTabNavigator({ route }: any) {
           title: 'Panel Admin',
           tabBarLabel: 'Solicitudes',
           headerRight: () => (
-            <TouchableOpacity 
-              onPress={() => setLogoutModalVisible(true)} 
-              style={{ marginRight: 15 }}
-            >
-              <Ionicons name="log-out-outline" size={24} color={COLORS.danger} />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 15 }}>
+              <TouchableOpacity 
+                onPress={() => {
+                  if (themePreference === 'light') setThemePreference('dark');
+                  else if (themePreference === 'dark') setThemePreference('system');
+                  else setThemePreference('light');
+                }}
+                style={{ marginRight: 20 }}
+              >
+                <Ionicons 
+                  name={themePreference === 'light' ? 'sunny' : themePreference === 'dark' ? 'moon' : 'phone-portrait-outline'} 
+                  size={24} 
+                  color={colors.primary} 
+                />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setLogoutModalVisible(true)}>
+                <Ionicons name="log-out-outline" size={24} color={COLORS.danger} />
+              </TouchableOpacity>
+            </View>
           ),
         }}
       />
@@ -199,6 +221,7 @@ function AdminTabNavigator({ route }: any) {
 // ====== COMPONENTE PRINCIPAL ======
 function MainApp() {
   const { showAlert } = useAlert();
+  const { colors } = useTheme();
   const [user, setUser] = useState<any>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -360,9 +383,9 @@ function MainApp() {
   // Pantalla de carga inicial
   if (checkingSession) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>Cargando...</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textMuted }]}>Cargando...</Text>
       </View>
     );
   }
@@ -487,9 +510,11 @@ function MainApp() {
 
 export default function App() {
   return (
-    <AlertProvider>
-      <MainApp />
-    </AlertProvider>
+    <ThemeProvider>
+      <AlertProvider>
+        <MainApp />
+      </AlertProvider>
+    </ThemeProvider>
   );
 }
 
