@@ -9,11 +9,11 @@ import Reservation from '../models/Reservation.js';
 export const getVehicles = async (_req: Request, res: Response): Promise<void> => {
   try {
     const vehicles = await Vehicle.find().sort({ marca: 1 }).lean();
-    
+
     const activeReservations = await Reservation.find({ estado: 'en_curso' })
       .populate('usuario', 'nombre apellido departamento')
       .lean();
-    
+
     const hoyInicio = new Date();
     hoyInicio.setHours(0, 0, 0, 0);
     const hoyFin = new Date();
@@ -24,7 +24,7 @@ export const getVehicles = async (_req: Request, res: Response): Promise<void> =
       fechaFin: { $gte: hoyInicio },
       estado: { $in: ['aprobada', 'en_curso', 'completada'] }
     }).populate('usuario', 'nombre apellido departamento').lean();
-    
+
     const vehiclesWithInfo = vehicles.map(v => {
       let extra = {};
       if (v.estado === 'reservado') {
@@ -124,7 +124,7 @@ Extrae la siguiente información y devuélvela ÚNICAMENTE como un objeto JSON v
 
     const result = await model.generateContent([prompt, ...imageParts]);
     let text = result.response.text().trim();
-    
+
     if (text.startsWith('```json')) text = text.replace(/```json/g, '').replace(/```/g, '').trim();
     if (text.startsWith('```')) text = text.replace(/```/g, '').trim();
 
