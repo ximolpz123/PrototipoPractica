@@ -88,7 +88,7 @@ function Reservations() {
   useEffect(() => {
     setLoadingVehicles(true);
     const token = localStorage.getItem('token');
-    fetch('http://localhost:5000/api/vehicles', {
+    fetch('http://10.99.41.176:5000/api/vehicles', {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
@@ -116,7 +116,7 @@ function Reservations() {
     setApiError('');
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/reservations', {
+      const res = await fetch('http://10.99.41.176:5000/api/reservations', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

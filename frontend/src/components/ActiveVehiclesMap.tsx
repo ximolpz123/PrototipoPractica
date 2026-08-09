@@ -76,7 +76,7 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
     if (!isAdmin) return;
     setLoadingVehicles(true);
     try {
-      const res = await fetch('http://localhost:5000/api/tracking/active', {
+      const res = await fetch('http://10.99.41.176:5000/api/tracking/active', {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

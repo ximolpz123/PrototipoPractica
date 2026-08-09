@@ -103,7 +103,7 @@ function Vehicles() {
   useEffect(() => {
     setLoadingVehicles(true);
     const token = localStorage.getItem('token');
-    fetch('http://localhost:5000/api/vehicles', {
+    fetch('http://10.99.41.176:5000/api/vehicles', {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
@@ -120,7 +120,7 @@ function Vehicles() {
     setLoadingRes(true);
     setErrorRes('');
     const token = localStorage.getItem('token');
-    fetch('http://localhost:5000/api/reservations', {
+    fetch('http://10.99.41.176:5000/api/reservations', {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
@@ -450,7 +450,7 @@ function Vehicles() {
                       {selectedReservation.fotosSalida.map((foto, idx) => {
                         const PHOTO_LABELS = ['Frontal', 'Lateral Derecho', 'Lateral Izquierdo', 'Trasero', 'Tablero', 'Interior'];
                         const label = PHOTO_LABELS[idx] || `Extra ${idx + 1}`;
-                        const imgSrc = foto.startsWith('http') ? foto : `http://localhost:5000${foto}`;
+                        const imgSrc = foto.startsWith('http') ? foto : `http://10.99.41.176:5000${foto}`;
                         return (
                           <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100px' }}>
                             <img src={imgSrc} alt={label} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer' }} onClick={() => setModalImg(imgSrc)} />
@@ -469,7 +469,7 @@ function Vehicles() {
                       {selectedReservation.fotosRetorno.map((foto, idx) => {
                         const PHOTO_LABELS = ['Frontal', 'Lateral Derecho', 'Lateral Izquierdo', 'Trasero', 'Tablero', 'Interior'];
                         const label = PHOTO_LABELS[idx] || `Extra ${idx + 1}`;
-                        const imgSrc = foto.startsWith('http') ? foto : `http://localhost:5000${foto}`;
+                        const imgSrc = foto.startsWith('http') ? foto : `http://10.99.41.176:5000${foto}`;
                         return (
                           <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100px' }}>
                             <img src={imgSrc} alt={label} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer' }} onClick={() => setModalImg(imgSrc)} />

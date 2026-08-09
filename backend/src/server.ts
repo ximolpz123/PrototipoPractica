@@ -49,10 +49,10 @@ app.use('/api/flags', flagRoutes);
 const startServer = async () => {
   await connectDB();
 
-  app.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+  app.listen(Number(PORT), '0.0.0.0', () => {
+    console.log(`🚀 Servidor corriendo en http://0.0.0.0:${PORT}`);
     initCronJobs(); // Iniciar tareas programadas
-    console.log(`📋 Health check: http://localhost:${PORT}/api/health`);
+    console.log(`📋 Health check: http://0.0.0.0:${PORT}/api/health`);
   });
 };
 
