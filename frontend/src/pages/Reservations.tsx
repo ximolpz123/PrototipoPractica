@@ -155,12 +155,12 @@ function Reservations() {
 
         {/* Logo */}
         <div style={{ textAlign: 'center', margin: '1rem 0' }}>
-          <img src={logo} alt="Bitnets" style={{ width: '120px', height: 'auto' }} />
+          <img src={logo} alt="Bitnets" style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', border: '3px solid black' }} />
         </div>
         {/* Bandera del usuario actual (esquina superior derecha del menú) */}
         {user && (
           <div style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 1001 }} title={`Tu bandera actual: ${user.rol === 'admin' ? 'verde' : 'amarilla'}`}>
-            <span style={{ 
+            <span style={{
               display: 'inline-block', width: '16px', height: '16px', borderRadius: '50%',
               backgroundColor: user.rol === 'admin' ? '#22c55e' : '#eab308',
               border: '2px solid #fff', boxShadow: '0 0 0 1px rgba(0,0,0,0.2)'
@@ -180,15 +180,14 @@ function Reservations() {
             onChange={handleImageUpload}
             style={{ display: 'none' }}
           />
-          <span className="sidebar-profile-name">
-            {user?.nombre ?? ''} {user?.apellido ?? ''}
-          </span>
-          <span className="sidebar-profile-role">
-            {user?.rol === 'admin' ? 'Administrador' : (user?.departamento || 'Sin Departamento')}
-          </span>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', marginTop: '4px', fontSize: '13px', color: 'rgba(255,255,255,0.9)' }}>
+          <div className="sidebar-profile-info">
+            <span className="sidebar-profile-name">
+              {user?.nombre ?? ''} {user?.apellido ?? ''} | <span title={`Departamento de: ${user?.departamento || 'Sin Departamento'}`} style={{ fontWeight: 'normal', color: 'rgba(255,255,255,0.85)', fontSize: '14px', cursor: 'default' }}>{user?.departamento || 'Sin Departamento'}</span>
+            </span>
             {user?.rol !== 'admin' && (
-              <span><strong>Licencia:</strong> <span style={{ color: user?.licenciaAlDia === false ? '#ef4444' : '#4ade80', fontWeight: 'bold' }}>{user?.licenciaAlDia === false ? 'NO AL DÍA' : 'AL DÍA'}</span></span>
+              <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.9)', textAlign: 'left', marginTop: '2px' }}>
+                <span><strong>Licencia:</strong> <span style={{ color: user?.licenciaAlDia === false ? '#ef4444' : '#4ade80', fontWeight: 'bold' }}>{user?.licenciaAlDia === false ? 'NO AL DÍA' : 'AL DÍA'}</span></span>
+              </div>
             )}
           </div>
         </div>
@@ -212,7 +211,7 @@ function Reservations() {
           {success ? (
             <div className="reserv-form-panel" style={{ textAlign: 'center', maxWidth: '600px', margin: '0 auto' }}>
               <p style={{ fontSize: '1.3rem', fontWeight: 'bold', color: '#22c55e', marginBottom: '1.5rem' }}>
-                ✅ ¡Solicitud enviada correctamente!
+                ¡Solicitud enviada correctamente!
               </p>
               <p style={{ color: '#555', marginBottom: '2rem' }}>
                 Su solicitud ha sido enviada al administrador para su revisión.
@@ -302,7 +301,7 @@ function Reservations() {
               {/* ── Destino ── */}
               <div className="reserv-form-row">
                 <label className="reserv-label" htmlFor="destino-input">
-                  Escriba su Destino
+                  Su Destino
                 </label>
                 <input
                   id="destino-input"
@@ -321,8 +320,7 @@ function Reservations() {
               {/* ── Motivo ── */}
               <div className="reserv-form-row" style={{ alignItems: 'flex-start' }}>
                 <label className="reserv-label" style={{ paddingTop: '0.5rem' }}>
-                  Escriba el Motivo<br />
-                  <span style={{ fontSize: '0.85rem', color: '#888', fontWeight: 'normal' }}>(Es Opcional)</span>
+                  El Motivo<br />
                 </label>
                 <textarea
                   id="motivo-textarea"

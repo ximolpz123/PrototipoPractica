@@ -591,7 +591,7 @@ function Dashboard() {
 
         {/* Logo */}
         <div style={{ textAlign: 'center', margin: '1rem 0' }}>
-          <img src={logo} alt="Bitnets" style={{ width: '120px', height: 'auto' }} />
+          <img src={logo} alt="Bitnets" style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', border: '3px solid black' }} />
         </div>
 
         {/* Bandera del usuario actual (esquina superior derecha del menú) */}
@@ -618,12 +618,11 @@ function Dashboard() {
             onChange={handleImageUpload}
             style={{ display: 'none' }}
           />
-          <span className="sidebar-profile-name">
-            {user?.nombre ?? ''} {user?.apellido ?? ''}
-          </span>
-          <span className="sidebar-profile-role">
-            {user?.rol === 'admin' ? 'Administrador' : (user?.departamento || 'Sin Departamento')}
-          </span>
+          <div className="sidebar-profile-info">
+            <span className="sidebar-profile-name">
+              {user?.nombre ?? ''} {user?.apellido ?? ''} | <span title={`Departamento de: ${user?.departamento || 'Sin Departamento'}`} style={{ fontWeight: 'normal', color: 'rgba(255,255,255,0.85)', fontSize: '14px', cursor: 'default' }}>{user?.departamento || 'Sin Departamento'}</span>
+            </span>
+          </div>
         </div>
 
         {/* Navegación en orden */}
@@ -893,7 +892,7 @@ function Dashboard() {
                 {loadingRes && <p className="res-status">Cargando reservaciones…</p>}
                 {errorRes && <p className="res-status res-error">{errorRes}</p>}
                 {!loadingRes && !errorRes && filteredReservations.length === 0 && <p className="res-status">No se encontraron reservaciones con estos filtros.</p>}
-                <div className="reservations-list">
+                <div className="reservations-list admin-reservations-list">
                   {filteredReservations.map(r => (
                     <div key={r._id} className="reservation-card">
                       <div className="reservation-card-header">
@@ -1294,9 +1293,9 @@ function Dashboard() {
               )}
 
               {selectedReservation.kmRetorno !== undefined && selectedReservation.kmRetorno !== null && (
-                <div style={{ margin: '1rem 0', backgroundColor: '#e0f2fe', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #0ea5e9' }}>
-                  <p style={{ margin: 0, color: '#0369a1', fontSize: '1rem' }}>
-                    <strong>🚗 Kilometraje de Retorno (IA):</strong> {selectedReservation.kmRetorno.toLocaleString('es-CL')} km
+                <div className="km-retorno-box">
+                  <p className="km-retorno-text">
+                    <strong>Kilometraje de Retorno (IA):</strong> {selectedReservation.kmRetorno.toLocaleString('es-CL')} km
                   </p>
                 </div>
               )}

@@ -25,7 +25,7 @@ export function RandomInspectionsPanel(_props: RandomInspectionsPanelProps) {
           conductorId: 'cond_1',
           conductorNombre: 'Juan Pérez',
           vehiculoId: 'veh_1',
-          vehiculoPlaca: 'SK-JS-32',
+          vehiculoPlaca: 'SKJS-32',
           tarea: 'Revisar neumáticos',
           estado: 'pendiente',
           fechaActivacion: new Date().toISOString()
@@ -35,7 +35,7 @@ export function RandomInspectionsPanel(_props: RandomInspectionsPanelProps) {
           conductorId: 'cond_2',
           conductorNombre: 'Maria Gómez',
           vehiculoId: 'veh_2',
-          vehiculoPlaca: 'NS-NV-24',
+          vehiculoPlaca: 'NSNV-24',
           tarea: 'Foto interior',
           estado: 'respondida',
           fechaActivacion: new Date(Date.now() - 3600000).toISOString(),
@@ -49,7 +49,7 @@ export function RandomInspectionsPanel(_props: RandomInspectionsPanelProps) {
           conductorId: 'cond_3',
           conductorNombre: 'Pedro Soto',
           vehiculoId: 'veh_3',
-          vehiculoPlaca: 'HL-XZ-25',
+          vehiculoPlaca: 'HLXZ-25',
           tarea: 'Nivel bencina',
           estado: 'vencida',
           fechaActivacion: new Date(Date.now() - 86400000).toISOString()
@@ -76,13 +76,13 @@ export function RandomInspectionsPanel(_props: RandomInspectionsPanelProps) {
     <div style={{ width: '100%', overflowX: 'auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '700', color: '#000' }}> Inspecciones Aleatorias</h2>
-        <button className="btn btn-create" onClick={fetchInspections}>🔄 Refrescar</button>
+        <button className="btn btn-create" onClick={fetchInspections}>Refrescar</button>
       </div>
 
       {loading && <p className="res-status">Cargando inspecciones…</p>}
       {error && <p className="res-status res-error">{error}</p>}
       {!loading && !error && inspections.length === 0 && <p className="res-status">No hay inspecciones registradas.</p>}
-      
+
       {!loading && inspections.length > 0 && (
         <table className="admin-table">
           <thead>
@@ -104,7 +104,7 @@ export function RandomInspectionsPanel(_props: RandomInspectionsPanelProps) {
                 <td>{insp.tarea}</td>
                 <td>{getStatusBadge(insp.estado)}</td>
                 <td style={{ textAlign: 'center' }}>
-                  <button className="btn btn-sm" onClick={() => setSelectedInspection(insp)}>Ver Detalles</button>
+                  <button className="btn btn-sm" onClick={() => setSelectedInspection(insp)}>Detalles</button>
                 </td>
               </tr>
             ))}
@@ -117,7 +117,7 @@ export function RandomInspectionsPanel(_props: RandomInspectionsPanelProps) {
         <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div className="modal-content" style={{ backgroundColor: 'var(--bg-card, #fff)', padding: '2rem', borderRadius: '12px', maxWidth: '500px', width: '90%', position: 'relative' }}>
             <button onClick={() => setSelectedInspection(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold' }}>X</button>
-            
+
             <h2 style={{ marginTop: 0, marginBottom: '1rem', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>Detalle de Inspección</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem', fontSize: '1.05rem' }}>
               <p style={{ margin: 0 }}><strong>Conductor:</strong> {selectedInspection.conductorNombre}</p>
@@ -125,7 +125,7 @@ export function RandomInspectionsPanel(_props: RandomInspectionsPanelProps) {
               <p style={{ margin: 0 }}><strong>Tarea:</strong> {selectedInspection.tarea}</p>
               <p style={{ margin: 0 }}><strong>Estado:</strong> {selectedInspection.estado}</p>
               <p style={{ margin: 0 }}><strong>Activación:</strong> {new Date(selectedInspection.fechaActivacion).toLocaleString('es-CL')}</p>
-              
+
               {selectedInspection.estado === 'respondida' && selectedInspection.respuesta && (
                 <div style={{ marginTop: '1rem', padding: '1rem', borderRadius: '8px', border: '1px solid #9ca3af' }}>
                   <h4 style={{ margin: '0 0 0.5rem 0' }}>Respuesta del Conductor</h4>

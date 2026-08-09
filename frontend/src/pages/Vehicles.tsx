@@ -165,7 +165,7 @@ function Vehicles() {
 
         {/* Logo */}
         <div style={{ textAlign: 'center', margin: '1rem 0' }}>
-          <img src={logo} alt="Bitnets" style={{ width: '120px', height: 'auto' }} />
+          <img src={logo} alt="Bitnets" style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', border: '2px solid black' }} />
         </div>
 
         {/* Bandera del usuario actual (esquina superior derecha del menú) */}
@@ -191,15 +191,14 @@ function Vehicles() {
             onChange={handleImageUpload}
             style={{ display: 'none' }}
           />
-          <span className="sidebar-profile-name">
-            {user?.nombre ?? ''} {user?.apellido ?? ''}
-          </span>
-          <span className="sidebar-profile-role">
-            {user?.rol === 'admin' ? 'Administrador' : (user?.departamento || 'Sin Departamento')}
-          </span>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', marginTop: '4px', fontSize: '13px', color: 'rgba(255,255,255,0.9)' }}>
+          <div className="sidebar-profile-info">
+            <span className="sidebar-profile-name">
+              {user?.nombre ?? ''} {user?.apellido ?? ''} | <span title={`Departamento de: ${user?.departamento || 'Sin Departamento'}`} style={{ fontWeight: 'normal', color: 'rgba(255,255,255,0.85)', fontSize: '14px', cursor: 'default' }}>{user?.departamento || 'Sin Departamento'}</span>
+            </span>
             {user?.rol !== 'admin' && (
-              <span><strong>Licencia:</strong> <span style={{ color: user?.licenciaAlDia === false ? '#ef4444' : '#4ade80', fontWeight: 'bold' }}>{user?.licenciaAlDia === false ? 'NO AL DÍA' : 'AL DÍA'}</span></span>
+              <div style={{ fontSize: '16px', color: 'rgba(255,255,255,0.9)', textAlign: 'left' }}>
+                <span><strong>Licencia:</strong> <span style={{ color: user?.licenciaAlDia === false ? '#ef4444' : '#4ade80', fontWeight: 'bold' }}>{user?.licenciaAlDia === false ? 'NO AL DÍA' : 'AL DÍA'}</span></span>
+              </div>
             )}
           </div>
         </div>
@@ -437,8 +436,8 @@ function Vehicles() {
                 )}
 
                 {selectedReservation.kmRetorno !== undefined && selectedReservation.kmRetorno !== null && (
-                  <div style={{ margin: '1rem 0', backgroundColor: '#e0f2fe', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #0ea5e9' }}>
-                    <p style={{ margin: 0, color: '#0369a1', fontSize: '1rem' }}>
+                  <div className="km-retorno-box">
+                    <p className="km-retorno-text">
                       <strong>🚗 Kilometraje de Retorno (IA):</strong> {selectedReservation.kmRetorno.toLocaleString('es-CL')} km
                     </p>
                   </div>

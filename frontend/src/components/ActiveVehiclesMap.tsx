@@ -69,7 +69,7 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [loadingVehicles, setLoadingVehicles] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(180);
+  const [countdown, setCountdown] = useState(60);
 
   // Fetch active vehicles
   const fetchActiveVehicles = useCallback(async () => {
@@ -191,11 +191,11 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
 
     intervalRef.current = setInterval(() => {
       fetchActiveVehicles();
-      setCountdown(180);
-    }, 180000);
+      setCountdown(60);
+    }, 60000);
 
     const countdownTimer = setInterval(() => {
-      setCountdown(prev => (prev <= 1 ? 180 : prev - 1));
+      setCountdown(prev => (prev <= 1 ? 60 : prev - 1));
     }, 1000);
 
     return () => {
@@ -212,7 +212,7 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
 
   const handleManualRefresh = () => {
     fetchActiveVehicles();
-    setCountdown(180);
+    setCountdown(60);
   };
 
   const centerOnUser = () => {
@@ -252,7 +252,7 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
               Mi Ubicación
             </button>
           )}
-          {!locationError && isAdmin && (
+          {/* !locationError && isAdmin && (
             <button
               onClick={handleManualRefresh}
               disabled={loadingVehicles}
@@ -267,7 +267,7 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
             >
               {loadingVehicles ? ' Actualizando…' : '⟳ Actualizar ahora'}
             </button>
-          )}
+          ) */}
         </div>
       </div>
 
