@@ -25,6 +25,7 @@ export interface IVehicle {
   }>;
   nivelBencina?: number;
   tipoIndicador?: 'digital' | 'analogico';
+  fotosVehiculo?: string[];
 }
 
 export const vehicleService = {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Image, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { authService } from '../services/auth.service';
 import { COLORS, AppColors } from '../constants';
@@ -98,6 +98,17 @@ export default function FlotaScreen() {
                   </View>
                 );
               })}
+            </View>
+          )}
+
+          {item.fotosVehiculo && item.fotosVehiculo.length > 0 && (
+            <View style={styles.fotosWrapper}>
+              <Text style={styles.historyTitle}>Fotos del Vehículo:</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.fotosScroll}>
+                {item.fotosVehiculo.map((foto, index) => (
+                  <Image key={index} source={{ uri: foto }} style={styles.galeriaFoto} />
+                ))}
+              </ScrollView>
             </View>
           )}
         </View>
@@ -316,6 +327,23 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 4,
+  },
+  fotosWrapper: {
+    marginTop: 15,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  fotosScroll: {
+    marginTop: 8,
+    flexDirection: 'row',
+  },
+  galeriaFoto: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 8,
+    backgroundColor: '#E0E0E0',
   },
   historyTime: {
     fontSize: 12,

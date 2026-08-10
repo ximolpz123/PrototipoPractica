@@ -67,6 +67,7 @@ function Vehicles() {
   const initialTab = (location.state as { tab?: string })?.tab === 'reservaciones' ? 'reservaciones' : 'catalogo';
   const [activeTab, setActiveTab] = useState<'catalogo' | 'reservaciones'>(initialTab);
   const [modalImg, setModalImg] = useState<string | null>(null);
+  const [modalVehiclePhotos, setModalVehiclePhotos] = useState<{urls: string[], current: number} | null>(null);
   const [qrModalVehicle, setQrModalVehicle] = useState<IVehicle | null>(null);
   const [vehiclesList, setVehiclesList] = useState<IVehicle[]>([]);
   const [loadingVehicles, setLoadingVehicles] = useState(false);
@@ -292,7 +293,13 @@ function Vehicles() {
                         id={`ver-vehiculo-${v._id}`}
                         className="btn btn-sm"
                         style={{ flex: 1 }}
-                        onClick={() => setModalImg(imgUrl)}
+                        onClick={() => {
+                          if (v.fotosVehiculo && v.fotosVehiculo.length > 0) {
+                            setModalVehiclePhotos({ urls: v.fotosVehiculo, current: 0 });
+                          } else {
+                            setModalImg(imgUrl);
+                          }
+                        }}
                       >
                         Ver Vehículo
                       </button>
@@ -376,6 +383,62 @@ function Vehicles() {
                   </button>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Modal imagen / Galería ── */}
+        {modalVehiclePhotos && (
+          <div
+            id="modal-overlay-gallery"
+            className="modal-overlay"
+            style={{ zIndex: 1100 }}
+            onClick={() => setModalVehiclePhotos(null)}
+          >
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <button 
+                style={{ position: 'absolute', left: '-50px', background: 'none', border: 'none', color: '#fff', fontSize: '30px', cursor: 'pointer' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setModalVehiclePhotos(prev => prev ? { ...prev, current: (prev.current - 1 + prev.urls.length) % prev.urls.length } : null);
+                }}
+              >
+                ◀
+              </button>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <img
+                  src={modalVehiclePhotos.urls[modalVehiclePhotos.current]}
+                  alt="Vista ampliada galería"
+                  className="modal-img"
+                  style={{ maxHeight: '70vh', maxWidth: '80vw' }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <div style={{ marginTop: '15px', display: 'flex', gap: '10px' }}>
+                  {modalVehiclePhotos.urls.map((url, idx) => (
+                    <img 
+                      key={idx}
+                      src={url} 
+                      alt={`Miniatura ${idx}`} 
+                      style={{ 
+                        width: '50px', height: '50px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer',
+                        border: idx === modalVehiclePhotos.current ? '2px solid #8B5CF6' : '2px solid transparent'
+                      }}
+                      onClick={(e) => { e.stopPropagation(); setModalVehiclePhotos(prev => prev ? { ...prev, current: idx } : null); }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <button 
+                style={{ position: 'absolute', right: '-50px', background: 'none', border: 'none', color: '#fff', fontSize: '30px', cursor: 'pointer' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setModalVehiclePhotos(prev => prev ? { ...prev, current: (prev.current + 1) % prev.urls.length } : null);
+                }}
+              >
+                ▶
+              </button>
             </div>
           </div>
         )}

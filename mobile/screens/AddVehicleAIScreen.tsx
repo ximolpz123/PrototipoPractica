@@ -24,7 +24,9 @@ export default function AddVehicleAIScreen({ navigation }: any) {
 
   const { showAlert } = useAlert();
   
-  const [fotos, setFotos] = useState<string[]>([]);
+  const ANGULOS = ['Frontal', 'Trasero', 'Lateral Izq.', 'Lateral Der.', 'Interior'];
+  const [fotos, setFotos] = useState<(string | null)[]>([null, null, null, null, null]);
+  const [uploadedFotos, setUploadedFotos] = useState<string[]>([]);
   const [loadingAI, setLoadingAI] = useState(false);
   const [saving, setSaving] = useState(false);
   const [aiDataLoaded, setAiDataLoaded] = useState(false);
@@ -40,11 +42,7 @@ export default function AddVehicleAIScreen({ navigation }: any) {
   // Guardamos nivel de bencina para el dashboard/referencia
   const [nivelBencina, setNivelBencina] = useState('');
 
-  const handleTomarFoto = async () => {
-    if (fotos.length >= 5) {
-      return Alert.alert('Límite de fotos', 'Solo puedes subir hasta 5 fotos.');
-    }
-
+  const handleTomarFoto = async (index: number) => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       return Alert.alert('Permiso denegado', 'Se requiere acceso a la cámara.');
@@ -56,18 +54,21 @@ export default function AddVehicleAIScreen({ navigation }: any) {
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      setFotos([...fotos, result.assets[0].uri]);
+      const newFotos = [...fotos];
+      newFotos[index] = result.assets[0].uri;
+      setFotos(newFotos);
     }
   };
 
   const handleAnalizarIA = async () => {
-    if (fotos.length === 0) {
-      return Alert.alert('Faltan fotos', 'Toma al menos una foto del vehículo y/o tablero.');
+    const validFotos = fotos.filter(f => f !== null) as string[];
+    if (validFotos.length < 5) {
+      return Alert.alert('Faltan fotos', 'Toma las 5 fotos obligatorias para crear el vehículo.');
     }
 
     setLoadingAI(true);
     try {
-      const data = await vehicleService.iaCreate(fotos);
+      const data = await vehicleService.iaCreate(validFotos);
       
       // Auto-rellenar formulario
       if (data.patente) setPatente(data.patente);
@@ -77,6 +78,9 @@ export default function AddVehicleAIScreen({ navigation }: any) {
       }
       if (data.nivelBencina !== null && data.nivelBencina !== undefined) {
         setNivelBencina(data.nivelBencina.toString());
+      }
+      if (data.fotosVehiculo && data.fotosVehiculo.length > 0) {
+        setUploadedFotos(data.fotosVehiculo);
       }
 
       setAiDataLoaded(true);
@@ -108,7 +112,8 @@ export default function AddVehicleAIScreen({ navigation }: any) {
         estado: 'disponible',
         kilometraje: parseInt(kilometraje, 10),
         nivelBencina: nivelBencina ? parseInt(nivelBencina, 10) : 100,
-        tipoIndicador: 'analogico'
+        tipoIndicador: 'analogico',
+        fotosVehiculo: uploadedFotos
       });
 
       showAlert('Vehículo Creado', `El vehículo patente ${patente} se agregó a la flota exitosamente.`);
@@ -133,30 +138,39 @@ export default function AddVehicleAIScreen({ navigation }: any) {
       {/* Galeria de Fotos */}
       <View style={styles.fotosContainer}>
         {fotos.map((uri, index) => (
-          <View key={index} style={styles.fotoWrapper}>
-            <Image source={{ uri }} style={styles.foto} />
-            <TouchableOpacity 
-              style={styles.deleteFotoBtn} 
-              onPress={() => setFotos(fotos.filter((_, i) => i !== index))}
-            >
-              <Ionicons name="close-circle" size={24} color={colors.danger} />
-            </TouchableOpacity>
+          <View key={index} style={styles.fotoWrapperContainer}>
+            <Text style={styles.fotoLabel}>{ANGULOS[index]}</Text>
+            {uri ? (
+              <View style={styles.fotoWrapper}>
+                <Image source={{ uri }} style={styles.foto} />
+                <TouchableOpacity 
+                  style={styles.deleteFotoBtn} 
+                  onPress={() => {
+                    const newFotos = [...fotos];
+                    newFotos[index] = null;
+                    setFotos(newFotos);
+                    setAiDataLoaded(false); // Reset IA si borra foto
+                  }}
+                >
+                  <Ionicons name="close-circle" size={24} color={colors.danger} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.addFotoBtn} onPress={() => handleTomarFoto(index)}>
+                <Ionicons name="camera" size={28} color={colors.primary} />
+                <Text style={styles.addFotoText}>Tomar</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ))}
-        {fotos.length < 5 && (
-          <TouchableOpacity style={styles.addFotoBtn} onPress={handleTomarFoto}>
-            <Ionicons name="camera" size={32} color={colors.primary} />
-            <Text style={styles.addFotoText}>Tomar Foto</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
       {/* Botón de Analizar */}
       {!aiDataLoaded && (
         <TouchableOpacity
-          style={[styles.aiBtn, fotos.length === 0 && styles.btnDisabled]}
+          style={[styles.aiBtn, fotos.includes(null) && styles.btnDisabled]}
           onPress={handleAnalizarIA}
-          disabled={loadingAI || fotos.length === 0}
+          disabled={loadingAI || fotos.includes(null)}
         >
           {loadingAI ? (
             <ActivityIndicator color="#fff" />
@@ -265,13 +279,15 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
   title: { fontSize: 22, fontWeight: 'bold', color: colors.text, marginBottom: 5 },
   subtitle: { fontSize: 14, color: colors.textMuted },
   
-  fotosContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
-  fotoWrapper: { width: 100, height: 100, borderRadius: 10, overflow: 'hidden', position: 'relative' },
+  fotosContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20, justifyContent: 'space-between' },
+  fotoWrapperContainer: { width: '31%', alignItems: 'center', marginBottom: 10 },
+  fotoLabel: { fontSize: 11, fontWeight: 'bold', color: colors.text, marginBottom: 4, textAlign: 'center' },
+  fotoWrapper: { width: '100%', aspectRatio: 1, borderRadius: 10, overflow: 'hidden', position: 'relative' },
   foto: { width: '100%', height: '100%' },
-  deleteFotoBtn: { position: 'absolute', top: 5, right: 5, backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 12 },
+  deleteFotoBtn: { position: 'absolute', top: 2, right: 2, backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 12 },
   
-  addFotoBtn: { width: 100, height: 100, borderRadius: 10, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' },
-  addFotoText: { fontSize: 12, color: colors.primary, marginTop: 5, fontWeight: '600' },
+  addFotoBtn: { width: '100%', aspectRatio: 1, borderRadius: 10, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' },
+  addFotoText: { fontSize: 11, color: colors.primary, marginTop: 2, fontWeight: '600' },
 
   aiBtn: { backgroundColor: '#8B5CF6', padding: 15, borderRadius: 10, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 20, gap: 10 },
   aiBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },

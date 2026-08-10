@@ -19,6 +19,7 @@ export interface IVehicle extends Document {
   // ── v2: Bencina ──
   nivelBencina: number;          // 0–100 (porcentaje)
   tipoIndicador: 'digital' | 'analogico';
+  fotosVehiculo?: string[];      // 5 fotos de presentación
   createdAt: Date;
   updatedAt: Date;
 }
@@ -87,6 +88,10 @@ const vehicleSchema = new Schema<IVehicle>(
       type: String,
       enum: ['digital', 'analogico'],
       default: 'digital',
+    },
+    fotosVehiculo: {
+      type: [String],
+      default: [],
     },
   },
   { timestamps: true }

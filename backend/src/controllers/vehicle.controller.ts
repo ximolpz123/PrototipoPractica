@@ -130,6 +130,8 @@ Extrae la siguiente información y devuélvela ÚNICAMENTE como un objeto JSON v
 
     try {
       const data = JSON.parse(text);
+      // Incluir las URLs de Cloudinary en la respuesta
+      data.fotosVehiculo = files.map(file => file.path);
       res.json(data);
     } catch (e) {
       console.error("Gemini returned invalid JSON:", text);
