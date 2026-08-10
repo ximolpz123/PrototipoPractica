@@ -8,7 +8,6 @@ import axios from 'axios';
 import { authService } from '../services/auth.service';
 import { reservationService } from '../services/reservation.service';
 import { locationService } from '../services/location.service';
-import SignaturePad from '../components/SignaturePad';
 
 const POSITIONS = ['frontal', 'lateralDer', 'lateralIzq', 'trasero', 'tablero', 'interior'];
 const LABELS = ['Frontal', 'Lateral Derecho', 'Lateral Izquierdo', 'Trasero', 'Tablero', 'Interior'];
@@ -39,10 +38,6 @@ export default function CameraScreen({ route, navigation }: any) {
 
   // Gas level states
   const [bencinaLevel, setBencinaLevel] = useState<number>(100); // 0 to 100
-
-  // Firma Digital states
-  const [showSignatureModal, setShowSignatureModal] = useState(false);
-  const [firmaBase64, setFirmaBase64] = useState<string | null>(null);
 
   useEffect(() => {
     const handleBeforeRemove = (e: any) => {
@@ -159,11 +154,6 @@ export default function CameraScreen({ route, navigation }: any) {
   };
 
   const uploadFinal = async () => {
-    // Si aún no tiene firma, primero pedir firma digital
-    if (!firmaBase64) {
-      setShowSignatureModal(true);
-      return;
-    }
     setUploading(true);
     try {
       const formData = new FormData();
@@ -188,7 +178,7 @@ export default function CameraScreen({ route, navigation }: any) {
       });
 
       if (tipo === 'salida') {
-        // Iniciar reserva y rastreo recién ahora
+        // Iniciar reserva y rastreo recién ahora (viaje inicia al subir las fotos)
         await reservationService.startReservation(reservaId);
         const started = await locationService.startTracking(reservaId);
         if (!started) {
@@ -203,10 +193,6 @@ export default function CameraScreen({ route, navigation }: any) {
         });
         await locationService.stopTracking();
       }
-
-      // Guardar firma digital en el backend
-      const tipoFirma: 'inicio' | 'fin' = tipo === 'salida' ? 'inicio' : 'fin';
-      await reservationService.saveFirma(reservaId, tipoFirma, firmaBase64!);
 
       showAlert('Éxito', tipo === 'salida' ? 'Viaje iniciado exitosamente.' : 'Viaje finalizado exitosamente.');
       setCanGoBack(true);
@@ -319,22 +305,10 @@ export default function CameraScreen({ route, navigation }: any) {
               <ActivityIndicator color={colors.white} />
             ) : (
               <Text style={styles.uploadBtnText}>
-                {firmaBase64
-                  ? (tipo === 'salida' ? 'Subir e Iniciar Viaje' : 'Subir y Finalizar Viaje')
-                  : '✍️ Firmar y Continuar'
-                }
+                {tipo === 'salida' ? 'Subir e Iniciar Viaje' : 'Subir y Finalizar Viaje'}
               </Text>
             )}
           </TouchableOpacity>
-
-          {firmaBase64 && (
-            <TouchableOpacity
-              style={{ alignItems: 'center', marginTop: 12 }}
-              onPress={() => setFirmaBase64(null)}
-            >
-              <Text style={{ color: colors.textMuted, fontSize: 13 }}>✏️ Volver a firmar</Text>
-            </TouchableOpacity>
-          )}
         </View>
       )}
 
@@ -375,35 +349,6 @@ export default function CameraScreen({ route, navigation }: any) {
                 </TouchableOpacity>
               </>
             )}
-          </View>
-        </View>
-      </Modal>
-
-      {/* Modal Firma Digital */}
-      <Modal visible={showSignatureModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { height: 460, paddingBottom: 10 }]}>
-            <Text style={styles.modalTitle}>✍️ Firma Digital</Text>
-            <Text style={{ color: colors.textMuted, fontSize: 13, textAlign: 'center', marginBottom: 12 }}>
-              Firma en el recuadro como comprobante de {tipo === 'salida' ? 'inicio' : 'fin'} de viaje.
-            </Text>
-
-            <SignaturePad
-              strokeColor={colors.text}
-              onConfirm={(uri: string) => {
-                setFirmaBase64(uri);
-                setShowSignatureModal(false);
-              }}
-              confirmText="Confirmar Firma"
-              clearText="Borrar"
-            />
-
-            <TouchableOpacity
-              style={{ alignItems: 'center', paddingVertical: 12 }}
-              onPress={() => setShowSignatureModal(false)}
-            >
-              <Text style={{ color: colors.textMuted, fontWeight: 'bold' }}>Cancelar</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
