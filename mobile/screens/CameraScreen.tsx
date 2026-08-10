@@ -8,7 +8,7 @@ import axios from 'axios';
 import { authService } from '../services/auth.service';
 import { reservationService } from '../services/reservation.service';
 import { locationService } from '../services/location.service';
-import SignatureCanvas from 'react-native-signature-canvas';
+import SignaturePad from '../components/SignaturePad';
 
 const POSITIONS = ['frontal', 'lateralDer', 'lateralIzq', 'trasero', 'tablero', 'interior'];
 const LABELS = ['Frontal', 'Lateral Derecho', 'Lateral Izquierdo', 'Trasero', 'Tablero', 'Interior'];
@@ -43,7 +43,6 @@ export default function CameraScreen({ route, navigation }: any) {
   // Firma Digital states
   const [showSignatureModal, setShowSignatureModal] = useState(false);
   const [firmaBase64, setFirmaBase64] = useState<string | null>(null);
-  const signatureRef = useRef<any>(null);
 
   useEffect(() => {
     const handleBeforeRemove = (e: any) => {
@@ -385,31 +384,24 @@ export default function CameraScreen({ route, navigation }: any) {
       {/* Modal Firma Digital */}
       <Modal visible={showSignatureModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { height: 440, paddingBottom: 10 }]}>
+          <View style={[styles.modalContent, { height: 460, paddingBottom: 10 }]}>
             <Text style={styles.modalTitle}>✍️ Firma Digital</Text>
             <Text style={{ color: colors.textMuted, fontSize: 13, textAlign: 'center', marginBottom: 12 }}>
               Firma en el recuadro como comprobante de {tipo === 'salida' ? 'inicio' : 'fin'} de viaje.
             </Text>
 
-            <View style={{ flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 12, overflow: 'hidden', marginBottom: 10 }}>
-              <SignatureCanvas
-                ref={signatureRef}
-                onOK={(signature: string) => {
-                  setFirmaBase64(signature);
-                  setShowSignatureModal(false);
-                }}
-                onEmpty={() => {
-                  showAlert('Firma requerida', 'Por favor dibuja tu firma antes de confirmar.');
-                }}
-                descriptionText=""
-                clearText="Borrar"
-                confirmText="Confirmar Firma"
-                webStyle={`.m-signature-pad { box-shadow: none; border: none; } .m-signature-pad--body { border: none; } .m-signature-pad--footer { background-color: transparent; padding: 8px; } .m-signature-pad--footer .button.clear { background-color: #EF4444; color: white; border-radius: 8px; padding: 8px 16px; font-weight: bold; } .m-signature-pad--footer .button.save { background-color: #5C99CC; color: white; border-radius: 8px; padding: 8px 16px; font-weight: bold; }`}
-              />
-            </View>
+            <SignaturePad
+              strokeColor={colors.text}
+              onConfirm={(uri: string) => {
+                setFirmaBase64(uri);
+                setShowSignatureModal(false);
+              }}
+              confirmText="Confirmar Firma"
+              clearText="Borrar"
+            />
 
             <TouchableOpacity
-              style={{ alignItems: 'center', paddingVertical: 10 }}
+              style={{ alignItems: 'center', paddingVertical: 12 }}
               onPress={() => setShowSignatureModal(false)}
             >
               <Text style={{ color: colors.textMuted, fontWeight: 'bold' }}>Cancelar</Text>
