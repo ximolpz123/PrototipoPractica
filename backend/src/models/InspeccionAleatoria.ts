@@ -13,7 +13,7 @@ export interface IInspeccionAleatoria extends Document {
   tipo: TipoInspeccion;
   descripcion: string;             // Mensaje que verá el conductor
   estado: 'pendiente' | 'respondida' | 'vencida';
-  respuestaFotoUrl?: string;
+  respuestaFotosUrls?: string[];
   respuestaTexto?: string;
   fechaActivacion: Date;
   fechaLimite: Date;               // fechaActivacion + 20 minutos
@@ -50,7 +50,7 @@ const inspeccionSchema = new Schema<IInspeccionAleatoria>(
       enum: ['pendiente', 'respondida', 'vencida'],
       default: 'pendiente',
     },
-    respuestaFotoUrl: { type: String },
+    respuestaFotosUrls: { type: [String], default: [] },
     respuestaTexto:   { type: String, trim: true },
     fechaActivacion:  { type: Date, required: true },
     fechaLimite:      { type: Date, required: true },

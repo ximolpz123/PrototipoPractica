@@ -804,3 +804,45 @@ export const handleDelayResponse = async (req: AuthRequest, res: Response): Prom
     res.status(500).json({ message: 'Error al manejar la respuesta de retraso', error });
   }
 };
+
+// ── PATCH /api/reservations/:id/firma ────────────────────────────────────────
+// Guarda la firma digital (base64) de inicio o fin de viaje
+export const saveFirma = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { tipo, firma } = req.body; // tipo: 'inicio' | 'fin', firma: base64 string
+
+    if (!tipo || !firma) {
+      res.status(400).json({ message: 'Debes proporcionar tipo ("inicio" o "fin") y la firma en base64.' });
+      return;
+    }
+
+    if (!['inicio', 'fin'].includes(tipo)) {
+      res.status(400).json({ message: 'El tipo debe ser "inicio" o "fin".' });
+      return;
+    }
+
+    const reservation = await Reservation.findById(id);
+    if (!reservation) {
+      res.status(404).json({ message: 'Reserva no encontrada.' });
+      return;
+    }
+
+    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin') {
+      res.status(403).json({ message: 'Sin permiso para modificar esta reserva.' });
+      return;
+    }
+
+    if (tipo === 'inicio') {
+      reservation.firmaInicio = firma;
+    } else {
+      reservation.firmaFin = firma;
+    }
+
+    await reservation.save();
+    res.json({ message: `Firma de ${tipo} guardada correctamente.` });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al guardar la firma', error });
+  }
+};
+

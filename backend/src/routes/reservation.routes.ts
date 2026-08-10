@@ -12,6 +12,7 @@ import {
   handleDelayResponse,
   cambioConductorTramo,
   requestCambioConductorTramo,
+  saveFirma,
 } from '../controllers/reservation.controller.js';
 import { authMiddleware, adminMiddleware, licenciaMiddleware } from '../middleware/auth.js';
 import { upload } from '../config/cloudinary.js';
@@ -66,5 +67,9 @@ router.post(
   upload.single('foto'),
   uploadFotoTablero
 );
+
+// PATCH /api/reservations/:id/firma
+// Guarda la firma digital de inicio o fin (base64 image)
+router.patch('/:id/firma', authMiddleware, saveFirma);
 
 export default router;

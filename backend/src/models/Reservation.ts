@@ -44,6 +44,9 @@ export interface IReservation extends Document {
   observaciones?: string;
   motivoRechazo?: string;
   motivoCancelacion?: string;
+  // ── Firmas Digitales ──
+  firmaInicio?: string;           // URL de la firma digital al inicio del viaje
+  firmaFin?: string;              // URL de la firma digital al finalizar el viaje
   // ── Notificaciones de retraso ──
   notificadoRetraso?: boolean;
   notificadoAdmin?: boolean;
@@ -142,6 +145,9 @@ const reservationSchema = new Schema<IReservation>(
       type: String,
       trim: true,
     },
+    // ── Firmas Digitales ──
+    firmaInicio: { type: String },   // base64 PNG de la firma al iniciar
+    firmaFin:    { type: String },   // base64 PNG de la firma al finalizar
     // ── Notificaciones de retraso ──
     notificadoRetraso: {
       type: Boolean,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput, Modal, ScrollView, RefreshControl, Linking, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput, Modal, ScrollView, RefreshControl, Linking, Animated, Image } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -51,9 +51,10 @@ export default function HomeScreen({ route, navigation }: any) {
   );
 
   const [activeInspection, setActiveInspection] = useState<IInspeccion | null>(null);
-  const [inspectionPhoto, setInspectionPhoto] = useState<string | null>(null);
+  const [inspectionPhotos, setInspectionPhotos] = useState<string[]>([]);
   const [inspectionText, setInspectionText] = useState('');
   const [submittingInspection, setSubmittingInspection] = useState(false);
+  const [isInspectionMinimized, setIsInspectionMinimized] = useState(false);
 
   // Modal DEV para Máquina del Tiempo
   const [devModalVisible, setDevModalVisible] = useState(false);
@@ -256,37 +257,40 @@ export default function HomeScreen({ route, navigation }: any) {
   };
 
   const handleTakeInspectionPhoto = async () => {
+    if (inspectionPhotos.length >= 5) {
+      showAlert('Límite alcanzado', 'Puedes adjuntar un máximo de 5 fotos por respuesta.');
+      return;
+    }
+
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      showAlert('Permisos denegados', 'Necesitas dar acceso a la cámara para tomar la foto.');
+      showAlert('Permiso denegado', 'Se necesita permiso para usar la cámara.');
       return;
     }
 
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
       quality: 0.5,
     });
 
-    if (!result.canceled) {
-      setInspectionPhoto(result.assets[0].uri);
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      setInspectionPhotos(prev => [...prev, result.assets[0].uri]);
     }
   };
 
   const handleSubmitInspection = async () => {
     if (!activeInspection) return;
-    if (!inspectionText && !inspectionPhoto) {
-      showAlert('Faltan datos', 'Debes enviar al menos un texto o una foto.');
+    if (!inspectionText && inspectionPhotos.length === 0) {
+      showAlert('Error', 'Debes enviar un comentario o al menos una foto.');
       return;
     }
-
+    
+    setSubmittingInspection(true);
     try {
-      setSubmittingInspection(true);
-      await inspectionService.respondInspection(activeInspection._id, inspectionText, inspectionPhoto || undefined);
-      showAlert('¡Gracias!', 'Inspección enviada correctamente.');
-      setActiveInspection(null);
-      setInspectionPhoto(null);
+      await inspectionService.respondInspection(activeInspection._id, inspectionText, inspectionPhotos);
+      showAlert('Enviado', 'Respuesta de inspección enviada.');
       setInspectionText('');
+      setInspectionPhotos([]);
     } catch (err: any) {
       showAlert('Error', err.response?.data?.message || 'Error al enviar inspección');
     } finally {
@@ -346,6 +350,20 @@ export default function HomeScreen({ route, navigation }: any) {
         <Text style={{ color: 'white', fontWeight: 'bold' }}>Cambiar Hora del simulador</Text>
       </TouchableOpacity>
 
+      {/* Banner de Inspección Minimizada */}
+      {activeInspection && isInspectionMinimized && (
+        <TouchableOpacity 
+          style={{ backgroundColor: colors.warning, padding: 16, borderRadius: BORDER_RADIUS.lg, marginBottom: 20, flexDirection: 'row', alignItems: 'center', ...SHADOWS.subtleMauve }}
+          onPress={() => setIsInspectionMinimized(false)}
+        >
+          <Ionicons name="warning" size={28} color="#FFF" style={{ marginRight: 12 }} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 16 }}>🚨 Inspección Pendiente</Text>
+            <Text style={{ color: '#FFF', fontSize: 13, marginTop: 2 }}>Toca aquí para responderla ahora</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+
       {/* Tarjeta de Viaje Activo */}
       {activeReserva ? (
         <Animated.View style={[styles.card, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
@@ -395,7 +413,7 @@ export default function HomeScreen({ route, navigation }: any) {
       ) : upcomingReserva ? (
         <Animated.View style={[styles.card, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <LinearGradient
-            colors={GRADIENTS.cardBackground}
+            colors={isDark ? ['#1E1E1E', '#252525'] : ['#FFFFFF', '#F8FAFC']}
             style={[StyleSheet.absoluteFill, { borderRadius: 16 }]}
           />
           <View style={styles.cardHeader}>
@@ -529,7 +547,7 @@ export default function HomeScreen({ route, navigation }: any) {
       </Modal>
 
       {/* ─── Modal Inspección Aleatoria ─── */}
-      <Modal visible={!!activeInspection} transparent animationType="slide">
+      <Modal visible={!!activeInspection && !isInspectionMinimized} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>🚨 Inspección Aleatoria</Text>
@@ -549,9 +567,29 @@ export default function HomeScreen({ route, navigation }: any) {
               onChangeText={setInspectionText}
             />
 
+            {inspectionPhotos.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 15 }}>
+                {inspectionPhotos.map((uri, idx) => (
+                  <View key={idx} style={{ marginRight: 10, position: 'relative', marginTop: 5 }}>
+                    <Image source={{ uri }} style={{ width: 80, height: 80, borderRadius: 8 }} />
+                    <TouchableOpacity 
+                      style={{ position: 'absolute', top: -8, right: -8, backgroundColor: colors.danger, borderRadius: 12, padding: 2 }}
+                      onPress={() => setInspectionPhotos(prev => prev.filter((_, i) => i !== idx))}
+                    >
+                      <Ionicons name="close" size={16} color="white" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+
             <View style={{ flexDirection: 'row', width: '100%', gap: 10, marginBottom: 15 }}>
-              <TouchableOpacity style={[styles.btnPrimary, { flex: 1, backgroundColor: inspectionPhoto ? colors.success : colors.primaryDark }]} onPress={handleTakeInspectionPhoto}>
-                <Text style={styles.btnText}>{inspectionPhoto ? '📸 Foto Lista (Reemplazar)' : '📸 Tomar Foto'}</Text>
+              <TouchableOpacity 
+                style={[styles.btnPrimary, { flex: 1, backgroundColor: inspectionPhotos.length >= 5 ? colors.textMuted : colors.primaryDark }]} 
+                onPress={handleTakeInspectionPhoto}
+                disabled={inspectionPhotos.length >= 5}
+              >
+                <Text style={styles.btnText}>📸 Tomar Foto ({inspectionPhotos.length}/5)</Text>
               </TouchableOpacity>
             </View>
 
@@ -565,6 +603,14 @@ export default function HomeScreen({ route, navigation }: any) {
               ) : (
                 <Text style={styles.btnText}>Enviar Reporte</Text>
               )}
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={{ width: '100%', alignItems: 'center', marginTop: 15, paddingVertical: 10 }}
+              onPress={() => setIsInspectionMinimized(true)}
+              disabled={submittingInspection}
+            >
+              <Text style={{ color: colors.textMuted, fontWeight: 'bold', fontSize: 15 }}>Minimizar para luego</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -614,7 +660,7 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
   },
   clockContainer: {
     alignItems: 'flex-end',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
     padding: 10,
     borderRadius: 12,
     borderWidth: 1,
@@ -722,7 +768,7 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     marginBottom: 16,
   },
   gpsIndicator: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: colors.success + '20',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
@@ -774,7 +820,7 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     fontSize: 15,
   },
   gpsStatusBar: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: colors.success + '20',
     borderRadius: 8,
     padding: 10,
     alignItems: 'center',
@@ -825,7 +871,7 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     color: colors.primary,
     fontWeight: '600',
     marginBottom: 12,
-    backgroundColor: '#EBF5FB',
+    backgroundColor: colors.primary + '20',
     padding: 8,
     borderRadius: 6,
   },
@@ -846,7 +892,7 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 16,
-    backgroundColor: '#E8F5E9',
+    backgroundColor: colors.success + '20',
     padding: 8,
     borderRadius: 6,
   },

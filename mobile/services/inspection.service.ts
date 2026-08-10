@@ -8,7 +8,7 @@ export interface IInspeccion {
   fechaActivacion: string;
   fechaLimite: string;
   respuestaTexto?: string;
-  respuestaFotoUrl?: string;
+  respuestaFotosUrls?: string[];
   reserva: any;
   usuario: any;
 }
@@ -24,23 +24,25 @@ export const inspectionService = {
     return response.data;
   },
 
-  respondInspection: async (id: string, respuestaTexto?: string, photoUri?: string): Promise<IInspeccion> => {
+  respondInspection: async (id: string, respuestaTexto?: string, photoUris?: string[]): Promise<IInspeccion> => {
     const formData = new FormData();
     
     if (respuestaTexto) {
       formData.append('respuestaTexto', respuestaTexto);
     }
     
-    if (photoUri) {
-      const filename = photoUri.split('/').pop() || 'photo.jpg';
-      const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : `image/jpeg`;
-      
-      formData.append('foto', {
-        uri: photoUri,
-        name: filename,
-        type
-      } as any);
+    if (photoUris && photoUris.length > 0) {
+      photoUris.forEach((uri) => {
+        const filename = uri.split('/').pop() || 'photo.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image/jpeg`;
+        
+        formData.append('fotos', {
+          uri,
+          name: filename,
+          type
+        } as any);
+      });
     }
 
     const response = await api.post(`/inspections/${id}/respond`, formData, {

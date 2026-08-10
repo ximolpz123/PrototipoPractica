@@ -8,6 +8,7 @@ import axios from 'axios';
 import { authService } from '../services/auth.service';
 import { reservationService } from '../services/reservation.service';
 import { locationService } from '../services/location.service';
+import SignatureCanvas from 'react-native-signature-canvas';
 
 const POSITIONS = ['frontal', 'lateralDer', 'lateralIzq', 'trasero', 'tablero', 'interior'];
 const LABELS = ['Frontal', 'Lateral Derecho', 'Lateral Izquierdo', 'Trasero', 'Tablero', 'Interior'];
@@ -39,15 +40,20 @@ export default function CameraScreen({ route, navigation }: any) {
   // Gas level states
   const [bencinaLevel, setBencinaLevel] = useState<number>(100); // 0 to 100
 
+  // Firma Digital states
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [firmaBase64, setFirmaBase64] = useState<string | null>(null);
+  const signatureRef = useRef<any>(null);
+
   useEffect(() => {
     const handleBeforeRemove = (e: any) => {
       if (canGoBack) return;
       e.preventDefault();
 
-      const title = tipo === 'salida' ? 'Fotos Obligatorias' : 'Atención';
+      const title = tipo === 'salida' ? 'Fotos Obligatorias' : 'Atenci├│n';
       const msg = tipo === 'salida'
-        ? 'Debes tomar fotos de evidencia para iniciar tu viaje. Si retrocedes, tu viaje será cancelado automáticamente.'
-        : 'Aún no has completado tu viaje. Si retrocedes, tu viaje seguirá "En Curso" y deberás finalizarlo más tarde.';
+        ? 'Debes tomar fotos de evidencia para iniciar tu viaje. Si retrocedes, tu viaje ser├í cancelado autom├íticamente.'
+        : 'A├║n no has completado tu viaje. Si retrocedes, tu viaje seguir├í "En Curso" y deber├ís finalizarlo m├ís tarde.';
 
       showAlert(title, msg, [
         { text: 'Tomar fotos', style: 'cancel', onPress: () => { } },
@@ -57,7 +63,7 @@ export default function CameraScreen({ route, navigation }: any) {
           onPress: async () => {
             if (tipo === 'salida') {
               try {
-                await reservationService.cancel(reservaId, 'Cancelada automáticamente por abandonar captura de fotos.');
+                await reservationService.cancel(reservaId, 'Cancelada autom├íticamente por abandonar captura de fotos.');
                 await locationService.stopTracking();
               } catch (error) {
                 showAlert('Error', 'No se pudo cancelar el viaje.');
@@ -82,7 +88,7 @@ export default function CameraScreen({ route, navigation }: any) {
   if (!permission.granted) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.text}>Necesitamos permiso para usar la cámara</Text>
+        <Text style={styles.text}>Necesitamos permiso para usar la c├ímara</Text>
         <TouchableOpacity style={styles.btn} onPress={requestPermission}>
           <Text style={styles.btnText}>Otorgar Permiso</Text>
         </TouchableOpacity>
@@ -115,7 +121,7 @@ export default function CameraScreen({ route, navigation }: any) {
       setShowOdometerModal(true);
     } catch (error: any) {
       console.error(error);
-      showAlert('Error IA', 'No se pudo procesar la foto del tablero. Deberás ingresar el KM manualmente.');
+      showAlert('Error IA', 'No se pudo procesar la foto del tablero. Deber├ís ingresar el KM manualmente.');
       setKmDetectado(-1);
       setIsEditingKm(true);
       setShowOdometerModal(true);
@@ -153,7 +159,7 @@ export default function CameraScreen({ route, navigation }: any) {
   const confirmarOdometro = () => {
     const kmNum = parseInt(manualKm, 10);
     if (isNaN(kmNum) || kmNum < 0) {
-      showAlert('Error', 'Ingresa un número válido para el kilometraje.');
+      showAlert('Error', 'Ingresa un n├║mero v├ílido para el kilometraje.');
       return;
     }
     
@@ -163,6 +169,11 @@ export default function CameraScreen({ route, navigation }: any) {
   };
 
   const uploadFinal = async () => {
+    // Si aún no tiene firma, primero pedir firma digital
+    if (!firmaBase64) {
+      setShowSignatureModal(true);
+      return;
+    }
     setUploading(true);
     try {
       const formData = new FormData();
@@ -195,6 +206,10 @@ export default function CameraScreen({ route, navigation }: any) {
         });
         await locationService.stopTracking();
       }
+
+      // Guardar firma digital en el backend
+      const tipoFirma: 'inicio' | 'fin' = tipo === 'salida' ? 'inicio' : 'fin';
+      await reservationService.saveFirma(reservaId, tipoFirma, firmaBase64!);
 
       showAlert('Éxito', tipo === 'salida' ? 'Viaje iniciado exitosamente.' : 'Viaje finalizado exitosamente.');
       setCanGoBack(true);
@@ -274,7 +289,7 @@ export default function CameraScreen({ route, navigation }: any) {
             {uploadingIA ? (
               <View style={styles.aiLoading}>
                 <ActivityIndicator size="large" color="#fff" />
-                <Text style={styles.aiLoadingText}>Leyendo Odómetro con IA...</Text>
+                <Text style={styles.aiLoadingText}>Leyendo Od├│metro con IA...</Text>
               </View>
             ) : (
               <TouchableOpacity style={styles.captureBtn} onPress={takePicture}>
@@ -291,7 +306,7 @@ export default function CameraScreen({ route, navigation }: any) {
               <TouchableOpacity key={pos} style={styles.galleryItem} onPress={() => retakePhoto(index)}>
                 <Image source={{ uri: photos[pos] }} style={styles.thumbnail} />
                 <Text style={styles.thumbnailLabel}>{LABELS[index]}</Text>
-                <View style={styles.retakeBadge}><Text style={styles.retakeText}>↺</Text></View>
+                <View style={styles.retakeBadge}><Text style={styles.retakeText}>Ôå║</Text></View>
               </TouchableOpacity>
             ))}
           </View>
@@ -307,10 +322,22 @@ export default function CameraScreen({ route, navigation }: any) {
               <ActivityIndicator color={colors.white} />
             ) : (
               <Text style={styles.uploadBtnText}>
-                {tipo === 'salida' ? 'Subir e Iniciar Viaje' : 'Subir y Finalizar Viaje'}
+                {firmaBase64
+                  ? (tipo === 'salida' ? 'Subir e Iniciar Viaje' : 'Subir y Finalizar Viaje')
+                  : '✍️ Firmar y Continuar'
+                }
               </Text>
             )}
           </TouchableOpacity>
+
+          {firmaBase64 && (
+            <TouchableOpacity
+              style={{ alignItems: 'center', marginTop: 12 }}
+              onPress={() => setFirmaBase64(null)}
+            >
+              <Text style={{ color: colors.textMuted, fontSize: 13 }}>✏️ Volver a firmar</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -318,20 +345,20 @@ export default function CameraScreen({ route, navigation }: any) {
       <Modal visible={showOdometerModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>🤖 IA Odómetro</Text>
+            <Text style={styles.modalTitle}>­ƒñû IA Od├│metro</Text>
             
             {!isEditingKm ? (
               <>
                 <Text style={styles.modalText}>
-                  El odómetro marca <Text style={styles.boldKm}>{kmDetectado} km</Text>.
+                  El od├│metro marca <Text style={styles.boldKm}>{kmDetectado} km</Text>.
                 </Text>
-                <Text style={styles.modalQuestion}>¿Es esto correcto?</Text>
+                <Text style={styles.modalQuestion}>┬┐Es esto correcto?</Text>
                 <View style={styles.modalBtns}>
                   <TouchableOpacity style={[styles.modalBtn, styles.btnNo]} onPress={() => setIsEditingKm(true)}>
                     <Text style={styles.btnNoText}>No, editar</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.modalBtn, styles.btnYes]} onPress={confirmarOdometro}>
-                    <Text style={styles.btnYesText}>Sí, es correcto</Text>
+                    <Text style={styles.btnYesText}>S├¡, es correcto</Text>
                   </TouchableOpacity>
                 </View>
               </>
@@ -347,10 +374,46 @@ export default function CameraScreen({ route, navigation }: any) {
                   autoFocus
                 />
                 <TouchableOpacity style={[styles.modalBtn, styles.btnYes, { width: '100%', marginTop: 15 }]} onPress={confirmarOdometro}>
-                  <Text style={styles.btnYesText}>Guardar Odómetro</Text>
+                  <Text style={styles.btnYesText}>Guardar Od├│metro</Text>
                 </TouchableOpacity>
               </>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal Firma Digital */}
+      <Modal visible={showSignatureModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { height: 440, paddingBottom: 10 }]}>
+            <Text style={styles.modalTitle}>✍️ Firma Digital</Text>
+            <Text style={{ color: colors.textMuted, fontSize: 13, textAlign: 'center', marginBottom: 12 }}>
+              Firma en el recuadro como comprobante de {tipo === 'salida' ? 'inicio' : 'fin'} de viaje.
+            </Text>
+
+            <View style={{ flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 12, overflow: 'hidden', marginBottom: 10 }}>
+              <SignatureCanvas
+                ref={signatureRef}
+                onOK={(signature: string) => {
+                  setFirmaBase64(signature);
+                  setShowSignatureModal(false);
+                }}
+                onEmpty={() => {
+                  showAlert('Firma requerida', 'Por favor dibuja tu firma antes de confirmar.');
+                }}
+                descriptionText=""
+                clearText="Borrar"
+                confirmText="Confirmar Firma"
+                webStyle={`.m-signature-pad { box-shadow: none; border: none; } .m-signature-pad--body { border: none; } .m-signature-pad--footer { background-color: transparent; padding: 8px; } .m-signature-pad--footer .button.clear { background-color: #EF4444; color: white; border-radius: 8px; padding: 8px 16px; font-weight: bold; } .m-signature-pad--footer .button.save { background-color: #5C99CC; color: white; border-radius: 8px; padding: 8px 16px; font-weight: bold; }`}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={{ alignItems: 'center', paddingVertical: 10 }}
+              onPress={() => setShowSignatureModal(false)}
+            >
+              <Text style={{ color: colors.textMuted, fontWeight: 'bold' }}>Cancelar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>

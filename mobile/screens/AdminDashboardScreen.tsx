@@ -199,7 +199,7 @@ export default function AdminDashboardScreen() {
           <Text style={[styles.infoLine, { marginTop: 5 }]}>📋 {item.descripcion}</Text>
           <Text style={styles.infoLine}>🕒 Creada: {formatFecha(item.fechaActivacion)}</Text>
           {item.respuestaTexto ? <Text style={styles.infoLine}>🗣️ {item.respuestaTexto}</Text> : null}
-          {item.respuestaFotoUrl ? <Text style={[styles.infoLine, {color: colors.primary}]}>🖼️ Contiene foto adjunta</Text> : null}
+          {item.respuestaFotosUrls && item.respuestaFotosUrls.length > 0 ? <Text style={[styles.infoLine, {color: colors.primary}]}>🖼️ Contiene {item.respuestaFotosUrls.length} foto(s) adjunta(s)</Text> : null}
         </View>
       </View>
     );
@@ -567,14 +567,14 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
   cardVehiculo: { fontSize: 14, color: colors.textMuted, marginTop: 4, fontWeight: '500' },
   estadoBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: BORDER_RADIUS.round, marginLeft: 8 },
   estadoText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
-  cardBody: { backgroundColor: '#F8FAFC', borderRadius: BORDER_RADIUS.md, padding: 12, gap: 6 },
+  cardBody: { backgroundColor: colors.background, borderRadius: BORDER_RADIUS.md, padding: 12, gap: 6 },
   infoLine: { fontSize: 13, color: colors.textMuted, fontWeight: '500' },
 
   rejectReasonBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     marginTop: 6,
-    backgroundColor: '#FFF0F0',
+    backgroundColor: colors.danger + '15',
     borderRadius: 6,
     padding: 8,
     gap: 6,
@@ -628,7 +628,7 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     padding: 14,
     fontSize: 14,
     color: colors.text,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
     minHeight: 110,
     marginBottom: 20,
   },
@@ -643,7 +643,9 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     alignItems: 'center',
   },
   cancelModalBtn: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   cancelModalBtnText: {
     color: colors.textMuted,

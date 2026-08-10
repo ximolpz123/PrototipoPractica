@@ -12,6 +12,6 @@ router.get('/', authMiddleware, getInspections);
 router.get('/pending', authMiddleware, getPendingInspections);
 
 // POST /api/inspections/:id/respond (Responder a la inspección)
-router.post('/:id/respond', authMiddleware, upload.single('foto'), respondToInspection);
+router.post('/:id/respond', authMiddleware, upload.array('fotos', 5), respondToInspection);
 
 export default router;

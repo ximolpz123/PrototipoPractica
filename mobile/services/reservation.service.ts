@@ -29,6 +29,8 @@ export interface IReservation {
   observaciones?: string;
   motivoRechazo?: string;
   motivoCancelacion?: string;
+  firmaInicio?: string;
+  firmaFin?: string;
   createdAt: string;
 }
 
@@ -89,5 +91,9 @@ export const reservationService = {
   handleDelayResponse: async (id: string, acepta: boolean, motivoCancelacion?: string) => {
     const response = await api.post(`/reservations/${id}/handle-delay-response`, { acepta, motivoCancelacion });
     return response.data;
+  },
+
+  saveFirma: async (id: string, tipo: 'inicio' | 'fin', firma: string): Promise<void> => {
+    await api.patch(`/reservations/${id}/firma`, { tipo, firma });
   },
 };

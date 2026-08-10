@@ -44,7 +44,7 @@ export const respondToInspection = async (req: AuthRequest, res: Response): Prom
   try {
     const { id } = req.params;
     const { respuestaTexto } = req.body;
-    const file = req.file;
+    const files = req.files as Express.Multer.File[];
 
     const inspeccion = await InspeccionAleatoria.findById(id);
     if (!inspeccion) {
@@ -62,8 +62,8 @@ export const respondToInspection = async (req: AuthRequest, res: Response): Prom
       return;
     }
 
-    if (!respuestaTexto && !file) {
-      res.status(400).json({ message: 'Debes proporcionar un texto o una foto' });
+    if (!respuestaTexto && (!files || files.length === 0)) {
+      res.status(400).json({ message: 'Debes proporcionar un texto o al menos una foto' });
       return;
     }
 
@@ -71,8 +71,8 @@ export const respondToInspection = async (req: AuthRequest, res: Response): Prom
     if (respuestaTexto) {
       inspeccion.respuestaTexto = respuestaTexto;
     }
-    if (file) {
-      inspeccion.respuestaFotoUrl = file.path; // Cloudinary URL
+    if (files && files.length > 0) {
+      inspeccion.respuestaFotosUrls = files.map(f => f.path); // Cloudinary URLs
     }
 
     await inspeccion.save();
