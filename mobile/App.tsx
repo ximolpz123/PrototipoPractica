@@ -50,6 +50,7 @@ import AdminMapScreen from './screens/AdminMapScreen';
 import AddVehicleAIScreen from './screens/AddVehicleAIScreen';
 import AdminCreateReservationScreen from './screens/AdminCreateReservationScreen';
 import AdminBanderasScreen from './screens/AdminBanderasScreen';
+import ScanQRScreen from './screens/ScanQRScreen';
 import { AlertProvider, useAlert } from './context/AlertContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 
@@ -415,6 +416,11 @@ function MainApp() {
                 component={CreateReservationScreen}
                 options={{ title: 'Crear Reserva' }}
               />
+              <Stack.Screen
+                name="ScanQR"
+                component={ScanQRScreen}
+                options={{ title: 'Escanear QR Vehículo' }}
+              />
             </>
           )}
           {isAdmin && (
@@ -428,6 +434,11 @@ function MainApp() {
                 name="AdminCreateReservation"
                 component={AdminCreateReservationScreen}
                 options={{ title: 'Asignar Vehículo' }}
+              />
+              <Stack.Screen
+                name="ScanQR"
+                component={ScanQRScreen}
+                options={{ title: 'Escanear QR Vehículo' }}
               />
             </>
           )}

@@ -467,7 +467,11 @@ export default function HomeScreen({ route, navigation }: any) {
           <Text style={styles.cardInfo}>📝 {upcomingReserva.motivo}</Text>
 
           <TouchableOpacity style={styles.btnPrimary} onPress={handleStartTrip}>
-            <Text style={styles.btnText}>▶ Iniciar Viaje y Activar GPS</Text>
+            <Text style={styles.btnText}>🚀 Iniciar Viaje y Activar GPS</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.btnOutline, { marginTop: 10 }]} onPress={() => navigation.navigate('ScanQR')}>
+            <Text style={[styles.btnOutlineText, { color: colors.primary }]}>🔍 Verificar Vehículo con QR</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -494,6 +498,25 @@ export default function HomeScreen({ route, navigation }: any) {
             >
               <Ionicons name="add-circle" size={28} color="#FFF" style={{ marginRight: 10 }} />
               <Text style={styles.btnCrearReservaText}>Nueva Reserva</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.btnCrearReservaContainer, { marginTop: 15 }]} 
+            onPress={() => navigation.navigate('ScanQR')}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={['#10b981', '#059669']}
+              style={styles.btnCrearReservaGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Text style={styles.btnCrearReservaIcon}>📷</Text>
+              <View style={styles.btnCrearReservaTextContainer}>
+                <Text style={styles.btnCrearReservaTitle}>Escanear Código QR</Text>
+                <Text style={styles.btnCrearReservaSubtitle}>Crea tu reserva apuntando al vehículo</Text>
+              </View>
             </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
@@ -1010,6 +1033,17 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 15,
   },
+  btnOutline: {
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  btnOutlineText: {
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
   btnCrearReservaContainer: {
     width: '100%',
     marginTop: 15,
@@ -1032,5 +1066,21 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     letterSpacing: 0.5,
+  },
+  btnCrearReservaIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  btnCrearReservaTextContainer: {
+    flexDirection: 'column',
+  },
+  btnCrearReservaTitle: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  btnCrearReservaSubtitle: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
   },
 });

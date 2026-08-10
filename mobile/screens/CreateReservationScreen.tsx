@@ -15,10 +15,10 @@ const TIPO_ICON: Record<string, string> = {
   pickup: '🛻', sedan: '🚗', suv: '🚙', van: '🚐',
 };
 
-export default function CreateReservationScreen({ navigation }: any) {
+export default function CreateReservationScreen({ navigation, route }: any) {
   const { colors, isDark } = useTheme();
   const styles = React.useMemo(() => getStyles(colors), [colors]);
-  
+  const preselectedVehicleId: string | undefined = route?.params?.preselectedVehicleId;
 
   const { showAlert } = useAlert();
   const [user, setUser] = useState<any>(null);
@@ -51,7 +51,13 @@ export default function CreateReservationScreen({ navigation }: any) {
       const all = await vehicleService.getAll();
       // Mostrar todos los vehículos operativos (no los de mantenimiento o fuera de servicio)
       // Los reservados/en_curso aún se pueden seleccionar para reservar en otro horario
-      setVehicles(all.filter((v) => v.estado !== 'mantenimiento' && v.estado !== 'fuera_de_servicio'));
+      const filtered = all.filter((v) => v.estado !== 'mantenimiento' && v.estado !== 'fuera_de_servicio');
+      setVehicles(filtered);
+      // Si viene pre-seleccionado desde escaneo QR, auto-seleccionarlo
+      if (preselectedVehicleId) {
+        const found = filtered.find(v => v._id === preselectedVehicleId);
+        if (found) setSelectedVehicle(found);
+      }
     } catch (err) {
       showAlert('Error', 'No se pudo cargar la información.');
     } finally {
