@@ -166,20 +166,35 @@ export default function HomeScreen({ route, navigation }: any) {
   );
 
   const handleStartTrip = async () => {
-    const reserva = activeReserva ?? upcomingReserva;
+    const reserva = upcomingReserva;
     if (!reserva) {
       showAlert('Sin reserva', 'No tienes una reserva aprobada para iniciar.');
       return;
     }
 
     try {
-      // Ya no iniciamos el viaje ni el GPS aquí.
-      // Solo navegamos a la pantalla de cámara donde se tomarán las fotos y la firma.
-      // El viaje iniciará realmente cuando se suban las fotos (uploadFinal en CameraScreen).
+      // Solo navegamos a la cámara. El viaje inicia realmente al subir las fotos.
       navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'salida', tipoIndicador: reserva.vehiculo?.tipoIndicador });
     } catch (err: any) {
       const msg = err.response?.data?.message ?? 'Error al ir a la cámara.';
       showAlert('Error', msg);
+    }
+  };
+
+  // Reanudar GPS sin ir a cámara (el viaje ya está en curso)
+  const handleResumeGps = async () => {
+    const reserva = activeReserva;
+    if (!reserva) return;
+    try {
+      const started = await locationService.startTracking(reserva._id);
+      if (started) {
+        setIsTracking(true);
+        showAlert('Éxito', 'GPS reactivado correctamente.');
+      } else {
+        showAlert('GPS Requerido', 'Por favor enciende el GPS de tu teléfono y asegúrate de haber dado permisos de ubicación.');
+      }
+    } catch (err: any) {
+      showAlert('Error', 'No se pudo reanudar el GPS.');
     }
   };
 
@@ -403,7 +418,7 @@ export default function HomeScreen({ route, navigation }: any) {
           </View>
 
           {!isTracking && (
-            <TouchableOpacity style={styles.btnPrimary} onPress={handleStartTrip}>
+            <TouchableOpacity style={styles.btnPrimary} onPress={handleResumeGps}>
               <Text style={styles.btnText}>Reanudar GPS</Text>
             </TouchableOpacity>
           )}
@@ -446,10 +461,10 @@ export default function HomeScreen({ route, navigation }: any) {
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={[styles.btnPrimary, { marginTop: 10, backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.danger }]} 
+            style={[styles.btnPrimary, { marginTop: 10, backgroundColor: colors.danger }]} 
             onPress={() => setShowCancelModal(true)}
           >
-            <Text style={[styles.btnText, { color: colors.danger }]}>Cancelar Reserva</Text>
+            <Text style={styles.btnText}>Cancelar Reserva</Text>
           </TouchableOpacity>
         </Animated.View>
       ) : (

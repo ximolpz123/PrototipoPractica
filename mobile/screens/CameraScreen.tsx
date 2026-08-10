@@ -289,7 +289,7 @@ export default function CameraScreen({ route, navigation }: any) {
               <TouchableOpacity key={pos} style={styles.galleryItem} onPress={() => retakePhoto(index)}>
                 <Image source={{ uri: photos[pos] }} style={styles.thumbnail} />
                 <Text style={styles.thumbnailLabel}>{LABELS[index]}</Text>
-                <View style={styles.retakeBadge}><Text style={styles.retakeText}>Ôå║</Text></View>
+                <View style={styles.retakeBadge}><Text style={styles.retakeText}>↺</Text></View>
               </TouchableOpacity>
             ))}
           </View>
@@ -316,20 +316,20 @@ export default function CameraScreen({ route, navigation }: any) {
       <Modal visible={showOdometerModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>­ƒñû IA Od├│metro</Text>
+            <Text style={styles.modalTitle}>🤖 IA Odómetro</Text>
             
             {!isEditingKm ? (
               <>
                 <Text style={styles.modalText}>
-                  El od├│metro marca <Text style={styles.boldKm}>{kmDetectado} km</Text>.
+                  El odómetro marca <Text style={styles.boldKm}>{kmDetectado} km</Text>.
                 </Text>
-                <Text style={styles.modalQuestion}>┬┐Es esto correcto?</Text>
+                <Text style={styles.modalQuestion}>¿Es esto correcto?</Text>
                 <View style={styles.modalBtns}>
                   <TouchableOpacity style={[styles.modalBtn, styles.btnNo]} onPress={() => setIsEditingKm(true)}>
                     <Text style={styles.btnNoText}>No, editar</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.modalBtn, styles.btnYes]} onPress={confirmarOdometro}>
-                    <Text style={styles.btnYesText}>S├¡, es correcto</Text>
+                    <Text style={styles.btnYesText}>Sí, es correcto</Text>
                   </TouchableOpacity>
                 </View>
               </>
@@ -344,8 +344,8 @@ export default function CameraScreen({ route, navigation }: any) {
                   placeholder="Ej: 12345"
                   autoFocus
                 />
-                <TouchableOpacity style={[styles.modalBtn, styles.btnYes, { width: '100%', marginTop: 15 }]} onPress={confirmarOdometro}>
-                  <Text style={styles.btnYesText}>Guardar Od├│metro</Text>
+                <TouchableOpacity style={[styles.modalBtn, styles.btnYes, { width: '100%', marginTop: 15, paddingVertical: 16 }]} onPress={confirmarOdometro}>
+                  <Text style={styles.btnYesText}>Guardar Odómetro</Text>
                 </TouchableOpacity>
               </>
             )}
