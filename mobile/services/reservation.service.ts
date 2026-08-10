@@ -10,6 +10,7 @@ export interface IReservation {
     color: string;
     tipo: string;
     tipoIndicador?: string;
+    kilometraje?: number;
   };
   usuario: {
     _id: string;
@@ -64,8 +65,8 @@ export const reservationService = {
     return response.data;
   },
 
-  startReservation: async (id: string): Promise<IReservation> => {
-    const response = await api.patch(`/reservations/${id}/start`);
+  startReservation: async (id: string, kmSalida?: number, observacionKmSalida?: string): Promise<IReservation> => {
+    const response = await api.patch(`/reservations/${id}/start`, { kmSalida, observacionKmSalida });
     return response.data.reservation;
   },
 

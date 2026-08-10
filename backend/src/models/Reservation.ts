@@ -29,6 +29,7 @@ export interface IReservation extends Document {
   motivo: string;
   estado: 'pendiente' | 'aprobada' | 'en_curso' | 'completada' | 'cancelada' | 'rechazada';
   kmSalida?: number;
+  observacionKmSalida?: string;
   kmRetorno?: number;
   // ── Fotos v2 (objeto con posiciones) ──
   fotosSalida?: IFotosEvidencia;
@@ -123,7 +124,14 @@ const reservationSchema = new Schema<IReservation>(
       enum: ['pendiente', 'aprobada', 'en_curso', 'completada', 'cancelada', 'rechazada'],
       default: 'pendiente',
     },
-    kmSalida:  { type: Number, min: 0 },
+    kmSalida: {
+      type: Number,
+      required: false
+    },
+    observacionKmSalida: {
+      type: String,
+      required: false
+    },
     kmRetorno: { type: Number, min: 0 },
     // ── Fotos v2 ──
     fotosSalida:   { type: fotosEvidenciaSchema },

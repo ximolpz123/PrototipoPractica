@@ -174,7 +174,12 @@ export default function HomeScreen({ route, navigation }: any) {
 
     try {
       // Solo navegamos a la cámara. El viaje inicia realmente al subir las fotos.
-      navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'salida', tipoIndicador: reserva.vehiculo?.tipoIndicador });
+      navigation.navigate('Camera', { 
+        reservaId: reserva._id, 
+        tipo: 'salida', 
+        tipoIndicador: reserva.vehiculo?.tipoIndicador,
+        kilometrajeActual: reserva.vehiculo?.kilometraje || 0 
+      });
     } catch (err: any) {
       const msg = err.response?.data?.message ?? 'Error al ir a la cámara.';
       showAlert('Error', msg);
@@ -283,7 +288,12 @@ export default function HomeScreen({ route, navigation }: any) {
   const handleEndTrip = () => {
     const reserva = activeReserva;
     if (!reserva) return;
-    navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'retorno', tipoIndicador: reserva.vehiculo?.tipoIndicador });
+    navigation.navigate('Camera', { 
+      reservaId: reserva._id, 
+      tipo: 'retorno', 
+      tipoIndicador: reserva.vehiculo?.tipoIndicador,
+      kilometrajeActual: reserva.vehiculo?.kilometraje || 0 
+    });
   };
 
   const handleTakeInspectionPhoto = async () => {

@@ -18,7 +18,7 @@ export default function CameraScreen({ route, navigation }: any) {
   
 
   const { showAlert } = useAlert();
-  const { reservaId, tipo, tipoIndicador } = route.params;
+  const { reservaId, tipo, tipoIndicador, kilometrajeActual = 0 } = route.params;
 
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
@@ -33,7 +33,8 @@ export default function CameraScreen({ route, navigation }: any) {
   const [showOdometerModal, setShowOdometerModal] = useState(false);
   const [kmDetectado, setKmDetectado] = useState(-1);
   const [manualKm, setManualKm] = useState('');
-  const [finalKmRetorno, setFinalKmRetorno] = useState<number | null>(null);
+  const [finalKmTablero, setFinalKmTablero] = useState<number | null>(null);
+  const [observacionKm, setObservacionKm] = useState('');
   const [isEditingKm, setIsEditingKm] = useState(false);
 
   // Gas level states
@@ -130,7 +131,7 @@ export default function CameraScreen({ route, navigation }: any) {
     const newPhotos = { ...photos, [pos]: photo.uri };
     setPhotos(newPhotos);
 
-    if (pos === 'tablero' && tipo === 'retorno') {
+    if (pos === 'tablero') {
       await procesarFotoIA(photo.uri);
     } else {
       setCurrentStep(currentStep + 1);
@@ -144,11 +145,16 @@ export default function CameraScreen({ route, navigation }: any) {
   const confirmarOdometro = () => {
     const kmNum = parseInt(manualKm, 10);
     if (isNaN(kmNum) || kmNum < 0) {
-      showAlert('Error', 'Ingresa un n├║mero v├ílido para el kilometraje.');
+      showAlert('Error', 'Ingresa un número válido para el kilometraje.');
       return;
     }
     
-    setFinalKmRetorno(kmNum);
+    if (tipo === 'salida' && kmNum > kilometrajeActual && !observacionKm.trim()) {
+      showAlert('Atención', 'El kilometraje ingresado es mayor al registrado en el sistema. Por favor, escribe un motivo o justificación.');
+      return;
+    }
+    
+    setFinalKmTablero(kmNum);
     setShowOdometerModal(false);
     setCurrentStep(currentStep + 1);
   };
@@ -179,14 +185,14 @@ export default function CameraScreen({ route, navigation }: any) {
 
       if (tipo === 'salida') {
         // Iniciar reserva y rastreo recién ahora (viaje inicia al subir las fotos)
-        await reservationService.startReservation(reservaId);
+        await reservationService.startReservation(reservaId, finalKmTablero ?? undefined, observacionKm.trim() || undefined);
         const started = await locationService.startTracking(reservaId);
         if (!started) {
           showAlert('Aviso de GPS', 'El viaje inició pero no se pudo activar el GPS.');
         }
       } else if (tipo === 'retorno') {
         await axios.patch(`${API_URL}/reservations/${reservaId}/complete`, {
-          kmRetorno: finalKmRetorno,
+          kmRetorno: finalKmTablero,
           nivelBencinaRetorno: bencinaLevel
         }, {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -344,6 +350,18 @@ export default function CameraScreen({ route, navigation }: any) {
                   placeholder="Ej: 12345"
                   autoFocus
                 />
+                
+                {tipo === 'salida' && parseInt(manualKm || '0', 10) > kilometrajeActual && (
+                  <TextInput
+                    style={[styles.kmInput, { minHeight: 60, textAlignVertical: 'top', fontSize: 16 }]}
+                    placeholder={`El sistema indica ${kilometrajeActual} km. Justifica la diferencia:`}
+                    placeholderTextColor={colors.textMuted}
+                    multiline
+                    value={observacionKm}
+                    onChangeText={setObservacionKm}
+                  />
+                )}
+                
                 <TouchableOpacity style={[styles.modalBtn, styles.btnYes, { width: '100%', marginTop: 15, paddingVertical: 16 }]} onPress={confirmarOdometro}>
                   <Text style={styles.btnYesText}>Guardar Odómetro</Text>
                 </TouchableOpacity>
