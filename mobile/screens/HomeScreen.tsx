@@ -59,6 +59,12 @@ export default function HomeScreen({ route, navigation }: any) {
   // Modal DEV para Máquina del Tiempo
   const [devModalVisible, setDevModalVisible] = useState(false);
   const [manualMinutes, setManualMinutes] = useState('');
+
+  // Cancelación de reserva desde el Inicio
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [canceling, setCanceling] = useState(false);
+
   const [serverOffset, setServerOffset] = useState(0);
   const [simulatedTime, setSimulatedTime] = useState(new Date());
 
@@ -167,25 +173,34 @@ export default function HomeScreen({ route, navigation }: any) {
     }
 
     try {
-      // 1. Cambiar la reserva a 'en_curso' en el backend ANTES de activar el GPS
-      if (reserva.estado === 'aprobada') {
-        await reservationService.startReservation(reserva._id);
-      }
-
-      // 2. Activar el GPS en segundo plano con el ID de la reserva activa
-      const started = await locationService.startTracking(reserva._id);
-      if (started) {
-        setIsTracking(true);
-        navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'salida', tipoIndicador: reserva.vehiculo?.tipoIndicador });
-      } else {
-        showAlert(
-          'GPS Requerido',
-          'Debes activar el GPS y dar permiso de ubicación "Todo el tiempo" (Always) para iniciar el viaje.\n\nPor favor, enciende el GPS de tu teléfono.'
-        );
-      }
+      // Ya no iniciamos el viaje ni el GPS aquí.
+      // Solo navegamos a la pantalla de cámara donde se tomarán las fotos y la firma.
+      // El viaje iniciará realmente cuando se suban las fotos (uploadFinal en CameraScreen).
+      navigation.navigate('Camera', { reservaId: reserva._id, tipo: 'salida', tipoIndicador: reserva.vehiculo?.tipoIndicador });
     } catch (err: any) {
-      const msg = err.response?.data?.message ?? 'Error al iniciar el viaje.';
+      const msg = err.response?.data?.message ?? 'Error al ir a la cámara.';
       showAlert('Error', msg);
+    }
+  };
+
+  const handleCancelUpcoming = async () => {
+    if (!cancelReason.trim()) {
+      showAlert('Error', 'Debes ingresar un motivo para cancelar la reserva.');
+      return;
+    }
+    if (!upcomingReserva) return;
+    
+    setCanceling(true);
+    try {
+      await reservationService.cancel(upcomingReserva._id, cancelReason.trim());
+      showAlert('Cancelada', 'La reserva ha sido cancelada exitosamente.');
+      setShowCancelModal(false);
+      setCancelReason('');
+      loadReservas();
+    } catch (err: any) {
+      showAlert('Error', err.response?.data?.message || 'No se pudo cancelar la reserva.');
+    } finally {
+      setCanceling(false);
     }
   };
 
@@ -429,6 +444,13 @@ export default function HomeScreen({ route, navigation }: any) {
           <TouchableOpacity style={styles.btnPrimary} onPress={handleStartTrip}>
             <Text style={styles.btnText}>▶ Iniciar Viaje y Activar GPS</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.btnPrimary, { marginTop: 10, backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.danger }]} 
+            onPress={() => setShowCancelModal(true)}
+          >
+            <Text style={[styles.btnText, { color: colors.danger }]}>Cancelar Reserva</Text>
+          </TouchableOpacity>
         </Animated.View>
       ) : (
         <Animated.View style={[styles.centered, { opacity: fadeAnim }]}>
@@ -615,6 +637,43 @@ export default function HomeScreen({ route, navigation }: any) {
           </View>
         </View>
       </Modal>
+
+      {/* ─── Modal Cancelar Reserva ─── */}
+      <Modal visible={showCancelModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Cancelar Reserva</Text>
+            <Text style={{ textAlign: 'center', marginBottom: 15 }}>
+              Por favor, ingresa el motivo por el cual deseas cancelar esta reserva.
+            </Text>
+            <TextInput
+              style={[styles.kmInput, { minHeight: 60, textAlignVertical: 'top', width: '100%', marginBottom: 15 }]}
+              placeholder="Escribe el motivo aquí..."
+              placeholderTextColor={colors.textMuted}
+              multiline
+              value={cancelReason}
+              onChangeText={setCancelReason}
+            />
+            <View style={{ flexDirection: 'row', width: '100%', gap: 10 }}>
+              <TouchableOpacity 
+                style={[styles.btnPrimary, { flex: 1, backgroundColor: colors.textMuted }]} 
+                onPress={() => { setShowCancelModal(false); setCancelReason(''); }}
+                disabled={canceling}
+              >
+                <Text style={styles.btnText}>Volver</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.btnPrimary, { flex: 1, backgroundColor: colors.danger }]} 
+                onPress={handleCancelUpcoming}
+                disabled={canceling}
+              >
+                {canceling ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Confirmar</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </ScrollView>
   );
 }

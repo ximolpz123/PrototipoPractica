@@ -49,26 +49,17 @@ export default function CameraScreen({ route, navigation }: any) {
       if (canGoBack) return;
       e.preventDefault();
 
-      const title = tipo === 'salida' ? 'Fotos Obligatorias' : 'Atenci├│n';
+      const title = tipo === 'salida' ? 'Volver al Inicio' : 'Atención';
       const msg = tipo === 'salida'
-        ? 'Debes tomar fotos de evidencia para iniciar tu viaje. Si retrocedes, tu viaje ser├í cancelado autom├íticamente.'
-        : 'A├║n no has completado tu viaje. Si retrocedes, tu viaje seguir├í "En Curso" y deber├ís finalizarlo m├ís tarde.';
+        ? 'Aún no has iniciado tu viaje. Si retrocedes, podrás iniciarlo más tarde.'
+        : 'Aún no has completado tu viaje. Si retrocedes, tu viaje seguirá "En Curso" y deberás finalizarlo más tarde.';
 
       showAlert(title, msg, [
-        { text: 'Tomar fotos', style: 'cancel', onPress: () => { } },
+        { text: 'Quedarme aquí', style: 'cancel', onPress: () => { } },
         {
-          text: tipo === 'salida' ? 'Cancelar Viaje' : 'Volver al Inicio',
-          style: tipo === 'salida' ? 'destructive' : 'default',
+          text: 'Volver al Inicio',
+          style: 'default',
           onPress: async () => {
-            if (tipo === 'salida') {
-              try {
-                await reservationService.cancel(reservaId, 'Cancelada autom├íticamente por abandonar captura de fotos.');
-                await locationService.stopTracking();
-              } catch (error) {
-                showAlert('Error', 'No se pudo cancelar el viaje.');
-                return;
-              }
-            }
             setCanGoBack(true);
             navigation.dispatch(e.data.action);
           },
@@ -196,7 +187,14 @@ export default function CameraScreen({ route, navigation }: any) {
         }
       });
 
-      if (tipo === 'retorno') {
+      if (tipo === 'salida') {
+        // Iniciar reserva y rastreo recién ahora
+        await reservationService.startReservation(reservaId);
+        const started = await locationService.startTracking(reservaId);
+        if (!started) {
+          showAlert('Aviso de GPS', 'El viaje inició pero no se pudo activar el GPS.');
+        }
+      } else if (tipo === 'retorno') {
         await axios.patch(`${API_URL}/reservations/${reservaId}/complete`, {
           kmRetorno: finalKmRetorno,
           nivelBencinaRetorno: bencinaLevel
