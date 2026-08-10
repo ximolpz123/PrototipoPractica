@@ -42,8 +42,8 @@ function Login() {
     try {
       let fetchOptions: RequestInit = {};
       const endpoint = isRegistering
-        ? 'http://10.99.41.176:5000/api/auth/register'
-        : 'http://10.99.41.176:5000/api/auth/login';
+        ? 'http://localhost:5000/api/auth/register'
+        : 'http://localhost:5000/api/auth/login';
 
       if (isRegistering) {
         if (!licenciaFotoFile) {

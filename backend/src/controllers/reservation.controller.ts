@@ -15,7 +15,8 @@ export const getReservations = async (req: AuthRequest, res: Response): Promise<
     const filter = req.userRol === 'admin' ? {} : { 
       $or: [
         { usuario: req.userId },
-        { 'tramos.conductor': req.userId }
+        { 'tramos.conductor': req.userId },
+        { 'solicitudTraspaso.conductorDestino': req.userId, 'solicitudTraspaso.estado': 'pendiente' }
       ]
     };
     const reservations = await Reservation.find(filter)
@@ -213,7 +214,24 @@ export const startReservation = async (req: AuthRequest, res: Response): Promise
     const vehicle = await Vehicle.findById(reservation.vehiculo);
     let kmFinalSalida = vehicle?.kilometraje ?? 0;
     
-    const { kmSalida, observacionKmSalida } = req.body;
+    const { kmSalida, observacionKmSalida, isTramo } = req.body;
+    
+    if (isTramo) {
+      if (reservation.tramos && reservation.tramos.length > 0) {
+        const lastTramo = reservation.tramos[reservation.tramos.length - 1];
+        lastTramo.requiereFotosInicio = false;
+        if (kmSalida !== undefined && typeof kmSalida === 'number') {
+          lastTramo.kmInicio = kmSalida;
+          if (kmSalida > (vehicle?.kilometraje ?? 0)) {
+            await Vehicle.findByIdAndUpdate(reservation.vehiculo, { kilometraje: kmSalida });
+          }
+        }
+      }
+      await reservation.save();
+      res.json({ message: 'Tramo iniciado exitosamente', reservation });
+      return;
+    }
+
     if (kmSalida !== undefined && typeof kmSalida === 'number') {
       kmFinalSalida = kmSalida;
       if (kmSalida > (vehicle?.kilometraje ?? 0)) {
@@ -301,7 +319,7 @@ export const cancelReservation = async (req: AuthRequest, res: Response): Promis
   }
 };
 
-// Solicitar cambio de conductor (solo envía notificación)
+// Solicitar cambio de conductor (guarda estado y envía notificación)
 export const requestCambioConductorTramo = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const reservation = await Reservation.findById(req.params.id);
@@ -316,11 +334,23 @@ export const requestCambioConductorTramo = async (req: AuthRequest, res: Respons
 
     const { nuevoConductorId, kmActual } = req.body;
     const vehiculo = await Vehicle.findById(reservation.vehiculo);
+    
+    // Obtener datos del conductor origen para la notificación
+    const conductorOrigen = await User.findById(req.userId);
+    const nombreOrigen = conductorOrigen ? `${conductorOrigen.nombre} ${conductorOrigen.apellido}` : 'Un conductor';
+
+    // Guardar solicitud en BD
+    reservation.solicitudTraspaso = {
+      conductorDestino: nuevoConductorId,
+      conductorOrigen: req.userId as any,
+      estado: 'pendiente'
+    };
+    await reservation.save();
 
     await sendPushNotification(
       nuevoConductorId,
       'Transferencia de Vehículo',
-      `Te han asignado el regreso del vehículo ${vehiculo?.placa}. ¿Aceptas?`,
+      `${nombreOrigen} quiere pasarte el mando del vehículo ${vehiculo?.placa}. ¿Aceptas?`,
       { 
         type: 'HANDOVER_REQUEST', 
         reservaId: reservation._id,
@@ -331,6 +361,101 @@ export const requestCambioConductorTramo = async (req: AuthRequest, res: Respons
     res.json({ message: 'Solicitud enviada al conductor' });
   } catch (error) {
     res.status(500).json({ message: 'Error al solicitar cambio', error });
+  }
+};
+
+// Responder a solicitud de traspaso
+export const responderTraspaso = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const reservation = await Reservation.findById(req.params.id);
+    if (!reservation || !reservation.solicitudTraspaso || reservation.solicitudTraspaso.estado !== 'pendiente') {
+      res.status(400).json({ message: 'No hay solicitud pendiente para esta reserva' });
+      return;
+    }
+    
+    // Verificamos que el que responde es el destino
+    if (reservation.solicitudTraspaso.conductorDestino.toString() !== req.userId) {
+      res.status(403).json({ message: 'No tienes permiso para responder a esta solicitud' });
+      return;
+    }
+
+    const { respuesta, tipo, motivo, kmActual } = req.body; 
+    const vehiculo = await Vehicle.findById(reservation.vehiculo);
+    const currentKm = kmActual ?? vehiculo?.kilometraje ?? 0;
+    const now = new Date();
+
+    if (respuesta === 'rechazar') {
+      reservation.solicitudTraspaso.estado = 'rechazada';
+      reservation.solicitudTraspaso.motivoRechazo = motivo;
+      await reservation.save();
+
+      // Notificar al conductor de origen
+      await sendPushNotification(
+        reservation.solicitudTraspaso.conductorOrigen.toString(),
+        'Traspaso Rechazado',
+        `El traspaso del vehículo ${vehiculo?.placa} fue rechazado. Motivo: ${motivo}`,
+        { type: 'HANDOVER_REJECTED', reservaId: reservation._id }
+      );
+
+      res.json({ message: 'Traspaso rechazado. El viaje original continúa.' });
+      return;
+    }
+
+    if (respuesta === 'aceptar') {
+      reservation.solicitudTraspaso.estado = 'aceptada';
+      
+      if (!reservation.tramos) {
+        reservation.tramos = [];
+      }
+      
+      if (reservation.tramos.length === 0) {
+        reservation.tramos.push({
+          conductor: reservation.usuario,
+          fechaInicio: reservation.fechaInicio,
+          fechaFin: now,
+          gpsActivo: true,
+          kmInicio: reservation.kmSalida,
+          kmFin: currentKm
+        });
+      } else {
+        const lastTramo = reservation.tramos[reservation.tramos.length - 1];
+        lastTramo.fechaFin = now;
+        lastTramo.kmFin = currentKm;
+      }
+
+      // Nuevo tramo
+      reservation.tramos.push({
+        conductor: reservation.solicitudTraspaso.conductorDestino,
+        fechaInicio: now,
+        gpsActivo: true,
+        kmInicio: currentKm,
+        requiereFotosInicio: tipo === 'regreso'
+      });
+
+      await reservation.save();
+
+      if (vehiculo && currentKm > vehiculo.kilometraje) {
+        vehiculo.kilometraje = currentKm;
+        await vehiculo.save();
+      }
+
+      // Notificar al origen que se aceptó
+      await sendPushNotification(
+        reservation.solicitudTraspaso.conductorOrigen.toString(),
+        'Traspaso Aceptado',
+        `El conductor ha aceptado el vehículo ${vehiculo?.placa}. Tu tramo ha finalizado.`,
+        { type: 'HANDOVER_ACCEPTED', reservaId: reservation._id }
+      );
+
+      // Desactivamos el gps del conductor origen mandando push para que la app sepa (opcional, la app de origen puede hacer polling o manejar la push)
+      
+      res.json({ message: 'Traspaso aceptado exitosamente', requiereFotos: tipo === 'regreso' });
+      return;
+    }
+
+    res.status(400).json({ message: 'Respuesta inválida' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al responder traspaso', error });
   }
 };
 
@@ -597,8 +722,8 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
-    if (!['salida', 'retorno'].includes(tipo)) {
-      res.status(400).json({ message: 'El tipo debe ser "salida" o "retorno"' });
+    if (!['salida', 'retorno', 'tramo'].includes(tipo)) {
+      res.status(400).json({ message: 'El tipo debe ser "salida", "retorno" o "tramo"' });
       return;
     }
 
@@ -625,8 +750,13 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
     // Initialize if undefined
     if (tipo === 'salida') {
       if (!reservation.fotosSalida) reservation.fotosSalida = {};
-    } else {
+    } else if (tipo === 'retorno') {
       if (!reservation.fotosRetorno) reservation.fotosRetorno = {};
+    } else if (tipo === 'tramo') {
+      if (reservation.tramos && reservation.tramos.length > 0) {
+        const lastTramo = reservation.tramos[reservation.tramos.length - 1];
+        if (!lastTramo.fotosInicio) lastTramo.fotosInicio = {};
+      }
     }
 
     // Map files to positions
@@ -635,14 +765,19 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
       if (pos) {
         if (tipo === 'salida') {
           (reservation.fotosSalida as any)[pos] = file.path;
-        } else {
+        } else if (tipo === 'retorno') {
           (reservation.fotosRetorno as any)[pos] = file.path;
+        } else if (tipo === 'tramo') {
+          const lastTramo = reservation.tramos?.[reservation.tramos.length - 1];
+          if (lastTramo && lastTramo.fotosInicio) {
+            (lastTramo.fotosInicio as any)[pos] = file.path;
+          }
         }
       } else {
         // Fallback for legacy app versions
         if (tipo === 'salida') {
           reservation.fotosSalidaLegacy = [...(reservation.fotosSalidaLegacy || []), file.path];
-        } else {
+        } else if (tipo === 'retorno') {
           reservation.fotosRetornoLegacy = [...(reservation.fotosRetornoLegacy || []), file.path];
         }
       }

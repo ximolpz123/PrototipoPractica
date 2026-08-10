@@ -12,6 +12,7 @@ import {
   handleDelayResponse,
   cambioConductorTramo,
   requestCambioConductorTramo,
+  responderTraspaso,
   saveFirma,
 } from '../controllers/reservation.controller.js';
 import { authMiddleware, adminMiddleware, licenciaMiddleware } from '../middleware/auth.js';
@@ -46,6 +47,9 @@ router.post('/:id/handle-delay-response', authMiddleware, handleDelayResponse);
 
 // POST /api/reservations/:id/tramos/cambio/request (Solicitar cambio de conductor)
 router.post('/:id/tramos/cambio/request', authMiddleware, requestCambioConductorTramo);
+
+// POST /api/reservations/:id/responder-traspaso
+router.post('/:id/responder-traspaso', authMiddleware, responderTraspaso);
 
 // POST /api/reservations/:id/tramos/cambio (Registra cambio de conductor en ruta)
 router.post('/:id/tramos/cambio', authMiddleware, cambioConductorTramo);

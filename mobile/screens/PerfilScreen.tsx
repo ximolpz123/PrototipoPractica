@@ -24,21 +24,18 @@ const FLAG_ICONS: Record<string, string> = {
   ninguna: '⚪'
 };
 
+
+
 export default function PerfilScreen({ route }: any) {
   const { colors, themePreference, setThemePreference } = useTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
   const { showAlert } = useAlert();
   const handleLogout = route.params?.handleLogout || (() => {});
   
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
   const confirmLogout = () => {
-    Alert.alert(
-      "Cerrar Sesión",
-      "¿Estás seguro de que deseas cerrar sesión?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        { text: "Cerrar Sesión", style: "destructive", onPress: handleLogout }
-      ]
-    );
+    setShowLogoutModal(true);
   };
 
   const user = route.params?.user || {
@@ -177,190 +174,221 @@ export default function PerfilScreen({ route }: any) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      {/* HEADER SECTION */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleChangePhoto} style={styles.avatarContainer}>
-          {uploading ? (
-            <View style={styles.avatarLoading}>
-              <ActivityIndicator color={colors.white} />
+    <View style={styles.mainWrapper}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+        {/* HEADER SECTION */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleChangePhoto} style={styles.avatarContainer}>
+            {uploading ? (
+              <View style={styles.avatarLoading}>
+                <ActivityIndicator color={colors.white} />
+              </View>
+            ) : (
+              <Image source={{ uri: avatarUri }} style={styles.avatar} />
+            )}
+            <View style={styles.cameraOverlay}>
+              <Ionicons name="camera" size={16} color="#fff" />
             </View>
-          ) : (
-            <Image source={{ uri: avatarUri }} style={styles.avatar} />
-          )}
-          <View style={styles.cameraOverlay}>
-            <Ionicons name="camera" size={16} color="#fff" />
-          </View>
-        </TouchableOpacity>
-        <Text style={styles.name}>{user.nombre} {user.apellido}</Text>
-        <Text style={styles.email}>{user.email}</Text>
-        <View style={styles.badgeRow}>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{user.rol.toUpperCase()}</Text>
-          </View>
-          <View style={[styles.badge, { backgroundColor: FLAG_COLORS[banderaActual] + '20' }]}>
-            <Text style={[styles.badgeText, { color: FLAG_COLORS[banderaActual] }]}>
-              {FLAG_ICONS[banderaActual]} {banderaActual.toUpperCase()}
-            </Text>
+          </TouchableOpacity>
+          <Text style={styles.name}>{user.nombre} {user.apellido}</Text>
+          <Text style={styles.email}>{user.email}</Text>
+          <View style={styles.badgeRow}>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{user.rol.toUpperCase()}</Text>
+            </View>
+            <View style={[styles.badge, { backgroundColor: FLAG_COLORS[banderaActual] + '20' }]}>
+              <Text style={[styles.badgeText, { color: FLAG_COLORS[banderaActual] }]}>
+                {FLAG_ICONS[banderaActual]} {banderaActual.toUpperCase()}
+              </Text>
+            </View>
           </View>
         </View>
-      </View>
 
-      {/* MODAL PARA VER LICENCIA */}
-      <Modal visible={showLicenciaModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>Licencia Subida</Text>
-              <TouchableOpacity onPress={() => setShowLicenciaModal(false)}>
-                <Ionicons name="close" size={24} color={colors.text} />
+        {/* MODAL PARA VER LICENCIA */}
+        <Modal visible={showLicenciaModal} transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeaderRow}>
+                <Text style={styles.modalTitle}>Licencia Subida</Text>
+                <TouchableOpacity onPress={() => setShowLicenciaModal(false)}>
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+              {licenciaFotoUrl ? (
+                <Image source={{ uri: licenciaFotoUrl }} style={{ width: '100%', height: 200, resizeMode: 'contain', borderRadius: 10, marginTop: 10 }} />
+              ) : (
+                <Text style={{ textAlign: 'center', marginTop: 20, color: colors.textMuted }}>No hay foto disponible</Text>
+              )}
+            </View>
+          </View>
+        </Modal>
+
+        {/* USER DATA SECTION */}
+        <View style={styles.dataCard}>
+          <Text style={styles.sectionTitle}>Datos Personales</Text>
+          
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Departamento:</Text>
+            <Text style={styles.infoValue}>{user.departamento || 'No asignado'}</Text>
+          </View>
+
+          <View style={[styles.infoRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
+            <Text style={styles.infoLabel}>Teléfono:</Text>
+            <Text style={styles.infoValue}>{user.telefono || 'No asignado'}</Text>
+          </View>
+        </View>
+
+        {/* LICENSE STATUS SECTION */}
+        <View style={[styles.licenseCard, isLicenciaValida ? styles.licenseValid : styles.licenseInvalid]}>
+          <View style={styles.licenseHeader}>
+            <Ionicons name="card" size={24} color={isLicenciaValida ? colors.success : colors.danger} />
+            <Text style={[styles.licenseTitle, { color: isLicenciaValida ? colors.success : colors.danger }]}>
+              Estado de Licencia
+            </Text>
+          </View>
+          
+          {isLicenciaValida ? (
+            <View>
+              <Text style={styles.licenseStatus}>✅ VIGENTE</Text>
+              <Text style={styles.licenseDate}>
+                Vence el: {fechaVencimiento ? new Date(fechaVencimiento).toLocaleDateString() : 'N/A'}
+              </Text>
+            </View>
+          ) : (
+            <View>
+              <Text style={[styles.licenseStatus, { color: colors.danger }]}>❌ VENCIDA O INVÁLIDA</Text>
+              <Text style={[styles.licenseDate, { color: colors.danger }]}>No puedes solicitar nuevas reservas de vehículos.</Text>
+            </View>
+          )}
+          
+          {licenciaFotoUrl ? (
+            <TouchableOpacity 
+              style={[styles.scanBtn, { backgroundColor: colors.textMuted, marginBottom: 10 }]} 
+              onPress={() => setShowLicenciaModal(true)}
+            >
+              <Ionicons name="eye-outline" size={20} color={colors.white} />
+              <Text style={styles.scanBtnText}>Ver Licencia Subida</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          <TouchableOpacity 
+            style={styles.scanBtn} 
+            onPress={handleScanLicense}
+            disabled={scanningLicense}
+          >
+            {scanningLicense ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <>
+                <Ionicons name="scan-outline" size={20} color={colors.white} />
+                <Text style={styles.scanBtnText}>{licenciaFotoUrl ? 'Renovar Licencia (IA)' : 'Escanear Licencia (IA)'}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* ACTIONS SECTION */}
+        <TouchableOpacity style={styles.actionBtn} onPress={handleChangePhoto}>
+          <Ionicons name="image-outline" size={20} color={colors.text} />
+          <Text style={styles.actionBtnText}>Cambiar foto de perfil</Text>
+          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} style={styles.actionIconRight} />
+        </TouchableOpacity>
+
+        <View style={styles.sectionHeader}>
+          <Ionicons name="flag" size={24} color={colors.primary} style={{ marginRight: 10 }} />
+          <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Historial de Banderas</Text>
+        </View>
+        <View style={styles.dataCard}>
+          {flags.length === 0 ? (
+            <Text style={styles.emptyText}>No tienes banderas registradas en tu historial.</Text>
+          ) : (
+            flags.map((flag, idx) => (
+              <View key={flag._id || idx} style={[styles.flagItem, idx !== flags.length - 1 && styles.borderBottom]}>
+                <Text style={styles.flagIcon}>{FLAG_ICONS[flag.tipo]}</Text>
+                <View style={styles.flagInfo}>
+                  <Text style={styles.flagType}>
+                    Bandera {flag.tipo.toUpperCase()}
+                    {flag.asignadoPor === 'admin' ? ' (Manual)' : ' (Auto)'}
+                  </Text>
+                  <Text style={styles.flagReason}>{flag.motivo}</Text>
+                  <Text style={styles.flagDate}>
+                    {new Date(flag.createdAt).toLocaleDateString()} - {new Date(flag.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                  </Text>
+                </View>
+              </View>
+            ))
+          )}
+        </View>
+
+        {/* Selector de Tema */}
+        <View style={styles.themeSection}>
+          <Text style={styles.sectionTitle}>Apariencia</Text>
+          <View style={styles.themeOptions}>
+            <TouchableOpacity 
+              style={[styles.themeOption, themePreference === 'light' && styles.themeOptionActive]}
+              onPress={() => setThemePreference('light')}
+            >
+              <Ionicons name="sunny" size={28} color={themePreference === 'light' ? colors.primary : colors.textMuted} />
+              <Text style={[styles.themeOptionText, themePreference === 'light' && styles.themeOptionTextActive]}>Claro</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.themeOption, themePreference === 'system' && styles.themeOptionActive]}
+              onPress={() => setThemePreference('system')}
+            >
+              <Ionicons name="phone-portrait-outline" size={28} color={themePreference === 'system' ? colors.primary : colors.textMuted} />
+              <Text style={[styles.themeOptionText, themePreference === 'system' && styles.themeOptionTextActive]}>Sistema</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.themeOption, themePreference === 'dark' && styles.themeOptionActive]}
+              onPress={() => setThemePreference('dark')}
+            >
+              <Ionicons name="moon" size={28} color={themePreference === 'dark' ? colors.primary : colors.textMuted} />
+              <Text style={[styles.themeOptionText, themePreference === 'dark' && styles.themeOptionTextActive]}>Oscuro</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <TouchableOpacity style={styles.logoutBtn} onPress={confirmLogout}>
+          <Ionicons name="log-out-outline" size={20} color="#fff" />
+          <Text style={styles.logoutBtnText}>Cerrar Sesión</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* Modal de Cierre de Sesión (Bottom Sheet) */}
+      <Modal visible={showLogoutModal} transparent animationType="slide">
+        <View style={styles.logoutModalOverlay}>
+          <View style={styles.logoutModalCard}>
+            <View style={styles.bottomSheetIndicator} />
+            <Text style={styles.logoutModalTitle}>Cerrar Sesión</Text>
+            <Text style={styles.logoutModalSubtitle}>¿Estás seguro de que deseas cerrar sesión?</Text>
+            <View style={styles.modalBtns}>
+              <TouchableOpacity 
+                style={[styles.modalBtnCancel, { flex: 1, marginRight: 8 }]} 
+                onPress={() => setShowLogoutModal(false)}
+              >
+                <Text style={styles.modalBtnCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalBtnConfirm, { flex: 1, backgroundColor: colors.danger }]} 
+                onPress={() => {
+                  setShowLogoutModal(false);
+                  handleLogout();
+                }}
+              >
+                <Text style={styles.modalBtnConfirmText}>Sí, Cerrar Sesión</Text>
               </TouchableOpacity>
             </View>
-            {licenciaFotoUrl ? (
-              <Image source={{ uri: licenciaFotoUrl }} style={{ width: '100%', height: 200, resizeMode: 'contain', borderRadius: 10, marginTop: 10 }} />
-            ) : (
-              <Text style={{ textAlign: 'center', marginTop: 20, color: colors.textMuted }}>No hay foto disponible</Text>
-            )}
           </View>
         </View>
       </Modal>
-
-      {/* USER DATA SECTION */}
-      <View style={styles.dataCard}>
-        <Text style={styles.sectionTitle}>Datos Personales</Text>
-        
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Departamento:</Text>
-          <Text style={styles.infoValue}>{user.departamento || 'No asignado'}</Text>
-        </View>
-
-        <View style={[styles.infoRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
-          <Text style={styles.infoLabel}>Teléfono:</Text>
-          <Text style={styles.infoValue}>{user.telefono || 'No asignado'}</Text>
-        </View>
-      </View>
-
-      {/* LICENSE STATUS SECTION */}
-      <View style={[styles.licenseCard, isLicenciaValida ? styles.licenseValid : styles.licenseInvalid]}>
-        <View style={styles.licenseHeader}>
-          <Ionicons name="card" size={24} color={isLicenciaValida ? colors.success : colors.danger} />
-          <Text style={[styles.licenseTitle, { color: isLicenciaValida ? colors.success : colors.danger }]}>
-            Estado de Licencia
-          </Text>
-        </View>
-        
-        {isLicenciaValida ? (
-          <View>
-            <Text style={styles.licenseStatus}>✅ VIGENTE</Text>
-            <Text style={styles.licenseDate}>
-              Vence el: {fechaVencimiento ? new Date(fechaVencimiento).toLocaleDateString() : 'N/A'}
-            </Text>
-          </View>
-        ) : (
-          <View>
-            <Text style={[styles.licenseStatus, { color: colors.danger }]}>❌ VENCIDA O INVÁLIDA</Text>
-            <Text style={[styles.licenseDate, { color: colors.danger }]}>No puedes solicitar nuevas reservas de vehículos.</Text>
-          </View>
-        )}
-        
-        {licenciaFotoUrl ? (
-          <TouchableOpacity 
-            style={[styles.scanBtn, { backgroundColor: colors.textMuted, marginBottom: 10 }]} 
-            onPress={() => setShowLicenciaModal(true)}
-          >
-            <Ionicons name="eye-outline" size={20} color={colors.white} />
-            <Text style={styles.scanBtnText}>Ver Licencia Subida</Text>
-          </TouchableOpacity>
-        ) : null}
-
-        <TouchableOpacity 
-          style={styles.scanBtn} 
-          onPress={handleScanLicense}
-          disabled={scanningLicense}
-        >
-          {scanningLicense ? (
-            <ActivityIndicator color={colors.white} />
-          ) : (
-            <>
-              <Ionicons name="scan-outline" size={20} color={colors.white} />
-              <Text style={styles.scanBtnText}>{licenciaFotoUrl ? 'Renovar Licencia (IA)' : 'Escanear Licencia (IA)'}</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {/* ACTIONS SECTION */}
-      <TouchableOpacity style={styles.actionBtn} onPress={handleChangePhoto}>
-        <Ionicons name="image-outline" size={20} color={colors.text} />
-        <Text style={styles.actionBtnText}>Cambiar foto de perfil</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors.textMuted} style={styles.actionIconRight} />
-      </TouchableOpacity>
-
-      <View style={styles.sectionHeader}>
-        <Ionicons name="flag" size={24} color={colors.primary} style={{ marginRight: 10 }} />
-        <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Historial de Banderas</Text>
-      </View>
-      <View style={styles.dataCard}>
-        {flags.length === 0 ? (
-          <Text style={styles.emptyText}>No tienes banderas registradas en tu historial.</Text>
-        ) : (
-          flags.map((flag, idx) => (
-            <View key={flag._id || idx} style={[styles.flagItem, idx !== flags.length - 1 && styles.borderBottom]}>
-              <Text style={styles.flagIcon}>{FLAG_ICONS[flag.tipo]}</Text>
-              <View style={styles.flagInfo}>
-                <Text style={styles.flagType}>
-                  Bandera {flag.tipo.toUpperCase()}
-                  {flag.asignadoPor === 'admin' ? ' (Manual)' : ' (Auto)'}
-                </Text>
-                <Text style={styles.flagReason}>{flag.motivo}</Text>
-                <Text style={styles.flagDate}>
-                  {new Date(flag.createdAt).toLocaleDateString()} - {new Date(flag.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                </Text>
-              </View>
-            </View>
-          ))
-        )}
-      </View>
-
-      {/* Selector de Tema */}
-      <View style={styles.themeSection}>
-        <Text style={styles.sectionTitle}>Apariencia</Text>
-        <View style={styles.themeOptions}>
-          <TouchableOpacity 
-            style={[styles.themeOption, themePreference === 'light' && styles.themeOptionActive]}
-            onPress={() => setThemePreference('light')}
-          >
-            <Ionicons name="sunny" size={28} color={themePreference === 'light' ? colors.primary : colors.textMuted} />
-            <Text style={[styles.themeOptionText, themePreference === 'light' && styles.themeOptionTextActive]}>Claro</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.themeOption, themePreference === 'system' && styles.themeOptionActive]}
-            onPress={() => setThemePreference('system')}
-          >
-            <Ionicons name="phone-portrait-outline" size={28} color={themePreference === 'system' ? colors.primary : colors.textMuted} />
-            <Text style={[styles.themeOptionText, themePreference === 'system' && styles.themeOptionTextActive]}>Sistema</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.themeOption, themePreference === 'dark' && styles.themeOptionActive]}
-            onPress={() => setThemePreference('dark')}
-          >
-            <Ionicons name="moon" size={28} color={themePreference === 'dark' ? colors.primary : colors.textMuted} />
-            <Text style={[styles.themeOptionText, themePreference === 'dark' && styles.themeOptionTextActive]}>Oscuro</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <TouchableOpacity style={styles.logoutBtn} onPress={confirmLogout}>
-        <Ionicons name="log-out-outline" size={20} color="#fff" />
-        <Text style={styles.logoutBtnText}>Cerrar Sesión</Text>
-      </TouchableOpacity>
-    </ScrollView>
+    </View>
   );
 }
 
 const getStyles = (colors: AppColors) => StyleSheet.create({
+  mainWrapper: { flex: 1, backgroundColor: colors.background },
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -678,5 +706,70 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: colors.text,
+  },
+  logoutModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  logoutModalCard: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: 28,
+    paddingTop: 16,
+    paddingBottom: 40,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  bottomSheetIndicator: {
+    width: 40,
+    height: 5,
+    backgroundColor: colors.border,
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  logoutModalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  logoutModalSubtitle: {
+    fontSize: 15,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: 25,
+  },
+  modalBtns: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modalBtnCancel: {
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  modalBtnCancelText: {
+    fontWeight: 'bold',
+    fontSize: 15,
+    color: colors.primary,
+  },
+  modalBtnConfirm: {
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  modalBtnConfirmText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
   }
 });

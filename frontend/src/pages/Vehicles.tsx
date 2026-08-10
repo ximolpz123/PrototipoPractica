@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { QRCodeSVG } from 'qrcode.react';
 import type { IUser, IReservation, IVehicle } from '../types';
 
 import camionetaBlancaImg from '../assets/camioneta-blanca.png'; // Fallback
@@ -67,8 +66,6 @@ function Vehicles() {
   const initialTab = (location.state as { tab?: string })?.tab === 'reservaciones' ? 'reservaciones' : 'catalogo';
   const [activeTab, setActiveTab] = useState<'catalogo' | 'reservaciones'>(initialTab);
   const [modalImg, setModalImg] = useState<string | null>(null);
-  const [modalVehiclePhotos, setModalVehiclePhotos] = useState<{urls: string[], current: number} | null>(null);
-  const [qrModalVehicle, setQrModalVehicle] = useState<IVehicle | null>(null);
   const [vehiclesList, setVehiclesList] = useState<IVehicle[]>([]);
   const [loadingVehicles, setLoadingVehicles] = useState(false);
   const [reservations, setReservations] = useState<IReservation[]>([]);
@@ -106,7 +103,7 @@ function Vehicles() {
   useEffect(() => {
     setLoadingVehicles(true);
     const token = localStorage.getItem('token');
-    fetch('http://10.99.41.176:5000/api/vehicles', {
+    fetch('http://localhost:5000/api/vehicles', {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
@@ -123,7 +120,7 @@ function Vehicles() {
     setLoadingRes(true);
     setErrorRes('');
     const token = localStorage.getItem('token');
-    fetch('http://10.99.41.176:5000/api/reservations', {
+    fetch('http://localhost:5000/api/reservations', {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
@@ -150,17 +147,6 @@ function Vehicles() {
     pendiente: 3,
     completada: 4,
     cancelada: 5,
-  };
-
-  const handlePrintQR = () => {
-    const printContent = document.getElementById('qr-print-area');
-    if (printContent) {
-      const originalContents = document.body.innerHTML;
-      document.body.innerHTML = printContent.innerHTML;
-      window.print();
-      document.body.innerHTML = originalContents;
-      window.location.reload(); // Para restaurar los event listeners de React
-    }
   };
 
   const filteredReservations = reservations
@@ -288,29 +274,14 @@ function Vehicles() {
                     >
                       {ESTADO_LABELS[v.estado] || v.estado}
                     </span>
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                      <button
-                        id={`ver-vehiculo-${v._id}`}
-                        className="btn btn-sm"
-                        style={{ flex: 1 }}
-                        onClick={() => {
-                          if (v.fotosVehiculo && v.fotosVehiculo.length > 0) {
-                            setModalVehiclePhotos({ urls: v.fotosVehiculo, current: 0 });
-                          } else {
-                            setModalImg(imgUrl);
-                          }
-                        }}
-                      >
-                        Ver Vehículo
-                      </button>
-                      <button
-                        className="btn btn-sm"
-                        style={{ flex: 1, backgroundColor: '#6b7280', color: 'white' }}
-                        onClick={() => setQrModalVehicle(v)}
-                      >
-                        📱 Ver QR
-                      </button>
-                    </div>
+                    <button
+                      id={`ver-vehiculo-${v._id}`}
+                      className="btn btn-sm"
+                      style={{ marginTop: '10px' }}
+                      onClick={() => setModalImg(imgUrl)}
+                    >
+                      Ver Vehículo
+                    </button>
                   </div>
                 </div>
               );
@@ -383,62 +354,6 @@ function Vehicles() {
                   </button>
                 </div>
               ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── Modal imagen / Galería ── */}
-        {modalVehiclePhotos && (
-          <div
-            id="modal-overlay-gallery"
-            className="modal-overlay"
-            style={{ zIndex: 1100 }}
-            onClick={() => setModalVehiclePhotos(null)}
-          >
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <button 
-                style={{ position: 'absolute', left: '-50px', background: 'none', border: 'none', color: '#fff', fontSize: '30px', cursor: 'pointer' }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setModalVehiclePhotos(prev => prev ? { ...prev, current: (prev.current - 1 + prev.urls.length) % prev.urls.length } : null);
-                }}
-              >
-                ◀
-              </button>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <img
-                  src={modalVehiclePhotos.urls[modalVehiclePhotos.current]}
-                  alt="Vista ampliada galería"
-                  className="modal-img"
-                  style={{ maxHeight: '70vh', maxWidth: '80vw' }}
-                  onClick={(e) => e.stopPropagation()}
-                />
-                <div style={{ marginTop: '15px', display: 'flex', gap: '10px' }}>
-                  {modalVehiclePhotos.urls.map((url, idx) => (
-                    <img 
-                      key={idx}
-                      src={url} 
-                      alt={`Miniatura ${idx}`} 
-                      style={{ 
-                        width: '50px', height: '50px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer',
-                        border: idx === modalVehiclePhotos.current ? '2px solid #8B5CF6' : '2px solid transparent'
-                      }}
-                      onClick={(e) => { e.stopPropagation(); setModalVehiclePhotos(prev => prev ? { ...prev, current: idx } : null); }}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <button 
-                style={{ position: 'absolute', right: '-50px', background: 'none', border: 'none', color: '#fff', fontSize: '30px', cursor: 'pointer' }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setModalVehiclePhotos(prev => prev ? { ...prev, current: (prev.current + 1) % prev.urls.length } : null);
-                }}
-              >
-                ▶
-              </button>
             </div>
           </div>
         )}
@@ -535,7 +450,7 @@ function Vehicles() {
                       {selectedReservation.fotosSalida.map((foto, idx) => {
                         const PHOTO_LABELS = ['Frontal', 'Lateral Derecho', 'Lateral Izquierdo', 'Trasero', 'Tablero', 'Interior'];
                         const label = PHOTO_LABELS[idx] || `Extra ${idx + 1}`;
-                        const imgSrc = foto.startsWith('http') ? foto : `http://10.99.41.176:5000${foto}`;
+                        const imgSrc = foto.startsWith('http') ? foto : `http://localhost:5000${foto}`;
                         return (
                           <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100px' }}>
                             <img src={imgSrc} alt={label} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer' }} onClick={() => setModalImg(imgSrc)} />
@@ -554,7 +469,7 @@ function Vehicles() {
                       {selectedReservation.fotosRetorno.map((foto, idx) => {
                         const PHOTO_LABELS = ['Frontal', 'Lateral Derecho', 'Lateral Izquierdo', 'Trasero', 'Tablero', 'Interior'];
                         const label = PHOTO_LABELS[idx] || `Extra ${idx + 1}`;
-                        const imgSrc = foto.startsWith('http') ? foto : `http://10.99.41.176:5000${foto}`;
+                        const imgSrc = foto.startsWith('http') ? foto : `http://localhost:5000${foto}`;
                         return (
                           <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100px' }}>
                             <img src={imgSrc} alt={label} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer' }} onClick={() => setModalImg(imgSrc)} />
@@ -610,60 +525,6 @@ function Vehicles() {
                   No
                 </button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── Modal QR ── */}
-        {qrModalVehicle && (
-          <div className="modal-overlay" onClick={() => setQrModalVehicle(null)}>
-            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', textAlign: 'center' }}>
-              <h3 style={{ marginBottom: '5px' }}>Código QR del Vehículo</h3>
-              <p style={{ color: '#666', marginBottom: '20px' }}>
-                {qrModalVehicle.marca} {qrModalVehicle.modelo} ({qrModalVehicle.placa})
-              </p>
-              
-              <div id="qr-print-area" style={{ 
-                padding: '20px', 
-                background: '#fff', 
-                display: 'flex', 
-                flexDirection: 'column',
-                alignItems: 'center'
-              }}>
-                <h2 style={{ display: 'none', margin: '0 0 20px 0', fontSize: '24px' }}>Bitnets Flota</h2>
-                <QRCodeSVG 
-                  value={qrModalVehicle._id} 
-                  size={220} 
-                  level="M" 
-                  includeMargin={true} 
-                />
-                <div style={{ marginTop: '15px', fontSize: '18px', fontWeight: 'bold' }}>
-                  {qrModalVehicle.marca} {qrModalVehicle.modelo}
-                </div>
-                <div style={{ fontSize: '22px', fontWeight: '900', marginTop: '5px', letterSpacing: '2px' }}>
-                  {qrModalVehicle.placa}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                <button className="btn" style={{ flex: 1, backgroundColor: '#9ca3af' }} onClick={() => setQrModalVehicle(null)}>
-                  Cerrar
-                </button>
-                <button className="btn" style={{ flex: 1, backgroundColor: '#3b82f6', color: '#fff' }} onClick={handlePrintQR}>
-                  🖨️ Imprimir QR
-                </button>
-              </div>
-              
-              {/* CSS para la impresión */}
-              <style>
-                {`
-                  @media print {
-                    @page { margin: 0; size: auto; }
-                    body { padding: 50px !important; text-align: center !important; }
-                    #qr-print-area h2 { display: block !important; }
-                  }
-                `}
-              </style>
             </div>
           </div>
         )}

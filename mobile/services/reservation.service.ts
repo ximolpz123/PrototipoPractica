@@ -32,6 +32,13 @@ export interface IReservation {
   motivoCancelacion?: string;
   firmaInicio?: string;
   firmaFin?: string;
+  solicitudTraspaso?: {
+    conductorDestino: string;
+    conductorOrigen: string;
+    estado: 'pendiente' | 'aceptada' | 'rechazada';
+    motivoRechazo?: string;
+  };
+  tramos?: any[];
   createdAt: string;
 }
 
@@ -65,8 +72,8 @@ export const reservationService = {
     return response.data;
   },
 
-  startReservation: async (id: string, kmSalida?: number, observacionKmSalida?: string): Promise<IReservation> => {
-    const response = await api.patch(`/reservations/${id}/start`, { kmSalida, observacionKmSalida });
+  startReservation: async (id: string, kmSalida?: number, observacionKmSalida?: string, isTramo?: boolean): Promise<IReservation> => {
+    const response = await api.patch(`/reservations/${id}/start`, { kmSalida, observacionKmSalida, isTramo });
     return response.data.reservation;
   },
 
@@ -79,13 +86,26 @@ export const reservationService = {
     await api.patch(`/reservations/${id}/cancel`, { motivoCancelacion });
   },
 
-  cambioConductorTramo: async (id: string, nuevoConductorId: string, kmActual?: number): Promise<any> => {
-    const response = await api.post(`/reservations/${id}/tramos/cambio`, { nuevoConductorId, kmActual });
+  requestCambioConductorTramo: async (reservaId: string, nuevoConductorId: string, kmActual?: number) => {
+    const response = await api.post(`/reservations/${reservaId}/tramos/cambio/request`, { 
+      nuevoConductorId, 
+      kmActual 
+    });
     return response.data;
   },
 
-  requestCambioConductorTramo: async (id: string, nuevoConductorId: string, kmActual?: number): Promise<any> => {
-    const response = await api.post(`/reservations/${id}/tramos/cambio/request`, { nuevoConductorId, kmActual });
+  responderTraspaso: async (reservaId: string, respuesta: 'aceptar' | 'rechazar', tipo?: 'continuar' | 'regreso', motivo?: string, kmActual?: number) => {
+    const response = await api.post(`/reservations/${reservaId}/responder-traspaso`, {
+      respuesta,
+      tipo,
+      motivo,
+      kmActual
+    });
+    return response.data;
+  },
+
+  cambioConductorTramo: async (id: string, nuevoConductorId: string, kmActual?: number): Promise<any> => {
+    const response = await api.post(`/reservations/${id}/tramos/cambio`, { nuevoConductorId, kmActual });
     return response.data;
   },
 

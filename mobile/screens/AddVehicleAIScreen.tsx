@@ -24,8 +24,8 @@ export default function AddVehicleAIScreen({ navigation }: any) {
 
   const { showAlert } = useAlert();
   
-  const ANGULOS = ['Frontal', 'Trasero', 'Lateral Izq.', 'Lateral Der.', 'Interior'];
-  const [fotos, setFotos] = useState<(string | null)[]>([null, null, null, null, null]);
+  const ANGULOS = ['Frontal', 'Trasero', 'Lateral Izq.', 'Lateral Der.', 'Interior', 'Tablero'];
+  const [fotos, setFotos] = useState<(string | null)[]>([null, null, null, null, null, null]);
   const [uploadedFotos, setUploadedFotos] = useState<string[]>([]);
   const [loadingAI, setLoadingAI] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -62,8 +62,8 @@ export default function AddVehicleAIScreen({ navigation }: any) {
 
   const handleAnalizarIA = async () => {
     const validFotos = fotos.filter(f => f !== null) as string[];
-    if (validFotos.length < 5) {
-      return Alert.alert('Faltan fotos', 'Toma las 5 fotos obligatorias para crear el vehículo.');
+    if (validFotos.length < 6) {
+      return Alert.alert('Faltan fotos', 'Toma las 6 fotos obligatorias para crear el vehículo.');
     }
 
     setLoadingAI(true);
@@ -289,12 +289,12 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
   addFotoBtn: { width: '100%', aspectRatio: 1, borderRadius: 10, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' },
   addFotoText: { fontSize: 11, color: colors.primary, marginTop: 2, fontWeight: '600' },
 
-  aiBtn: { backgroundColor: '#8B5CF6', padding: 15, borderRadius: 10, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 20, gap: 10 },
+  aiBtn: { backgroundColor: colors.secondary, padding: 15, borderRadius: 10, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 20, gap: 10 },
   aiBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   btnDisabled: { opacity: 0.5 },
 
   formContainer: { backgroundColor: colors.white, padding: 20, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
-  formContainerActive: { borderColor: '#8B5CF6', borderWidth: 2 },
+  formContainerActive: { borderColor: colors.secondary, borderWidth: 2 },
   aiSuccessBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.success + '15', padding: 10, borderRadius: 8, marginBottom: 15, gap: 8 },
   aiSuccessText: { color: colors.success, fontSize: 13, fontWeight: '600', flex: 1 },
 

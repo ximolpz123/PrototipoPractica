@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Modal, TextInput } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { COLORS, AppColors, API_URL } from '../constants';
+import { COLORS, AppColors, API_URL, BORDER_RADIUS, SHADOWS } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
 import axios from 'axios';
@@ -183,9 +183,9 @@ export default function CameraScreen({ route, navigation }: any) {
         }
       });
 
-      if (tipo === 'salida') {
-        // Iniciar reserva y rastreo recién ahora (viaje inicia al subir las fotos)
-        await reservationService.startReservation(reservaId, finalKmTablero ?? undefined, observacionKm.trim() || undefined);
+      if (tipo === 'salida' || tipo === 'tramo') {
+        // Iniciar reserva (o tramo) y rastreo recién ahora (viaje inicia al subir las fotos)
+        await reservationService.startReservation(reservaId, finalKmTablero ?? undefined, observacionKm.trim() || undefined, tipo === 'tramo');
         const started = await locationService.startTracking(reservaId);
         if (!started) {
           showAlert('Aviso de GPS', 'El viaje inició pero no se pudo activar el GPS.');
@@ -200,7 +200,7 @@ export default function CameraScreen({ route, navigation }: any) {
         await locationService.stopTracking();
       }
 
-      showAlert('Éxito', tipo === 'salida' ? 'Viaje iniciado exitosamente.' : 'Viaje finalizado exitosamente.');
+      showAlert('Éxito', (tipo === 'salida' || tipo === 'tramo') ? 'Viaje iniciado exitosamente.' : 'Viaje finalizado exitosamente.');
       setCanGoBack(true);
       navigation.navigate('MainTabs');
     } catch (error: any) {
@@ -278,7 +278,7 @@ export default function CameraScreen({ route, navigation }: any) {
             {uploadingIA ? (
               <View style={styles.aiLoading}>
                 <ActivityIndicator size="large" color="#fff" />
-                <Text style={styles.aiLoadingText}>Leyendo Od├│metro con IA...</Text>
+                <Text style={styles.aiLoadingText}>Analizando odómetro con Inteligencia Artificial...</Text>
               </View>
             ) : (
               <TouchableOpacity style={styles.captureBtn} onPress={takePicture}>
@@ -318,11 +318,12 @@ export default function CameraScreen({ route, navigation }: any) {
         </View>
       )}
 
-      {/* IA Modal */}
-      <Modal visible={showOdometerModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>🤖 IA Odómetro</Text>
+        {/* IA Modal */}
+        <Modal visible={showOdometerModal} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.bottomSheetIndicator} />
+              <Text style={styles.modalTitle}>🤖 IA Odómetro</Text>
             
             {!isEditingKm ? (
               <>
@@ -526,17 +527,26 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
   uploadBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: colors.white,
+    borderTopLeftRadius: BORDER_RADIUS.xl,
+    borderTopRightRadius: BORDER_RADIUS.xl,
+    padding: 28,
+    paddingTop: 16,
+    paddingBottom: 40,
     width: '100%',
-    borderRadius: 12,
-    padding: 25,
-    alignItems: 'center',
+    ...SHADOWS.elegant,
+  },
+  bottomSheetIndicator: {
+    width: 40,
+    height: 5,
+    backgroundColor: colors.border,
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginBottom: 20,
   },
   modalTitle: {
     fontSize: 22,
@@ -565,29 +575,33 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     flexDirection: 'row',
     width: '100%',
     justifyContent: 'space-between',
-    gap: 15,
+    gap: 12,
   },
   modalBtn: {
     flex: 1,
-    padding: 14,
-    borderRadius: 8,
+    padding: 18,
+    borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   btnNo: {
     backgroundColor: '#fff',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.border,
   },
   btnNoText: {
     color: colors.text,
     fontWeight: 'bold',
+    fontSize: 16,
   },
   btnYes: {
     backgroundColor: colors.primary,
+    ...SHADOWS.elegant,
   },
   btnYesText: {
     color: '#fff',
     fontWeight: 'bold',
+    fontSize: 16,
   },
   kmInput: {
     borderWidth: 1,

@@ -169,7 +169,7 @@ function Dashboard() {
   const fetchUsers = async () => {
     setLoadingUsers(true); setErrorUsers('');
     try {
-      const res = await fetch('http://10.99.41.176:5000/api/users', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch('http://localhost:5000/api/users', { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       // Normaliza _id → id por si la API devuelve _id
       const normalized = Array.isArray(data) ? data.map(u => {
@@ -184,7 +184,7 @@ function Dashboard() {
 
   const fetchReservations = async () => {
     setLoadingRes(true); setErrorRes('');
-    fetch('http://10.99.41.176:5000/api/reservations', { headers: { Authorization: `Bearer ${token}` } })
+    fetch('http://localhost:5000/api/reservations', { headers: { Authorization: `Bearer ${token}` } })
       .then(res => res.json())
       .then(data => setReservations(Array.isArray(data) ? data : []))
       .catch(err => setErrorRes(err.message))
@@ -206,7 +206,7 @@ function Dashboard() {
       if (createResForm.usuarioId && createResForm.usuarioId !== 'me') {
         payload.usuarioId = createResForm.usuarioId;
       }
-      const res = await fetch('http://10.99.41.176:5000/api/reservations', {
+      const res = await fetch('http://localhost:5000/api/reservations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload)
@@ -226,7 +226,7 @@ function Dashboard() {
   const fetchVehicles = async () => {
     setLoadingVehicles(true);
     try {
-      const res = await fetch('http://10.99.41.176:5000/api/vehicles', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch('http://localhost:5000/api/vehicles', { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       setVehicles(Array.isArray(data) ? data : []);
     } catch { console.error('Error cargando vehículos'); }
@@ -263,7 +263,7 @@ function Dashboard() {
   const saveEdit = async () => {
     if (!editUser) return;
     try {
-      await fetch(`http://10.99.41.176:5000/api/users/${editUser.id}`, {
+      await fetch(`http://localhost:5000/api/users/${editUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(editForm),
@@ -275,7 +275,7 @@ function Dashboard() {
 
   const deleteUser = async (id: string) => {
     try {
-      await fetch(`http://10.99.41.176:5000/api/users/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      await fetch(`http://localhost:5000/api/users/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
       setShowDeleteUserConfirm(null);
       fetchUsers();
     } catch { alert('Error al eliminar usuario'); }
@@ -292,7 +292,7 @@ function Dashboard() {
       }
       formData.append('licenciaFoto', createUserLicenciaFile);
 
-      await fetch('http://10.99.41.176:5000/api/users', {
+      await fetch('http://localhost:5000/api/users', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -312,7 +312,7 @@ function Dashboard() {
       if (vehicleImageFile) {
         const formData = new FormData();
         formData.append('imagen', vehicleImageFile);
-        const uploadRes = await fetch('http://10.99.41.176:5000/api/vehicles/upload-image', {
+        const uploadRes = await fetch('http://localhost:5000/api/vehicles/upload-image', {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
@@ -326,7 +326,7 @@ function Dashboard() {
       }
 
       const body = { ...vehicleForm, imagenUrl: finalImageUrl, ultimoMantenimiento: vehicleForm.ultimoMantenimiento || undefined };
-      await fetch('http://10.99.41.176:5000/api/vehicles', {
+      await fetch('http://localhost:5000/api/vehicles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
@@ -363,7 +363,7 @@ function Dashboard() {
       if (vehicleImageFile) {
         const formData = new FormData();
         formData.append('imagen', vehicleImageFile);
-        const uploadRes = await fetch('http://10.99.41.176:5000/api/vehicles/upload-image', {
+        const uploadRes = await fetch('http://localhost:5000/api/vehicles/upload-image', {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
@@ -377,7 +377,7 @@ function Dashboard() {
       }
 
       const body = { ...vehicleForm, imagenUrl: finalImageUrl, ultimoMantenimiento: vehicleForm.ultimoMantenimiento || undefined };
-      await fetch(`http://10.99.41.176:5000/api/vehicles/${showEditVehicle._id}`, {
+      await fetch(`http://localhost:5000/api/vehicles/${showEditVehicle._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
@@ -391,7 +391,7 @@ function Dashboard() {
 
   const deleteVehicle = async (id: string) => {
     try {
-      await fetch(`http://10.99.41.176:5000/api/vehicles/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      await fetch(`http://localhost:5000/api/vehicles/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
       setShowDeleteVehicleConfirm(null);
       setSelectedVehicle(null);
       fetchVehicles();
@@ -402,7 +402,7 @@ function Dashboard() {
   const approveReservation = async (id: string) => {
     setApprovingId(id);
     try {
-      const response = await fetch(`http://10.99.41.176:5000/api/reservations/${id}/status`, {
+      const response = await fetch(`http://localhost:5000/api/reservations/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ estado: 'aprobada' }),
@@ -422,7 +422,7 @@ function Dashboard() {
     }
     setIsRejecting(true);
     try {
-      const response = await fetch(`http://10.99.41.176:5000/api/reservations/${id}/status`, {
+      const response = await fetch(`http://localhost:5000/api/reservations/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ estado: 'rechazada', motivoRechazo: rejectReason }),
@@ -1307,7 +1307,7 @@ function Dashboard() {
                     {selectedReservation.fotosSalida.map((foto, idx) => {
                       const PHOTO_LABELS = ['Frontal', 'Lateral Derecho', 'Lateral Izquierdo', 'Trasero', 'Tablero', 'Interior'];
                       const label = PHOTO_LABELS[idx] || `Extra ${idx + 1}`;
-                      const imgSrc = foto.startsWith('http') ? foto : `http://10.99.41.176:5000${foto}`;
+                      const imgSrc = foto.startsWith('http') ? foto : `http://localhost:5000${foto}`;
                       return (
                         <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100px' }}>
                           <img src={imgSrc} alt={label} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer' }} onClick={() => setFullScreenImage(imgSrc)} />
@@ -1326,7 +1326,7 @@ function Dashboard() {
                     {selectedReservation.fotosRetorno.map((foto, idx) => {
                       const PHOTO_LABELS = ['Frontal', 'Lateral Derecho', 'Lateral Izquierdo', 'Trasero', 'Tablero', 'Interior'];
                       const label = PHOTO_LABELS[idx] || `Extra ${idx + 1}`;
-                      const imgSrc = foto.startsWith('http') ? foto : `http://10.99.41.176:5000${foto}`;
+                      const imgSrc = foto.startsWith('http') ? foto : `http://localhost:5000${foto}`;
                       return (
                         <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100px' }}>
                           <img src={imgSrc} alt={label} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer' }} onClick={() => setFullScreenImage(imgSrc)} />

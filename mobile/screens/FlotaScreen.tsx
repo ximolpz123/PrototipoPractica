@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Image, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Image, ScrollView, Modal } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import QRCode from 'react-native-qrcode-svg';
 import { authService } from '../services/auth.service';
-import { COLORS, AppColors } from '../constants';
+import { COLORS, AppColors, BORDER_RADIUS, SHADOWS } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { vehicleService, IVehicle } from '../services/vehicle.service';
 
@@ -31,6 +33,10 @@ export default function FlotaScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const navigation = useNavigation<any>();
+
+  // Modals
+  const [selectedVehicleDetails, setSelectedVehicleDetails] = useState<IVehicle | null>(null);
+  const [selectedQR, setSelectedQR] = useState<string | null>(null);
 
   const fetchVehicles = async () => {
     try {
@@ -62,14 +68,31 @@ export default function FlotaScreen() {
     const icon = TIPO_ICON[item.tipo] ?? '🚗';
 
     return (
-      <View style={styles.card}>
+      <TouchableOpacity 
+        style={styles.card} 
+        activeOpacity={0.7} 
+        onPress={() => setSelectedVehicleDetails(item)}
+      >
         <View style={styles.iconContainer}>
           <Text style={styles.icon}>{icon}</Text>
         </View>
         <View style={styles.infoContainer}>
-          <Text style={styles.vehicleName}>
-            {item.marca} {item.modelo} {item.anio}
-          </Text>
+          <View style={styles.cardHeader}>
+            <Text style={styles.vehicleName}>
+              {item.marca} {item.modelo} {item.anio}
+            </Text>
+            {isAdmin && (
+              <TouchableOpacity 
+                style={styles.qrBtnCard} 
+                onPress={(e) => {
+                  e.stopPropagation();
+                  setSelectedQR(item._id);
+                }}
+              >
+                <Ionicons name="qr-code-outline" size={20} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+          </View>
           <Text style={styles.vehicleDetail}>🎨 {item.color}  •  🪪 {item.placa}</Text>
           <Text style={styles.vehicleDetail}>🛞 {item.kilometraje.toLocaleString()} km</Text>
           {item.estado === 'reservado' && item.conductorActual && (
@@ -81,38 +104,8 @@ export default function FlotaScreen() {
           <View style={[styles.statusBadge, { backgroundColor: estado.bg }]}>
             <Text style={[styles.statusText, { color: estado.text }]}>{estado.label}</Text>
           </View>
-          
-          {item.historialHoy && item.historialHoy.length > 0 && (
-            <View style={styles.historyContainer}>
-              <Text style={styles.historyTitle}>Historial de Hoy:</Text>
-              {item.historialHoy.map((res, index) => {
-                const horaIni = new Date(res.fechaInicio).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
-                const horaFin = new Date(res.fechaFin).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
-                return (
-                  <View key={index} style={styles.historyItem}>
-                    <Text style={styles.historyTime}>{horaIni} - {horaFin}</Text>
-                    <Text style={styles.historyUser} numberOfLines={1}>
-                      {res.usuario?.nombre} {res.usuario?.apellido}
-                    </Text>
-                    <Text style={styles.historyState}>({res.estado})</Text>
-                  </View>
-                );
-              })}
-            </View>
-          )}
-
-          {item.fotosVehiculo && item.fotosVehiculo.length > 0 && (
-            <View style={styles.fotosWrapper}>
-              <Text style={styles.historyTitle}>Fotos del Vehículo:</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.fotosScroll}>
-                {item.fotosVehiculo.map((foto, index) => (
-                  <Image key={index} source={{ uri: foto }} style={styles.galeriaFoto} />
-                ))}
-              </ScrollView>
-            </View>
-          )}
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -161,6 +154,87 @@ export default function FlotaScreen() {
           <Text style={styles.fabIcon}>🤖</Text>
         </TouchableOpacity>
       )}
+
+      {/* Modal Detalles Vehículo */}
+      <Modal visible={!!selectedVehicleDetails} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.bottomSheetIndicator} />
+            {selectedVehicleDetails && (
+              <>
+                <Text style={styles.modalTitle}>
+                  {selectedVehicleDetails.marca} {selectedVehicleDetails.modelo}
+                </Text>
+                
+                {selectedVehicleDetails.historialHoy && selectedVehicleDetails.historialHoy.length > 0 && (
+                  <View style={styles.historyContainer}>
+                    <Text style={styles.historyTitle}>Historial de Hoy:</Text>
+                    {selectedVehicleDetails.historialHoy.map((res, index) => {
+                      const horaIni = new Date(res.fechaInicio).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+                      const horaFin = new Date(res.fechaFin).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+                      return (
+                        <View key={index} style={styles.historyItem}>
+                          <Text style={styles.historyTime}>{horaIni} - {horaFin}</Text>
+                          <Text style={styles.historyUser} numberOfLines={1}>
+                            {res.usuario?.nombre} {res.usuario?.apellido}
+                          </Text>
+                          <Text style={styles.historyState}>({res.estado})</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+
+                {selectedVehicleDetails.fotosVehiculo && selectedVehicleDetails.fotosVehiculo.length > 0 && (
+                  <View style={styles.fotosWrapper}>
+                    <Text style={styles.historyTitle}>Fotos del Vehículo:</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.fotosScroll}>
+                      {selectedVehicleDetails.fotosVehiculo.map((foto, index) => (
+                        <Image key={index} source={{ uri: foto }} style={styles.galeriaFoto} />
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+
+                <TouchableOpacity 
+                  style={styles.closeBtn} 
+                  onPress={() => setSelectedVehicleDetails(null)}
+                >
+                  <Text style={styles.closeBtnText}>Cerrar Detalles</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal QR */}
+      <Modal visible={!!selectedQR} transparent animationType="fade">
+        <View style={styles.modalOverlayCenter}>
+          <View style={styles.modalCardCenter}>
+            <Text style={styles.modalTitle}>Código QR de Vehículo</Text>
+            <Text style={{ textAlign: 'center', marginBottom: 20, color: colors.textMuted }}>
+              Muestra este código para que el conductor lo escanee al iniciar.
+            </Text>
+            {selectedQR && (
+              <View style={{ alignItems: 'center', marginVertical: 20 }}>
+                <QRCode
+                  value={selectedQR}
+                  size={200}
+                  color={colors.primaryDark}
+                  backgroundColor={colors.white}
+                />
+              </View>
+            )}
+            <TouchableOpacity 
+              style={styles.closeBtn} 
+              onPress={() => setSelectedQR(null)}
+            >
+              <Text style={styles.closeBtnText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -277,6 +351,16 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     fontWeight: 'bold',
     color: colors.text,
   },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  qrBtnCard: {
+    padding: 6,
+    backgroundColor: colors.primary + '15',
+    borderRadius: 8,
+  },
   vehicleDetail: {
     fontSize: 13,
     color: colors.textMuted,
@@ -360,5 +444,60 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     fontSize: 10,
     color: '#888',
     textTransform: 'capitalize',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: BORDER_RADIUS?.xl || 32,
+    borderTopRightRadius: BORDER_RADIUS?.xl || 32,
+    padding: 28,
+    paddingTop: 16,
+    paddingBottom: 40,
+    ...SHADOWS?.elegant,
+  },
+  bottomSheetIndicator: {
+    width: 40,
+    height: 5,
+    backgroundColor: colors.border,
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 15,
+  },
+  closeBtn: {
+    backgroundColor: colors.primary,
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  closeBtnText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  modalOverlayCenter: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalCardCenter: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 25,
+    width: '100%',
+    alignItems: 'center',
+    ...SHADOWS?.elegant,
   },
 });

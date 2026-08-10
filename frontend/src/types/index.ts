@@ -35,7 +35,6 @@ export interface IVehicle {
   kilometraje: number;
   nivelBencina?: number;
   tipoIndicador?: 'digital' | 'analogico';
-  fotosVehiculo?: string[];
   ultimoMantenimiento?: string;
   imagenUrl?: string;
   createdAt: string;

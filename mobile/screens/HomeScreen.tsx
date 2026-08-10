@@ -72,6 +72,13 @@ export default function HomeScreen({ route, navigation }: any) {
   const [drivers, setDrivers] = useState<IUser[]>([]);
   const [loadingDrivers, setLoadingDrivers] = useState(false);
 
+  // ── Nuevo Flujo Traspaso (Mando) ──
+  const [pendingHandover, setPendingHandover] = useState<IReservation | null>(null);
+  const [showHandoverRejectModal, setShowHandoverRejectModal] = useState(false);
+  const [showHandoverAcceptModal, setShowHandoverAcceptModal] = useState(false);
+  const [handoverReason, setHandoverReason] = useState('');
+  const [respondingHandover, setRespondingHandover] = useState(false);
+
   const fetchTimeOffset = async () => {
     try {
       const res = await api.get('/dev/time');
@@ -117,9 +124,35 @@ export default function HomeScreen({ route, navigation }: any) {
       if (!isRefresh) setLoading(true);
       const all = await reservationService.getMyReservations();
 
+      const currentUserId = user.id || (user as any)._id;
+
       // Buscar reserva en_curso (viaje activo)
       const enCurso = all.find((r) => r.estado === 'en_curso') ?? null;
+      
+      // Chequear si el usuario actual tiene un tramo y requiere fotos
+      let requiereFotosInicio = false;
+      if (enCurso && enCurso.tramos && enCurso.tramos.length > 0) {
+        const lastTramo = enCurso.tramos[enCurso.tramos.length - 1];
+        if (lastTramo.conductor === currentUserId && lastTramo.requiereFotosInicio) {
+          requiereFotosInicio = true;
+        }
+      }
+      
+      // Si requiereFotosInicio y no tiene fotosInicio, marcamos la reserva con una bandera temporal para UI
+      if (enCurso && requiereFotosInicio) {
+        (enCurso as any)._requiereFotos = true;
+      }
+
       setActiveReserva(enCurso);
+
+      // Buscar solicitud de traspaso
+      const handover = all.find(r => 
+        r.estado === 'en_curso' && 
+        r.solicitudTraspaso && 
+        r.solicitudTraspaso.estado === 'pendiente' && 
+        r.solicitudTraspaso.conductorDestino === currentUserId
+      ) ?? null;
+      setPendingHandover(handover);
 
       // Si no hay una en curso, buscar la próxima aprobada
       if (!enCurso) {
@@ -270,6 +303,44 @@ export default function HomeScreen({ route, navigation }: any) {
     );
   };
 
+  const handleRejectHandover = async () => {
+    if (!handoverReason.trim()) {
+      showAlert('Error', 'Debes ingresar un motivo para rechazar.');
+      return;
+    }
+    setRespondingHandover(true);
+    try {
+      await reservationService.responderTraspaso(pendingHandover!._id, 'rechazar', undefined, handoverReason.trim());
+      showAlert('Traspaso Rechazado', 'Se ha notificado al conductor original.');
+      setShowHandoverRejectModal(false);
+      setHandoverReason('');
+      loadReservas();
+    } catch (err: any) {
+      showAlert('Error', err.response?.data?.message || 'Error al rechazar');
+    } finally {
+      setRespondingHandover(false);
+    }
+  };
+
+  const handleAcceptHandover = async (tipo: 'continuar' | 'regreso') => {
+    setRespondingHandover(true);
+    try {
+      await reservationService.responderTraspaso(pendingHandover!._id, 'aceptar', tipo);
+      setShowHandoverAcceptModal(false);
+      loadReservas();
+      if (tipo === 'continuar') {
+         await locationService.startTracking(pendingHandover!._id);
+         showAlert('Traspaso Aceptado', 'GPS activado. Continuas el trayecto.');
+      } else {
+         showAlert('Traspaso Aceptado', 'Inicias el viaje de regreso. Debes tomar las fotos para arrancar el GPS.');
+      }
+    } catch (err: any) {
+      showAlert('Error', err.response?.data?.message || 'Error al aceptar');
+    } finally {
+      setRespondingHandover(false);
+    }
+  };
+
   const handleNavigate = async () => {
     if (!activeReserva?.destino) return;
 
@@ -404,6 +475,29 @@ export default function HomeScreen({ route, navigation }: any) {
         </TouchableOpacity>
       )}
 
+      {/* ── Banner de Solicitud de Traspaso (Flujo Nuevo) ── */}
+      {pendingHandover && (
+        <Animated.View style={[styles.handoverBanner, { opacity: fadeAnim }]}>
+          <View style={styles.handoverBannerContent}>
+            <Ionicons name="key" size={28} color="#FFF" style={{ marginRight: 12 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 15 }}>Transferencia de Mando</Text>
+              <Text style={{ color: '#FFF', fontSize: 13, marginTop: 2, opacity: 0.9 }}>
+                Un conductor quiere pasarte el mando del vehículo {vehiculoNombre(pendingHandover)}. ¿Aceptas?
+              </Text>
+            </View>
+          </View>
+          <View style={styles.handoverBannerActions}>
+            <TouchableOpacity style={[styles.btnDangerHalf, { flex: 1, marginRight: 8 }]} onPress={() => setShowHandoverRejectModal(true)}>
+              <Text style={styles.btnText}>Rechazar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.btnPrimary, { flex: 1 }]} onPress={() => setShowHandoverAcceptModal(true)}>
+              <Text style={styles.btnText}>Aceptar</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      )}
+
       {/* Tarjeta de Viaje Activo */}
       {activeReserva ? (
         <Animated.View style={[styles.card, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
@@ -427,10 +521,27 @@ export default function HomeScreen({ route, navigation }: any) {
             <Text style={styles.infoLine}>🏁 Fin: <Text style={styles.bold}>{formatFecha(activeReserva.fechaFin)}</Text></Text>
           </View>
 
-          {!isTracking && (
-            <TouchableOpacity style={styles.btnPrimary} onPress={handleResumeGps}>
-              <Text style={styles.btnText}>Reanudar GPS</Text>
+          {(activeReserva as any)._requiereFotos ? (
+            <TouchableOpacity 
+              style={[styles.btnPrimary, { backgroundColor: colors.secondary }]} 
+              onPress={() => {
+                navigation.navigate('Camera', { 
+                  reservaId: activeReserva._id, 
+                  tipo: 'tramo', 
+                  tipoIndicador: activeReserva.vehiculo?.tipoIndicador,
+                  kilometrajeActual: activeReserva.vehiculo?.kilometraje || 0,
+                  isTramoStart: true 
+                });
+              }}
+            >
+              <Text style={styles.btnText}>📷 Iniciar Tramo de Regreso</Text>
             </TouchableOpacity>
+          ) : (
+            !isTracking && (
+              <TouchableOpacity style={styles.btnPrimary} onPress={handleResumeGps}>
+                <Text style={styles.btnText}>Reanudar GPS</Text>
+              </TouchableOpacity>
+            )
           )}
 
           <View style={styles.activeActionsRow}>
@@ -525,7 +636,7 @@ export default function HomeScreen({ route, navigation }: any) {
       {/* Indicador GPS en segundo plano */}
       {isTracking && (
         <View style={styles.gpsStatusBar}>
-          <Text style={styles.gpsStatusText}>📡 GPS enviando posición cada 3 min • segundo plano activo</Text>
+          <Text style={styles.gpsStatusText}>📍 GPS enviando posición cada 1 minuto • segundo plano activo</Text>
         </View>
       )}
 
@@ -533,7 +644,8 @@ export default function HomeScreen({ route, navigation }: any) {
       <Modal visible={devModalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>🕒 Máquina del Tiempo</Text>
+            <View style={styles.bottomSheetIndicator} />
+            <Text style={styles.modalTitle}>🛠 Máquina del Tiempo</Text>
             <Text style={{ marginBottom: 15, textAlign: 'center', color: colors.textMuted }}>Solo para pruebas. Afecta al backend.</Text>
 
             <TouchableOpacity style={styles.btnPrimary} onPress={() => changeDevTime(1, 0)}>
@@ -582,10 +694,88 @@ export default function HomeScreen({ route, navigation }: any) {
         </View>
       </Modal>
 
+      {/* ── Modal Rechazo Traspaso ── */}
+      <Modal visible={showHandoverRejectModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.bottomSheetIndicator} />
+            <Text style={styles.modalTitle}>Rechazar Traspaso</Text>
+            <Text style={styles.modalSubtitle}>Indica el motivo por el cual rechazas recibir el vehículo:</Text>
+            
+            <TextInput
+              style={[styles.kmInput, { minHeight: 80, textAlignVertical: 'top', marginTop: 10 }]}
+              multiline
+              placeholder="Ej: No me encuentro en la oficina..."
+              placeholderTextColor={colors.textMuted}
+              value={handoverReason}
+              onChangeText={setHandoverReason}
+            />
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
+              <TouchableOpacity 
+                style={[styles.btnOutline, { flex: 1, marginRight: 10 }]} 
+                onPress={() => setShowHandoverRejectModal(false)}
+                disabled={respondingHandover}
+              >
+                <Text style={[styles.btnOutlineText, { color: colors.primary }]}>Cancelar</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.btnDangerHalf, { flex: 1 }]} 
+                onPress={handleRejectHandover}
+                disabled={respondingHandover}
+              >
+                {respondingHandover ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.btnText}>Rechazar</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Modal Aceptar Traspaso (Continuar o Regresar) ── */}
+      <Modal visible={showHandoverAcceptModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.bottomSheetIndicator} />
+            <Text style={styles.modalTitle}>Aceptar Vehículo</Text>
+            <Text style={styles.modalSubtitle}>Has aceptado recibir el vehículo. ¿Cómo continuarás el trayecto?</Text>
+            
+            <TouchableOpacity 
+              style={[styles.btnPrimary, { marginTop: 20 }]} 
+              onPress={() => handleAcceptHandover('continuar')}
+              disabled={respondingHandover}
+            >
+              <Text style={styles.btnText}>Continuar Mismo Trayecto</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.btnPrimary, { marginTop: 15, backgroundColor: colors.secondary }]} 
+              onPress={() => handleAcceptHandover('regreso')}
+              disabled={respondingHandover}
+            >
+              <Text style={styles.btnText}>Viaje de Regreso (Fotos IA)</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.btnOutline, { marginTop: 20 }]} 
+              onPress={() => setShowHandoverAcceptModal(false)}
+              disabled={respondingHandover}
+            >
+              <Text style={[styles.btnOutlineText, { color: colors.primary }]}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* ─── Modal Pasar el Mando ─── */}
       <Modal visible={showDriverModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
+            <View style={styles.bottomSheetIndicator} />
             <Text style={styles.modalTitle}>Seleccionar Conductor</Text>
             {loadingDrivers ? (
               <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: 20 }} />
@@ -620,7 +810,8 @@ export default function HomeScreen({ route, navigation }: any) {
       <Modal visible={!!activeInspection && !isInspectionMinimized} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>🚨 Inspección Aleatoria</Text>
+            <View style={styles.bottomSheetIndicator} />
+            <Text style={styles.modalTitle}>🧐 Inspección Aleatoria</Text>
             <Text style={{ fontSize: 16, color: colors.danger, fontWeight: 'bold', marginBottom: 5 }}>
               Tiempo límite: {activeInspection ? new Date(activeInspection.fechaLimite).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : ''}
             </Text>
@@ -690,6 +881,7 @@ export default function HomeScreen({ route, navigation }: any) {
       <Modal visible={showCancelModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
+            <View style={styles.bottomSheetIndicator} />
             <Text style={styles.modalTitle}>Cancelar Reserva</Text>
             <Text style={{ textAlign: 'center', marginBottom: 15 }}>
               Por favor, ingresa el motivo por el cual deseas cancelar esta reserva.
@@ -805,7 +997,11 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     borderRadius: BORDER_RADIUS.lg,
     padding: 24,
     marginBottom: 20,
-    ...SHADOWS.subtleMauve,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   cardActive: {
     borderLeftWidth: 5,
@@ -890,7 +1086,11 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
     marginTop: 15,
-    ...SHADOWS.elegant,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   activeActionsRow: {
     flexDirection: 'row',
@@ -903,7 +1103,11 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     paddingVertical: 14,
     borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
-    ...SHADOWS.elegant,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   btnDangerHalf: {
     flex: 1,
@@ -911,7 +1115,11 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     paddingVertical: 14,
     borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
-    ...SHADOWS.elegant,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   btnDanger: {
     backgroundColor: colors.danger,
@@ -919,7 +1127,11 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     padding: 14,
     alignItems: 'center',
     marginTop: 10,
-    ...SHADOWS.elegant,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   btnText: {
     color: colors.white,
@@ -933,8 +1145,8 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     alignItems: 'center',
   },
   gpsStatusText: {
-    fontSize: 12,
     color: colors.success,
+    fontSize: 12,
     fontWeight: '600',
   },
   // Modal de km retorno
@@ -948,8 +1160,9 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     borderTopLeftRadius: BORDER_RADIUS.xl,
     borderTopRightRadius: BORDER_RADIUS.xl,
     padding: 28,
+    paddingTop: 16,
     paddingBottom: 40,
-    ...SHADOWS.subtleMauve,
+    ...SHADOWS.elegant,
   },
   emptyIcon: {
     fontSize: 40,
@@ -1083,4 +1296,33 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
     fontSize: 12,
   },
+  handoverBanner: {
+    backgroundColor: colors.secondary,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: 16,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  handoverBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  handoverBannerActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  bottomSheetIndicator: {
+    width: 40,
+    height: 5,
+    backgroundColor: colors.border,
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginBottom: 20,
+  }
 });

@@ -152,14 +152,37 @@ No devuelvas ningún otro texto, solo 'INVALIDA' o la fecha (YYYY-MM-DD).`;
         
         const aiResponse = await model.generateContent([prompt, image]);
         const result = aiResponse.response.text().trim();
+        console.log('IA Licencia Response:', result);
         
-        if (result !== 'INVALIDA') {
-          const parsedDate = new Date(result);
-          if (!isNaN(parsedDate.getTime())) {
-            fechaVencimiento = parsedDate;
-            if (fechaVencimiento > new Date()) {
-              isVigente = true;
+        if (!result.includes('INVALIDA')) {
+          let finalDateStr: string | null = null;
+          
+          // Buscar YYYY-MM-DD
+          const matchYMD = result.match(/(\d{4})-(\d{2})-(\d{2})/);
+          if (matchYMD) {
+            finalDateStr = matchYMD[0];
+          } else {
+            // Buscar DD/MM/YYYY o DD-MM-YYYY
+            const matchDMY = result.match(/(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+            if (matchDMY) {
+              finalDateStr = `${matchDMY[3]}-${matchDMY[2]}-${matchDMY[1]}`;
             }
+          }
+
+          if (finalDateStr) {
+            const parsedDate = new Date(finalDateStr);
+            if (!isNaN(parsedDate.getTime())) {
+              fechaVencimiento = parsedDate;
+              // Ajustar la zona horaria para evitar desfases
+              fechaVencimiento.setHours(12, 0, 0, 0); 
+              if (fechaVencimiento > new Date()) {
+                isVigente = true;
+              } else {
+                console.log('Licencia vencida:', fechaVencimiento);
+              }
+            }
+          } else {
+            console.log('No se pudo encontrar una fecha válida en la respuesta:', result);
           }
         }
       } catch (error) {

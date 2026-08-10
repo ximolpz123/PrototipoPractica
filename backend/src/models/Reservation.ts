@@ -18,6 +18,8 @@ export interface ITramo {
   gpsActivo: boolean;
   kmInicio?: number;
   kmFin?: number;
+  fotosInicio?: IFotosEvidencia;
+  requiereFotosInicio?: boolean;
 }
 
 export interface IReservation extends Document {
@@ -42,6 +44,12 @@ export interface IReservation extends Document {
   kmTableroUrl?: string;          // URL de la foto del tablero para la IA
   // ── Sub-viajes / cambio de conductor ──
   tramos?: ITramo[];
+  solicitudTraspaso?: {
+    conductorDestino: Types.ObjectId;
+    conductorOrigen: Types.ObjectId;
+    estado: 'pendiente' | 'aceptada' | 'rechazada';
+    motivoRechazo?: string;
+  };
   observaciones?: string;
   motivoRechazo?: string;
   motivoCancelacion?: string;
@@ -78,6 +86,8 @@ const tramoSchema = new Schema<ITramo>(
     gpsActivo:  { type: Boolean, default: true },
     kmInicio:   { type: Number, min: 0 },
     kmFin:      { type: Number, min: 0 },
+    fotosInicio: { type: fotosEvidenciaSchema },
+    requiereFotosInicio: { type: Boolean, default: false }
   },
   { _id: false }
 );
@@ -144,6 +154,12 @@ const reservationSchema = new Schema<IReservation>(
     kmTableroUrl:        { type: String },
     // ── Tramos ──
     tramos: [tramoSchema],
+    solicitudTraspaso: {
+      conductorDestino: { type: Schema.Types.ObjectId, ref: 'User' },
+      conductorOrigen:  { type: Schema.Types.ObjectId, ref: 'User' },
+      estado: { type: String, enum: ['pendiente', 'aceptada', 'rechazada'] },
+      motivoRechazo: { type: String, trim: true }
+    },
     observaciones:  { type: String, trim: true },
     motivoRechazo: {
       type: String,

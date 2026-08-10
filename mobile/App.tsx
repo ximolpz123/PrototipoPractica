@@ -27,15 +27,17 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+if (Constants.appOwnership !== 'expo') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}
 
 // Screens
 import HomeScreen from './screens/HomeScreen';
@@ -232,6 +234,12 @@ function MainApp() {
 
   // Funciones de Push Notifications
   const registerForPushNotificationsAsync = async (currentUser: any) => {
+    // Evitar Crash en Expo Go (SDK 53+)
+    if (Constants.appOwnership === 'expo') {
+      console.log('⚠️ Push Notifications desactivadas en Expo Go (SDK 53+). Usa un dev build para notificaciones remotas.');
+      return;
+    }
+
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'default',
@@ -287,6 +295,7 @@ function MainApp() {
   // Listeners de Notificaciones
   useEffect(() => {
     if (!user) return;
+    if (Constants.appOwnership === 'expo') return;
 
     const subscription = Notifications.addNotificationReceivedListener(notification => {
       const data = notification.request.content.data as any;
@@ -322,26 +331,11 @@ function MainApp() {
           { cancelable: false }
         );
       } else if (data && data.type === 'HANDOVER_REQUEST') {
-        Alert.alert(
-          notification.request.content.title || 'Transferencia de Vehículo',
-          notification.request.content.body || 'Te han asignado el regreso del vehículo. ¿Aceptas?',
-          [
-            { text: 'Rechazar', style: 'cancel' },
-            {
-              text: 'Aceptar',
-              onPress: async () => {
-                try {
-                  await reservationService.cambioConductorTramo(data.reservaId, user.id || (user as any)._id, data.kmActual);
-                  await locationService.startTracking(data.reservaId);
-                  showAlert('Mando Aceptado', 'Has recibido el vehículo y el GPS está activo.');
-                } catch (err: any) {
-                  showAlert('Error', err.response?.data?.message || 'No se pudo aceptar el vehículo.');
-                }
-              }
-            }
-          ],
-          { cancelable: false }
-        );
+        // En v2, el Home maneja la persistencia mediante solicitudTraspaso.
+        // Solo refrescamos las reservas si estamos autenticados.
+        showAlert('Traspaso Recibido', notification.request.content.body || 'Alguien quiere pasarte el mando.');
+        // Para forzar refresh, podríamos disparar un evento global o simplemente dejar que 
+        // el focus listener de Home actúe si el usuario entra a la app.
       }
     });
 
