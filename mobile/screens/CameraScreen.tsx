@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Modal, TextInput } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { COLORS, AppColors, API_URL, BORDER_RADIUS, SHADOWS } from '../constants';
@@ -146,6 +146,11 @@ export default function CameraScreen({ route, navigation }: any) {
     const kmNum = parseInt(manualKm, 10);
     if (isNaN(kmNum) || kmNum < 0) {
       showAlert('Error', 'Ingresa un número válido para el kilometraje.');
+      return;
+    }
+
+    if (kmNum < kilometrajeActual) {
+      showAlert('Atención', `El kilometraje no puede ser menor al registrado en el sistema (${kilometrajeActual} km). Revisa la foto e ingrésalo correctamente.`);
       return;
     }
     

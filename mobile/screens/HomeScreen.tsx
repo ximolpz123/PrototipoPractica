@@ -127,7 +127,18 @@ export default function HomeScreen({ route, navigation }: any) {
       const currentUserId = user.id || (user as any)._id;
 
       // Buscar reserva en_curso (viaje activo)
-      const enCurso = all.find((r) => r.estado === 'en_curso') ?? null;
+      const enCurso = all.find((r) => {
+        if (r.estado !== 'en_curso') return false;
+        
+        // Verificar si el usuario actual es el conductor activo
+        const isCurrentDriver = r.tramos && r.tramos.length > 0 
+          ? (typeof r.tramos[r.tramos.length - 1].conductor === 'string' 
+              ? r.tramos[r.tramos.length - 1].conductor === currentUserId 
+              : (r.tramos[r.tramos.length - 1].conductor as any)._id === currentUserId)
+          : (typeof r.usuario === 'string' ? r.usuario === currentUserId : (r.usuario as any)._id === currentUserId);
+          
+        return isCurrentDriver;
+      }) ?? null;
       
       // Chequear si el usuario actual tiene un tramo y requiere fotos
       let requiereFotosInicio = false;
@@ -145,20 +156,23 @@ export default function HomeScreen({ route, navigation }: any) {
 
       setActiveReserva(enCurso);
 
-      // Buscar solicitud de traspaso
+      // Buscar solicitud de traspaso para el RECEPTOR
       const handover = all.find(r => 
         r.estado === 'en_curso' && 
         r.solicitudTraspaso && 
         r.solicitudTraspaso.estado === 'pendiente' && 
-        r.solicitudTraspaso.conductorDestino === currentUserId
+        (typeof r.solicitudTraspaso.conductorDestino === 'string' 
+          ? r.solicitudTraspaso.conductorDestino === currentUserId 
+          : (r.solicitudTraspaso.conductorDestino as any)._id === currentUserId)
       ) ?? null;
       setPendingHandover(handover);
 
       // Si no hay una en curso, buscar la próxima aprobada
       if (!enCurso) {
         const now = new Date();
+        const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
         const proxima = all
-          .filter((r) => r.estado === 'aprobada' && new Date(r.fechaInicio) >= now)
+          .filter((r) => r.estado === 'aprobada' && new Date(r.fechaFin) >= now && new Date(r.fechaInicio) >= twoHoursAgo)
           .sort((a, b) => new Date(a.fechaInicio).getTime() - new Date(b.fechaInicio).getTime())[0] ?? null;
         setUpcomingReserva(proxima);
       } else {
@@ -425,6 +439,12 @@ export default function HomeScreen({ route, navigation }: any) {
     );
   }
 
+  const currentUserIdForRender = user.id || (user as any)._id;
+  const isPendingHandoverSender = activeReserva?.solicitudTraspaso?.estado === 'pendiente' && 
+     (typeof activeReserva.solicitudTraspaso.conductorOrigen === 'string' 
+       ? activeReserva.solicitudTraspaso.conductorOrigen === currentUserIdForRender 
+       : (activeReserva.solicitudTraspaso.conductorOrigen as any)?._id === currentUserIdForRender);
+
   return (
     <ScrollView
       style={styles.container}
@@ -634,9 +654,16 @@ export default function HomeScreen({ route, navigation }: any) {
       )}
 
       {/* Indicador GPS en segundo plano */}
-      {isTracking && (
+      {isTracking && !isPendingHandoverSender && (
         <View style={styles.gpsStatusBar}>
           <Text style={styles.gpsStatusText}>📍 GPS enviando posición cada 1 minuto • segundo plano activo</Text>
+        </View>
+      )}
+
+      {/* Indicador de Traspaso Pendiente (Remitente) */}
+      {isPendingHandoverSender && (
+        <View style={[styles.gpsStatusBar, { backgroundColor: '#fff3cd', borderBottomColor: '#ffeeba' }]}>
+          <Text style={[styles.gpsStatusText, { color: '#856404' }]}>⏳ Esperando que el nuevo conductor acepte el mando...</Text>
         </View>
       )}
 

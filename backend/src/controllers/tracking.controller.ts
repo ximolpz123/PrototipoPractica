@@ -21,8 +21,9 @@ export const updateLocation = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    // Solo el usuario de la reserva puede reportar la ubicación (o un admin)
-    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin') {
+    // Solo el usuario de la reserva o los conductores de tramos pueden reportar la ubicación
+    const isInTramos = reservation.tramos?.some((t: any) => t.conductor.toString() === req.userId);
+    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin' && !isInTramos) {
       res.status(403).json({ message: 'No tienes permiso para actualizar esta ubicación' });
       return;
     }

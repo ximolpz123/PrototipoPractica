@@ -21,7 +21,7 @@ export const getReservations = async (req: AuthRequest, res: Response): Promise<
     };
     const reservations = await Reservation.find(filter)
       .populate('usuario', 'nombre apellido email departamento')
-      .populate('vehiculo', 'placa marca modelo color tipo tipoIndicador')
+      .populate('vehiculo', 'placa marca modelo color tipo tipoIndicador kilometraje')
       .sort({ fechaInicio: -1 });
     res.json(reservations);
   } catch (error) {
@@ -188,7 +188,8 @@ export const startReservation = async (req: AuthRequest, res: Response): Promise
     }
 
     // Solo el dueño o un admin puede iniciar
-    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin') {
+    const isInTramos = reservation.tramos?.some((t: any) => t.conductor.toString() === req.userId);
+    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin' && !isInTramos) {
       res.status(403).json({ message: 'No tienes permiso para iniciar esta reserva' });
       return;
     }
@@ -293,7 +294,8 @@ export const cancelReservation = async (req: AuthRequest, res: Response): Promis
     }
 
     // Solo el dueño o un admin puede cancelar
-    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin') {
+    const isInTramos = reservation.tramos?.some((t: any) => t.conductor.toString() === req.userId);
+    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin' && !isInTramos) {
       res.status(403).json({ message: 'No tienes permiso para cancelar esta reserva' });
       return;
     }
@@ -569,7 +571,8 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
     }
 
     // Solo el admin o el dueño de la reserva pueden completarla
-    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin') {
+    const isInTramos = reservation.tramos?.some((t: any) => t.conductor.toString() === req.userId);
+    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin' && !isInTramos) {
       res.status(403).json({ message: 'No tienes permiso para completar esta reserva' });
       return;
     }
@@ -733,7 +736,8 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
-    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin') {
+    const isInTramos = reservation.tramos?.some((t: any) => t.conductor.toString() === req.userId);
+    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin' && !isInTramos) {
       res.status(403).json({ message: 'No tienes permiso para modificar esta reserva' });
       return;
     }
@@ -809,7 +813,8 @@ export const uploadFotoTablero = async (req: AuthRequest, res: Response): Promis
       return;
     }
 
-    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin') {
+    const isInTramos = reservation.tramos?.some((t: any) => t.conductor.toString() === req.userId);
+    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin' && !isInTramos) {
       res.status(403).json({ message: 'No tienes permiso para modificar esta reserva' });
       return;
     }
