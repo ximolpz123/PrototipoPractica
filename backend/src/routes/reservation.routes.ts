@@ -13,6 +13,7 @@ import {
   cambioConductorTramo,
   requestCambioConductorTramo,
   responderTraspaso,
+  cancelarTraspaso,
   saveFirma,
 } from '../controllers/reservation.controller.js';
 import { authMiddleware, adminMiddleware, licenciaMiddleware } from '../middleware/auth.js';
@@ -50,6 +51,9 @@ router.post('/:id/tramos/cambio/request', authMiddleware, requestCambioConductor
 
 // POST /api/reservations/:id/responder-traspaso
 router.post('/:id/responder-traspaso', authMiddleware, responderTraspaso);
+
+// PATCH /api/reservations/:id/cancelar-traspaso (Cancelar traspaso por el conductor origen)
+router.patch('/:id/cancelar-traspaso', authMiddleware, cancelarTraspaso);
 
 // POST /api/reservations/:id/tramos/cambio (Registra cambio de conductor en ruta)
 router.post('/:id/tramos/cambio', authMiddleware, cambioConductorTramo);

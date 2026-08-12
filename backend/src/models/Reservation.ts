@@ -131,7 +131,7 @@ const reservationSchema = new Schema<IReservation>(
     },
     estado: {
       type: String,
-      enum: ['pendiente', 'aprobada', 'en_curso', 'completada', 'cancelada', 'rechazada'],
+      enum: ['pendiente', 'aprobada', 'en_curso', 'en_transicion', 'completada', 'cancelada', 'rechazada'],
       default: 'pendiente',
     },
     kmSalida: {

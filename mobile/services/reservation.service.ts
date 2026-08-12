@@ -22,7 +22,7 @@ export interface IReservation {
   fechaFin: string;
   destino: string;
   motivo: string;
-  estado: 'pendiente' | 'aprobada' | 'en_curso' | 'completada' | 'cancelada' | 'rechazada';
+  estado: 'pendiente' | 'aprobada' | 'en_curso' | 'en_transicion' | 'completada' | 'cancelada' | 'rechazada';
   kmSalida?: number;
   kmRetorno?: number;
   fotosSalida?: string[];
@@ -101,6 +101,11 @@ export const reservationService = {
       motivo,
       kmActual
     });
+    return response.data;
+  },
+
+  cancelarTraspaso: async (reservaId: string) => {
+    const response = await api.patch(`/reservations/${reservaId}/cancelar-traspaso`);
     return response.data;
   },
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput, Modal, ScrollView, RefreshControl, Linking, Animated, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput, Modal, ScrollView, RefreshControl, Linking, Animated, Image, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +13,7 @@ import { inspectionService, IInspeccion } from '../services/inspection.service';
 import { IUser } from '../types';
 import api from '../services/api';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 
 export default function HomeScreen({ route, navigation }: any) {
   const { colors, isDark } = useTheme();
@@ -168,11 +169,23 @@ export default function HomeScreen({ route, navigation }: any) {
       setPendingHandover(handover);
 
       // Si no hay una en curso, buscar la próxima aprobada
-      if (!enCurso) {
+      if (all.length > 0) {
         const now = new Date();
-        const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
         const proxima = all
-          .filter((r) => r.estado === 'aprobada' && new Date(r.fechaFin) >= now && new Date(r.fechaInicio) >= twoHoursAgo)
+          .filter((r) => {
+            if (new Date(r.fechaFin) < now) return false;
+            if (r.estado === 'aprobada') return true;
+            if (r.estado === 'en_transicion') {
+              const currentUserId = user.id || (user as any)._id;
+              const isCurrentDriver = r.tramos && r.tramos.length > 0 
+                ? (typeof r.tramos[r.tramos.length - 1].conductor === 'string' 
+                    ? r.tramos[r.tramos.length - 1].conductor === currentUserId 
+                    : (r.tramos[r.tramos.length - 1].conductor as any)._id === currentUserId)
+                : (typeof r.usuario === 'string' ? r.usuario === currentUserId : (r.usuario as any)._id === currentUserId);
+              return isCurrentDriver;
+            }
+            return false;
+          })
           .sort((a, b) => new Date(a.fechaInicio).getTime() - new Date(b.fechaInicio).getTime())[0] ?? null;
         setUpcomingReserva(proxima);
       } else {
@@ -219,6 +232,20 @@ export default function HomeScreen({ route, navigation }: any) {
       return;
     }
 
+    // Verificar GPS antes de continuar
+    const servicesEnabled = await Location.hasServicesEnabledAsync();
+    if (!servicesEnabled) {
+      Alert.alert(
+        'GPS Apagado',
+        'Debes encender el GPS de tu celular para poder iniciar el viaje.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Ir a Configuración', onPress: () => Linking.openSettings() }
+        ]
+      );
+      return;
+    }
+
     try {
       // Solo navegamos a la cámara. El viaje inicia realmente al subir las fotos.
       navigation.navigate('Camera', { 
@@ -233,15 +260,26 @@ export default function HomeScreen({ route, navigation }: any) {
     }
   };
 
-  // Reanudar GPS sin ir a cámara (el viaje ya está en curso)
   const handleResumeGps = async () => {
     const reserva = activeReserva;
     if (!reserva) return;
     try {
+      // Cancelar solicitud de traspaso si el origen se arrepiente y reanuda
+      const currentUserId = user.id || (user as any)._id;
+      const isOrigen = reserva.solicitudTraspaso?.estado === 'pendiente' && 
+        (typeof reserva.solicitudTraspaso.conductorOrigen === 'string' 
+          ? reserva.solicitudTraspaso.conductorOrigen === currentUserId 
+          : (reserva.solicitudTraspaso.conductorOrigen as any)?._id === currentUserId);
+
+      if (isOrigen) {
+        await reservationService.cancelarTraspaso(reserva._id);
+        showAlert('Traspaso cancelado', 'Has reanudado tu viaje y la solicitud de traspaso fue cancelada.');
+      }
+
       const started = await locationService.startTracking(reserva._id);
       if (started) {
         setIsTracking(true);
-        showAlert('Éxito', 'GPS reactivado correctamente.');
+        if (!isOrigen) showAlert('Éxito', 'GPS reactivado correctamente.');
       } else {
         showAlert('GPS Requerido', 'Por favor enciende el GPS de tu teléfono y asegúrate de haber dado permisos de ubicación.');
       }
@@ -594,8 +632,16 @@ export default function HomeScreen({ route, navigation }: any) {
             </View>
           </View>
           <Text style={styles.cardInfo}>📍 {upcomingReserva.destino}</Text>
-          <Text style={styles.cardInfo}>🕐 Inicio: {formatFecha(upcomingReserva.fechaInicio)}</Text>
+          <Text style={styles.cardInfo}>🕒 Inicio: {formatFecha(upcomingReserva.fechaInicio)}</Text>
           <Text style={styles.cardInfo}>📝 {upcomingReserva.motivo}</Text>
+
+          {new Date().getTime() - new Date(upcomingReserva.fechaInicio).getTime() > 15 * 60000 && (
+            <View style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: 10, borderRadius: 8, marginTop: 10 }}>
+              <Text style={{ color: colors.danger, fontSize: 13, fontWeight: '600' }}>
+                ⚠️ Tu reserva empezó hace {Math.floor((new Date().getTime() - new Date(upcomingReserva.fechaInicio).getTime()) / 60000)} minutos. Podrás iniciarla, pero se registrará una advertencia de demora.
+              </Text>
+            </View>
+          )}
 
           <TouchableOpacity style={styles.btnPrimary} onPress={handleStartTrip}>
             <Text style={styles.btnText}>🚀 Iniciar Viaje y Activar GPS</Text>

@@ -194,7 +194,7 @@ export const startReservation = async (req: AuthRequest, res: Response): Promise
       return;
     }
 
-    if (reservation.estado !== 'aprobada') {
+    if (reservation.estado !== 'aprobada' && reservation.estado !== 'en_transicion') {
       res.status(400).json({ message: `No se puede iniciar: la reserva está en estado '${reservation.estado}'` });
       return;
     }
@@ -246,6 +246,20 @@ export const startReservation = async (req: AuthRequest, res: Response): Promise
       reservation.observacionKmSalida = observacionKmSalida;
     }
     await reservation.save();
+
+    // Check if the start is delayed by more than 15 minutes
+    const toleranciaMinutos = 15;
+    const tiempoRetrasoMinutos = (currentTime.getTime() - fechaInicioReserva.getTime()) / 60000;
+    
+    if (tiempoRetrasoMinutos > toleranciaMinutos && !isTramo) {
+      await Flag.create({
+        usuario: req.userId,
+        reserva: reservation._id,
+        color: 'amarilla',
+        motivo: `Inicio de reserva atrasado por ${Math.floor(tiempoRetrasoMinutos)} minutos.`,
+        tipo: 'automatica'
+      });
+    }
 
     // Marcar el vehículo como reservado
     await Vehicle.findByIdAndUpdate(reservation.vehiculo, { estado: 'reservado' });
@@ -458,6 +472,30 @@ export const responderTraspaso = async (req: AuthRequest, res: Response): Promis
     res.status(400).json({ message: 'Respuesta inválida' });
   } catch (error) {
     res.status(500).json({ message: 'Error al responder traspaso', error });
+  }
+};
+
+// Cancelar traspaso (por el conductor origen si se arrepiente y reanuda GPS)
+export const cancelarTraspaso = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const reservation = await Reservation.findById(req.params.id);
+    if (!reservation || !reservation.solicitudTraspaso || reservation.solicitudTraspaso.estado !== 'pendiente') {
+      res.status(400).json({ message: 'No hay solicitud pendiente para esta reserva' });
+      return;
+    }
+    
+    // Verificamos que el que cancela es el conductor origen
+    if (reservation.solicitudTraspaso.conductorOrigen.toString() !== req.userId) {
+      res.status(403).json({ message: 'No tienes permiso para cancelar esta solicitud' });
+      return;
+    }
+
+    reservation.solicitudTraspaso.estado = 'cancelada';
+    await reservation.save();
+
+    res.json({ message: 'Traspaso cancelado exitosamente.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al cancelar traspaso', error });
   }
 };
 
