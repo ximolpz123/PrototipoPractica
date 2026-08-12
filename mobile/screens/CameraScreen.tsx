@@ -281,10 +281,10 @@ export default function CameraScreen({ route, navigation }: any) {
             </View>
             
             {uploadingIA ? (
-              <View style={styles.aiLoading}>
-                <ActivityIndicator size="large" color="#fff" />
-                <Text style={styles.aiLoadingText}>Analizando odómetro con Inteligencia Artificial...</Text>
-              </View>
+                <View style={styles.aiLoading}>
+                  <ActivityIndicator size="large" color="#fff" />
+                  <Text style={styles.aiLoadingText}>Analizando kilometraje del tablero...</Text>
+                </View>
             ) : (
               <TouchableOpacity style={styles.captureBtn} onPress={takePicture}>
                 <View style={styles.captureInner} />
@@ -368,9 +368,9 @@ export default function CameraScreen({ route, navigation }: any) {
                   />
                 )}
                 
-                <TouchableOpacity style={[styles.modalBtn, styles.btnYes, { width: '100%', marginTop: 15, paddingVertical: 16 }]} onPress={confirmarOdometro}>
-                  <Text style={styles.btnYesText}>Guardar Odómetro</Text>
-                </TouchableOpacity>
+                                <TouchableOpacity style={[styles.modalBtn, styles.btnYes, { width: '100%', marginTop: 15, paddingVertical: 20 }]} onPress={confirmarOdometro}>
+                    <Text style={[styles.btnYesText, { fontSize: 18, fontWeight: 'bold' }]}>Confirmar</Text>
+                  </TouchableOpacity>
               </>
             )}
           </View>

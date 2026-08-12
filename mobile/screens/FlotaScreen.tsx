@@ -99,7 +99,7 @@ export default function FlotaScreen() {
             <View style={styles.conductorContainer}>
               {item.conductoresActivos && item.conductoresActivos.length > 0 ? (
                 item.conductoresActivos.map((conductor: any, index: number) => (
-                  <View key={conductor._id || index} style={{ marginBottom: index !== item.conductoresActivos.length - 1 ? 6 : 0 }}>
+                  <View key={conductor._id || index} style={{ marginBottom: index !== item.conductoresActivos!.length - 1 ? 6 : 0 }}>
                     <Text style={styles.conductorText}>
                       {index === 0 ? '🟢 Inicio:' : '🔄 Relevó:'} {conductor.nombre} {conductor.apellido}
                     </Text>
@@ -380,7 +380,7 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     marginBottom: 4,
   },
   conductorContainer: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.background,
     padding: 8,
     borderRadius: 8,
     marginTop: 6,

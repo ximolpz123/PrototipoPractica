@@ -13,10 +13,17 @@ export interface IVehicle {
   ultimoMantenimiento?: string;
   imagenUrl?: string;
   conductorActual?: {
+    _id?: string;
     nombre: string;
     apellido: string;
     departamento: string;
   };
+  conductoresActivos?: Array<{
+    _id?: string;
+    nombre: string;
+    apellido: string;
+    departamento: string;
+  }>;
   historialHoy?: Array<{
     usuario: any;
     estado: string;
