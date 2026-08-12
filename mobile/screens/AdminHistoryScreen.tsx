@@ -387,17 +387,37 @@ export default function AdminHistoryScreen() {
                 <View style={styles.sectionTitleRow}>
                   <Ionicons name="camera" size={16} color={colors.primary} />
                   <Text style={[styles.sectionTitle, { marginLeft: 6 }]}>
-                    Evidencia al Salir ({getFotosArray(selectedReserva.fotosSalida).length})
+                    📸 Fotos de Salida — {selectedReserva.usuario?.nombre} {selectedReserva.usuario?.apellido} ({getFotosArray(selectedReserva.fotosSalida).length})
                   </Text>
                 </View>
                 {renderFotos(selectedReserva.fotosSalida, 'salida')}
               </View>
 
+              {selectedReserva.tramos && selectedReserva.tramos.length > 0 && selectedReserva.tramos.map((tramo: any, index: number) => {
+                const numFotos = getFotosArray(tramo.fotosInicio).length;
+                if (numFotos === 0) return null;
+                return (
+                  <View key={index} style={styles.section}>
+                    <View style={styles.sectionTitleRow}>
+                      <Ionicons name="camera" size={16} color={colors.primary} />
+                      <Text style={[styles.sectionTitle, { marginLeft: 6 }]}>
+                        📸 Fotos de Relevo {index + 1} — {tramo.conductor?.nombre} {tramo.conductor?.apellido} ({numFotos})
+                      </Text>
+                    </View>
+                    {renderFotos(tramo.fotosInicio, `relevo ${index + 1}`)}
+                  </View>
+                );
+              })}
+
               <View style={styles.section}>
                 <View style={styles.sectionTitleRow}>
                   <Ionicons name="camera" size={16} color={colors.success} />
                   <Text style={[styles.sectionTitle, { marginLeft: 6 }]}>
-                    Evidencia al Retornar ({getFotosArray(selectedReserva.fotosRetorno).length})
+                    📸 Fotos de Retorno — {
+                      selectedReserva.tramos && selectedReserva.tramos.length > 0 
+                      ? `${selectedReserva.tramos[selectedReserva.tramos.length - 1].conductor?.nombre} ${selectedReserva.tramos[selectedReserva.tramos.length - 1].conductor?.apellido}` 
+                      : `${selectedReserva.usuario?.nombre} ${selectedReserva.usuario?.apellido}`
+                    } ({getFotosArray(selectedReserva.fotosRetorno).length})
                   </Text>
                 </View>
                 {renderFotos(selectedReserva.fotosRetorno, 'retorno')}

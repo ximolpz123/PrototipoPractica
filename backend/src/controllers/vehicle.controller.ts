@@ -12,6 +12,7 @@ export const getVehicles = async (_req: Request, res: Response): Promise<void> =
 
     const activeReservations = await Reservation.find({ estado: 'en_curso' })
       .populate('usuario', 'nombre apellido departamento')
+      .populate('tramos.conductor', 'nombre apellido departamento')
       .lean();
 
     const hoyInicio = new Date();
@@ -29,7 +30,17 @@ export const getVehicles = async (_req: Request, res: Response): Promise<void> =
       let extra = {};
       if (v.estado === 'reservado') {
         const activeRes = activeReservations.find(r => r.vehiculo.toString() === v._id.toString());
-        if (activeRes) extra = { conductorActual: activeRes.usuario };
+        if (activeRes) {
+          const conductores = [activeRes.usuario];
+          if (activeRes.tramos && activeRes.tramos.length > 0) {
+            activeRes.tramos.forEach((tramo: any) => {
+              if (tramo.conductor && tramo.conductor._id.toString() !== conductores[conductores.length - 1]._id.toString()) {
+                conductores.push(tramo.conductor);
+              }
+            });
+          }
+          extra = { conductorActual: activeRes.usuario, conductoresActivos: conductores };
+        }
       }
 
       const historialHoy = todayReservations

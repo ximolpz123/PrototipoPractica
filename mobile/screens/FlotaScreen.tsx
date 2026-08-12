@@ -95,10 +95,23 @@ export default function FlotaScreen() {
           </View>
           <Text style={styles.vehicleDetail}>🎨 {item.color}  •  🪪 {item.placa}</Text>
           <Text style={styles.vehicleDetail}>🛞 {item.kilometraje.toLocaleString()} km</Text>
-          {item.estado === 'reservado' && item.conductorActual && (
+          {item.estado === 'reservado' && (item.conductoresActivos || item.conductorActual) && (
             <View style={styles.conductorContainer}>
-              <Text style={styles.conductorText}>👤 {item.conductorActual.nombre} {item.conductorActual.apellido}</Text>
-              <Text style={styles.conductorDepto}>{item.conductorActual.departamento}</Text>
+              {item.conductoresActivos && item.conductoresActivos.length > 0 ? (
+                item.conductoresActivos.map((conductor: any, index: number) => (
+                  <View key={conductor._id || index} style={{ marginBottom: index !== item.conductoresActivos.length - 1 ? 6 : 0 }}>
+                    <Text style={styles.conductorText}>
+                      {index === 0 ? '🟢 Inicio:' : '🔄 Relevó:'} {conductor.nombre} {conductor.apellido}
+                    </Text>
+                    <Text style={styles.conductorDepto}>{conductor.departamento}</Text>
+                  </View>
+                ))
+              ) : item.conductorActual ? (
+                <View>
+                  <Text style={styles.conductorText}>👨‍✈️ {item.conductorActual.nombre} {item.conductorActual.apellido}</Text>
+                  <Text style={styles.conductorDepto}>{item.conductorActual.departamento}</Text>
+                </View>
+              ) : null}
             </View>
           )}
           <View style={[styles.statusBadge, { backgroundColor: estado.bg }]}>

@@ -22,6 +22,7 @@ export const getReservations = async (req: AuthRequest, res: Response): Promise<
     const reservations = await Reservation.find(filter)
       .populate('usuario', 'nombre apellido email departamento')
       .populate('vehiculo', 'placa marca modelo color tipo tipoIndicador kilometraje')
+      .populate('tramos.conductor', 'nombre apellido email departamento')
       .sort({ fechaInicio: -1 });
     res.json(reservations);
   } catch (error) {
