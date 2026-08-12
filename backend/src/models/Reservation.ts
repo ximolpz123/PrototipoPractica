@@ -29,7 +29,7 @@ export interface IReservation extends Document {
   fechaFin: Date;
   destino: string;
   motivo: string;
-  estado: 'pendiente' | 'aprobada' | 'en_curso' | 'completada' | 'cancelada' | 'rechazada';
+  estado: 'pendiente' | 'aprobada' | 'en_curso' | 'en_transicion' | 'completada' | 'cancelada' | 'rechazada';
   kmSalida?: number;
   observacionKmSalida?: string;
   kmRetorno?: number;
@@ -47,7 +47,7 @@ export interface IReservation extends Document {
   solicitudTraspaso?: {
     conductorDestino: Types.ObjectId;
     conductorOrigen: Types.ObjectId;
-    estado: 'pendiente' | 'aceptada' | 'rechazada';
+    estado: 'pendiente' | 'aceptada' | 'rechazada' | 'cancelada';
     motivoRechazo?: string;
   };
   observaciones?: string;
@@ -157,7 +157,7 @@ const reservationSchema = new Schema<IReservation>(
     solicitudTraspaso: {
       conductorDestino: { type: Schema.Types.ObjectId, ref: 'User' },
       conductorOrigen:  { type: Schema.Types.ObjectId, ref: 'User' },
-      estado: { type: String, enum: ['pendiente', 'aceptada', 'rechazada'] },
+      estado: { type: String, enum: ['pendiente', 'aceptada', 'rechazada', 'cancelada'] },
       motivoRechazo: { type: String, trim: true }
     },
     observaciones:  { type: String, trim: true },

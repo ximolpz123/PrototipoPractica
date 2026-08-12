@@ -49,21 +49,16 @@ export const initCronJobs = () => {
     }
   });
 
-  // Cron Job 2: Inspección Aleatoria (cada 5 minutos)
-  cron.schedule('*/5 * * * *', async () => {
+  // Cron Job 2: Inspección Aleatoria (cada 1 minuto para pruebas)
+  cron.schedule('* * * * *', async () => {
     try {
-      const totalReservations = await Reservation.countDocuments({ estado: { $in: ['aprobada', 'en_curso', 'completada'] } });
-      const totalInspections = await InspeccionAleatoria.countDocuments();
+      const activas = await Reservation.find({ estado: 'en_curso' }).populate('usuario');
       
-      // Mantenemos una proporción aproximada de 1 inspección cada 3 reservas
-      if (totalReservations > 0 && totalInspections < Math.floor(totalReservations / 3)) {
-        const activas = await Reservation.find({ estado: 'en_curso' }).populate('usuario');
-        
-        // Filtrar reservas que ya tienen inspección para no molestar dos veces al mismo conductor
-        const inspeccionesExistentes = await InspeccionAleatoria.find({ reserva: { $in: activas.map(r => r._id) } });
-        const reservasSinInspeccion = activas.filter(r => !inspeccionesExistentes.some(i => i.reserva.toString() === r._id.toString()));
+      // Filtrar reservas que ya tienen inspección para no molestar dos veces al mismo conductor
+      const inspeccionesExistentes = await InspeccionAleatoria.find({ reserva: { $in: activas.map(r => r._id) } });
+      const reservasSinInspeccion = activas.filter(r => !inspeccionesExistentes.some(i => i.reserva.toString() === r._id.toString()));
 
-        if (reservasSinInspeccion.length > 0) {
+      if (reservasSinInspeccion.length > 0) {
           // Seleccionar un conductor al azar
           const seleccionada = reservasSinInspeccion[Math.floor(Math.random() * reservasSinInspeccion.length)];
           
@@ -96,7 +91,6 @@ export const initCronJobs = () => {
             { tipo: 'INSPECCION_ALEATORIA', inspeccionId: nuevaInspeccion._id }
           );
         }
-      }
     } catch(err) {
       console.error('Error en cron de creación de inspecciones:', err);
     }
