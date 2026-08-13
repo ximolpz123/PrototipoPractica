@@ -26,6 +26,7 @@ export interface IVehicle {
   }>;
   historialHoy?: Array<{
     usuario: any;
+    conductores?: any[];
     estado: string;
     fechaInicio: string;
     fechaFin: string;

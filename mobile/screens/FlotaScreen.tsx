@@ -185,15 +185,25 @@ export default function FlotaScreen() {
                     {selectedVehicleDetails.historialHoy.map((res, index) => {
                       const horaIni = new Date(res.fechaInicio).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
                       const horaFin = new Date(res.fechaFin).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
-                      return (
-                        <View key={index} style={styles.historyItem}>
-                          <Text style={styles.historyTime}>{horaIni} - {horaFin}</Text>
-                          <Text style={styles.historyUser} numberOfLines={1}>
-                            {res.usuario?.nombre} {res.usuario?.apellido}
-                          </Text>
-                          <Text style={styles.historyState}>({res.estado})</Text>
-                        </View>
-                      );
+                        return (
+                          <View key={index} style={[styles.historyItem, { alignItems: 'flex-start' }]}>
+                            <Text style={styles.historyTime}>{horaIni} - {horaFin}</Text>
+                            <View style={{ flex: 1, paddingRight: 5 }}>
+                              {res.conductores && res.conductores.length > 0 ? (
+                                res.conductores.map((c: any, i: number) => (
+                                  <Text key={c._id || i} style={[styles.historyUser, { flex: 0, marginBottom: 2 }]} numberOfLines={1}>
+                                    {i === 0 ? '🟢 Inicio:' : '🔄 Relevó:'} {c.nombre} {c.apellido}
+                                  </Text>
+                                ))
+                              ) : (
+                                <Text style={[styles.historyUser, { flex: 0 }]} numberOfLines={1}>
+                                  🟢 Inicio: {res.usuario?.nombre} {res.usuario?.apellido}
+                                </Text>
+                              )}
+                            </View>
+                            <Text style={styles.historyState}>({res.estado})</Text>
+                          </View>
+                        );
                     })}
                   </View>
                 )}

@@ -206,9 +206,22 @@ export default function AdminHistoryScreen() {
     const vehiculo = item.vehiculo
       ? `${item.vehiculo.marca} ${item.vehiculo.modelo} · ${item.vehiculo.placa}`
       : 'Vehículo desconocido';
-    const conductor = item.usuario
+    let conductor = item.usuario
       ? `${item.usuario.nombre} ${item.usuario.apellido}`
       : 'Usuario desconocido';
+      
+    if (item.tramos && item.tramos.length > 0) {
+      const conductoresList = [conductor];
+      item.tramos.forEach((t: any) => {
+        if (t.conductor) {
+          const nombreCompleto = `${t.conductor.nombre} ${t.conductor.apellido}`;
+          if (nombreCompleto !== conductoresList[conductoresList.length - 1]) {
+            conductoresList.push(nombreCompleto);
+          }
+        }
+      });
+      conductor = conductoresList.join(' + ');
+    }
     const totalFotos = getFotosArray(item.fotosSalida).length + getFotosArray(item.fotosRetorno).length;
 
     return (

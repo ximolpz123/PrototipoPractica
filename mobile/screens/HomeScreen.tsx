@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput, Modal, ScrollView, RefreshControl, Linking, Animated, Image, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput, Modal, ScrollView, RefreshControl, Linking, Animated, Image, Alert, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -449,12 +449,13 @@ export default function HomeScreen({ route, navigation }: any) {
     }
     
     setSubmittingInspection(true);
-    try {
-      await inspectionService.respondInspection(activeInspection._id, inspectionText, inspectionPhotos);
-      showAlert('Enviado', 'Respuesta de inspección enviada.');
-      setInspectionText('');
-      setInspectionPhotos([]);
-    } catch (err: any) {
+      try {
+        await inspectionService.respondInspection(activeInspection._id, inspectionText, inspectionPhotos);
+        showAlert('Enviado', 'Respuesta de inspección enviada.');
+        setInspectionText('');
+        setInspectionPhotos([]);
+        setActiveInspection(null);
+      } catch (err: any) {
       showAlert('Error', err.response?.data?.message || 'Error al enviar inspección');
     } finally {
       setSubmittingInspection(false);
@@ -882,19 +883,23 @@ export default function HomeScreen({ route, navigation }: any) {
       {/* ─── Modal Inspección Aleatoria ─── */}
       <Modal visible={!!activeInspection && !isInspectionMinimized} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { paddingHorizontal: 25, paddingBottom: Platform.OS === 'ios' ? 40 : 25 }]}>
             <View style={styles.bottomSheetIndicator} />
-            <Text style={styles.modalTitle}>🧐 Inspección Aleatoria</Text>
-            <Text style={{ fontSize: 16, color: colors.danger, fontWeight: 'bold', marginBottom: 5 }}>
-              Tiempo límite: {activeInspection ? new Date(activeInspection.fechaLimite).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : ''}
-            </Text>
-            <Text style={{ textAlign: 'center', marginBottom: 20, fontSize: 15 }}>
+            <Text style={[styles.modalTitle, { color: colors.primary, fontSize: 20 }]}>🚨 Inspección Aleatoria</Text>
+            
+            <View style={{ backgroundColor: colors.danger + '15', padding: 10, borderRadius: 8, marginBottom: 15, width: '100%', alignItems: 'center' }}>
+              <Text style={{ fontSize: 14, color: colors.danger, fontWeight: 'bold' }}>
+                Tiempo límite: {activeInspection ? new Date(activeInspection.fechaLimite).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : ''}
+              </Text>
+            </View>
+
+            <Text style={{ textAlign: 'center', marginBottom: 20, fontSize: 16, color: colors.text, fontWeight: '500' }}>
               {activeInspection?.descripcion}
             </Text>
 
             <TextInput
-              style={[styles.kmInput, { minHeight: 60, textAlignVertical: 'top', width: '100%', marginBottom: 15 }]}
-              placeholder="Escribe un comentario o reporte..."
+              style={[styles.kmInput, { minHeight: 80, textAlignVertical: 'top', width: '100%', marginBottom: 15, backgroundColor: colors.background }]}
+              placeholder="Añadir un comentario o reporte..."
               placeholderTextColor={colors.textMuted}
               multiline
               value={inspectionText}
@@ -902,45 +907,45 @@ export default function HomeScreen({ route, navigation }: any) {
             />
 
             {inspectionPhotos.length > 0 && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 15 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 15, width: '100%' }}>
                 {inspectionPhotos.map((uri, idx) => (
-                  <View key={idx} style={{ marginRight: 10, position: 'relative', marginTop: 5 }}>
-                    <Image source={{ uri }} style={{ width: 80, height: 80, borderRadius: 8 }} />
+                  <View key={idx} style={{ marginRight: 12, position: 'relative', marginTop: 8 }}>
+                    <Image source={{ uri }} style={{ width: 75, height: 75, borderRadius: 10 }} />
                     <TouchableOpacity 
-                      style={{ position: 'absolute', top: -8, right: -8, backgroundColor: colors.danger, borderRadius: 12, padding: 2 }}
+                      style={{ position: 'absolute', top: -8, right: -8, backgroundColor: colors.danger, borderRadius: 12, padding: 4 }}
                       onPress={() => setInspectionPhotos(prev => prev.filter((_, i) => i !== idx))}
                     >
-                      <Ionicons name="close" size={16} color="white" />
+                      <Ionicons name="close" size={14} color="white" />
                     </TouchableOpacity>
                   </View>
                 ))}
               </ScrollView>
             )}
 
-            <View style={{ flexDirection: 'row', width: '100%', gap: 10, marginBottom: 15 }}>
+            <View style={{ flexDirection: 'row', width: '100%', gap: 15, marginBottom: 20 }}>
               <TouchableOpacity 
-                style={[styles.btnPrimary, { flex: 1, backgroundColor: inspectionPhotos.length >= 5 ? colors.textMuted : colors.primaryDark }]} 
+                style={[styles.btnPrimary, { flex: 1, backgroundColor: inspectionPhotos.length >= 5 ? colors.border : colors.secondary }]} 
                 onPress={handleTakeInspectionPhoto}
                 disabled={inspectionPhotos.length >= 5}
               >
-                <Text style={styles.btnText}>📸 Tomar Foto ({inspectionPhotos.length}/5)</Text>
+                <Text style={styles.btnText}>📸 {inspectionPhotos.length}/5 Fotos</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.btnPrimary, { flex: 1 }]} 
+                onPress={handleSubmitInspection}
+                disabled={submittingInspection}
+              >
+                {submittingInspection ? (
+                  <ActivityIndicator color={colors.white} />
+                ) : (
+                  <Text style={styles.btnText}>Enviar</Text>
+                )}
               </TouchableOpacity>
             </View>
 
             <TouchableOpacity 
-              style={[styles.btnPrimary, { width: '100%' }]} 
-              onPress={handleSubmitInspection}
-              disabled={submittingInspection}
-            >
-              {submittingInspection ? (
-                <ActivityIndicator color={colors.white} />
-              ) : (
-                <Text style={styles.btnText}>Enviar Reporte</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={{ width: '100%', alignItems: 'center', marginTop: 15, paddingVertical: 10 }}
+              style={{ width: '100%', alignItems: 'center', paddingVertical: 10 }}
               onPress={() => setIsInspectionMinimized(true)}
               disabled={submittingInspection}
             >

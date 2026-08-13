@@ -6,7 +6,7 @@ import {
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, AppColors, GRADIENTS, SHADOWS, BORDER_RADIUS } from '../constants';
+import { COLORS, AppColors, GRADIENTS, SHADOWS, BORDER_RADIUS, getGradients } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
 import { reservationService, IReservation } from '../services/reservation.service';
@@ -427,7 +427,7 @@ export default function AdminDashboardScreen() {
           </View>
         </LinearGradient>
 
-        <LinearGradient colors={GRADIENTS.cardBackground} style={[styles.kpiCard, { padding: 0, borderWidth: 1, borderColor: colors.border }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+        <LinearGradient colors={getGradients(isDark).cardBackground} style={[styles.kpiCard, { padding: 0, borderWidth: 1, borderColor: colors.border }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
           <View style={{ padding: 15, width: '100%' }}>
             <Text style={[styles.kpiNum, { color: colors.text }]}>{reservas.length}</Text>
             <Text style={[styles.kpiLabel, { color: colors.textMuted }]}>Total</Text>
