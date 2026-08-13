@@ -701,10 +701,10 @@ input:checked+.theme-slider:before {
 /* ── Grid de vehículos ── */
 .vehicles-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
   gap: 24px;
   width: 100%;
-  max-width: 1060px;
+  max-width: 100%;
 }
 
 @media (max-width: 640px) {
@@ -898,8 +898,8 @@ input:checked+.theme-slider:before {
 }
 
 .reservations-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
   gap: 16px;
   width: 100%;
 }
@@ -907,12 +907,12 @@ input:checked+.theme-slider:before {
 /* ── Tarjeta de reservación ── */
 .reservation-card {
   background: #D6D7D9;
-  border-radius: 14px;
+  border-radius: 12px;
   box-shadow: var(--shadow);
-  padding: 18px 24px;
+  padding: 14px 18px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   transition: transform 0.2s;
 }
 
@@ -929,7 +929,7 @@ input:checked+.theme-slider:before {
 }
 
 .res-vehicle-name {
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 700;
   color: var(--text-h);
 }
@@ -937,9 +937,9 @@ input:checked+.theme-slider:before {
 .reservation-card-info {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 24px;
+  gap: 8px 16px;
   font-size: 14px;
-  color: #555;
+  color: #444;
 }
 
 /* ── Modificaciones para lista de reservaciones de Admin ── */
@@ -948,6 +948,7 @@ input:checked+.theme-slider:before {
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 16px;
 }
+
 .admin-reservations-list .reservation-card {
   padding: 12px 16px;
   gap: 8px;
@@ -955,13 +956,16 @@ input:checked+.theme-slider:before {
   height: 100%;
   box-sizing: border-box;
 }
+
 .admin-reservations-list .res-vehicle-name {
   font-size: 16px;
 }
+
 .admin-reservations-list .reservation-card-info {
   gap: 4px 16px;
   font-size: 12px;
 }
+
 .admin-reservations-list .btn {
   padding: 6px !important;
   margin-top: 0.5rem !important;

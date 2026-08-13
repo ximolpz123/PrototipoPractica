@@ -182,7 +182,7 @@ function Vehicles() {
         <div className="sidebar-profile">
           <div className="sidebar-photo-upload" onClick={() => fileInputRef.current?.click()} title="Cambiar foto">
             <img src={profileImg} alt="Perfil" className="sidebar-profile-img" />
-            <div className="sidebar-photo-overlay">📷</div>
+            <div className="sidebar-photo-overlay"></div>
           </div>
           <input
             ref={fileInputRef}
@@ -247,10 +247,12 @@ function Vehicles() {
                   <div className="vehicle-card-body">
                     <h2 className="vehicle-card-title">{v.marca} {v.modelo}</h2>
                     <div className="vehicle-card-info">
-                      <span><strong>Patente:</strong> {v.placa}</span>
-                      <span><strong>Año:</strong> {v.anio}</span>
-                      <span><strong>Color:</strong> {v.color}</span>
-                      <span><strong>Kilometraje:</strong> {v.kilometraje} km</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+                        <span><strong>Patente:</strong> {v.placa}</span>
+                        <span><strong>Año:</strong> {v.anio}</span>
+                        <span><strong>Color:</strong> {v.color}</span>
+                        <span><strong>Km:</strong> {v.kilometraje.toLocaleString('es-CL')}</span>
+                      </div>
                       {v.nivelBencina !== undefined && (
                         <div style={{ marginTop: '0.5rem', marginBottom: '0.2rem', display: 'flex', flexDirection: 'column' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '4px' }}>
@@ -262,10 +264,10 @@ function Vehicles() {
                         </div>
                       )}
                       {v.ultimoMantenimiento && (
-                        <span style={{ fontSize: '0.9rem', color: '#555', marginTop: '4px', display: 'block' }}>
-                          <strong>Último Mantenimiento:</strong><br />
-                          {new Date(v.ultimoMantenimiento).toLocaleString('es-CL')}
-                        </span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#555', marginTop: '4px' }}>
+                          <strong>Último Mantenimiento:</strong>
+                          <span>{new Date(v.ultimoMantenimiento).toLocaleString('es-CL')}</span>
+                        </div>
                       )}
                     </div>
                     <span
@@ -274,14 +276,16 @@ function Vehicles() {
                     >
                       {ESTADO_LABELS[v.estado] || v.estado}
                     </span>
-                    <button
-                      id={`ver-vehiculo-${v._id}`}
-                      className="btn btn-sm"
-                      style={{ marginTop: '10px' }}
-                      onClick={() => setModalImg(imgUrl)}
-                    >
-                      Ver Vehículo
-                    </button>
+                    <div style={{ textAlign: 'center', marginTop: '15px' }}>
+                      <button
+                        id={`ver-vehiculo-${v._id}`}
+                        className="btn"
+                        style={{ margin: 0, padding: '10px 32px', fontSize: '1rem' }}
+                        onClick={() => setModalImg(imgUrl)}
+                      >
+                        Ver Vehículo
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -292,7 +296,7 @@ function Vehicles() {
         {/* ── Panel: Reservaciones ── */}
         {activeTab === 'reservaciones' && (
           <div className="reservations-panel">
-            <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-end', flexWrap: 'wrap', width: '100%', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', width: '100%', marginBottom: '1rem' }}>
               <button
                 id="btn-crear-reservacion"
                 className="btn btn-create"
@@ -345,13 +349,15 @@ function Vehicles() {
                     {r.destino && <span> <strong>Destino:</strong> {r.destino}</span>}
                     {r.motivo && <span> <strong>Motivo:</strong> {r.motivo}</span>}
                   </div>
-                  <button
-                    className="btn"
-                    style={{ marginTop: '1rem', width: '100%' }}
-                    onClick={() => setSelectedReservation(r)}
-                  >
-                    Ver Reservación
-                  </button>
+                  <div style={{ textAlign: 'center', marginTop: '15px' }}>
+                    <button
+                      className="btn"
+                      style={{ margin: 0, padding: '8px 24px', fontSize: '0.95rem' }}
+                      onClick={() => setSelectedReservation(r)}
+                    >
+                      Ver Reservación
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
