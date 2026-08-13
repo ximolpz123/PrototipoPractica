@@ -171,7 +171,7 @@ function Reservations() {
         <div className="sidebar-profile">
           <div className="sidebar-photo-upload" onClick={() => fileInputRef.current?.click()} title="Cambiar foto">
             <img src={profileImg} alt="Perfil" className="sidebar-profile-img" />
-            <div className="sidebar-photo-overlay">📷</div>
+            <div className="sidebar-photo-overlay"></div>
           </div>
           <input
             ref={fileInputRef}
@@ -185,7 +185,7 @@ function Reservations() {
               {user?.nombre ?? ''} {user?.apellido ?? ''} | <span title={`Departamento de: ${user?.departamento || 'Sin Departamento'}`} style={{ fontWeight: 'normal', color: 'rgba(255,255,255,0.85)', fontSize: '14px', cursor: 'default' }}>{user?.departamento || 'Sin Departamento'}</span>
             </span>
             {user?.rol !== 'admin' && (
-              <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.9)', textAlign: 'left', marginTop: '2px' }}>
+              <div style={{ fontSize: '16px', color: 'rgba(255,255,255,0.9)', textAlign: 'left', marginTop: '2px' }}>
                 <span><strong>Licencia:</strong> <span style={{ color: user?.licenciaAlDia === false ? '#ef4444' : '#4ade80', fontWeight: 'bold' }}>{user?.licenciaAlDia === false ? 'NO AL DÍA' : 'AL DÍA'}</span></span>
               </div>
             )}
@@ -354,7 +354,7 @@ function Reservations() {
                   type="button"
                   className="btn"
                   onClick={handleCancel}
-                  style={{ backgroundColor: '#ef4444', color: 'black' }}
+                  style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'white', border: '2px solid #000000', borderRadius: '10px', fontWeight: '700' }}
                 >
                   Cancelar
                 </button>

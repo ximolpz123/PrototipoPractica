@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ActiveVehiclesMap } from '../components/ActiveVehiclesMap';
 import { RandomInspectionsPanel } from '../components/RandomInspectionsPanel';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LabelList } from 'recharts';
 import type { IUser, IReservation, IVehicle } from '../types';
 import camionetaBlancaImg from '../assets/camioneta-blanca.png';
 import autoCafeImg from '../assets/auto-cafe.png';
@@ -39,6 +39,13 @@ const ESTADO_RES_COLORS: Record<string, string> = {
 
 type DashTab = 'dashboard' | 'usuarios' | 'reservaciones' | 'vehiculos-activos' | 'vehiculos' | 'reportes' | 'inspecciones';
 
+const MOCK_REPORTES_DATA = [
+  { name: 'Ventas', res: 12, costo: 120000, km: 800, horas: 45 },
+  { name: 'Soporte', res: 8, costo: 85000, km: 560, horas: 30 },
+  { name: 'Logística', res: 6, costo: 75000, km: 500, horas: 25 },
+  { name: 'Gerencia', res: 3, costo: 40000, km: 260, horas: 15 },
+  { name: 'RRHH', res: 2, costo: 25000, km: 160, horas: 10 },
+];
 // ─── Formulario vacío de vehículo ────────────────────────────────────────────
 const EMPTY_VEHICLE_FORM = {
   placa: '',
@@ -582,6 +589,20 @@ function Dashboard() {
     return pA - pB;
   });
 
+  const exportToCSV = () => {
+    const headers = ['Departamento', 'Reservas', 'Km Totales', 'Horas Uso', 'Costo Total ($)'];
+    const rows = MOCK_REPORTES_DATA.map(d => `${d.name};${d.res};${d.km};${d.horas};${d.costo}`);
+    const csvContent = "\uFEFF" + headers.join(';') + "\n" + rows.join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "reporte_gastos.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // ──────────────────── RENDER ────────────────────
   return (
     <div className="dashboard-layout">
@@ -609,7 +630,7 @@ function Dashboard() {
         <div className="sidebar-profile">
           <div className="sidebar-photo-upload" onClick={() => fileInputRef.current?.click()} title="Cambiar foto">
             <img src={profileImg} alt="Perfil" className="sidebar-profile-img" />
-            <div className="sidebar-photo-overlay">📷</div>
+            <div className="sidebar-photo-overlay"></div>
           </div>
           <input
             ref={fileInputRef}
@@ -704,83 +725,210 @@ function Dashboard() {
             <h2 style={{ textAlign: 'left', fontSize: '1.6rem', fontWeight: '700', color: 'var(--text-h)', margin: 0 }}>
               Resumen General
             </h2>
-            <div className="dash-stats-grid">
+            <div style={{ display: 'flex', width: '100%', gap: '24px', flexWrap: 'wrap', alignItems: 'stretch' }}>
 
-              {/* 1. Usuarios */}
-              <div className="dash-stat-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                <span className="dash-stat-label" style={{ marginBottom: '1rem' }}>Usuarios Registrados</span>
-                <div style={{ display: 'flex', justifyContent: 'space-around', width: '100%' }}>
-                  <div style={{ textAlign: 'center' }}>
-                    <span className="stat-color-blue" style={{ display: 'block', fontSize: '2.5rem', fontWeight: 'bold', lineHeight: 1 }}>{users.filter(u => u.activo).length}</span>
-                    <span className="stat-color-blue" style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Activos</span>
+              {/* PANEL IZQUIERDO: Estado de Reservas */}
+              <div style={{ flex: 2, minWidth: '500px', display: 'flex', flexDirection: 'column' }}>
+                <div className="dash-stat-card dash-stat-full" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', padding: '1.4rem', position: 'relative', overflow: 'hidden', height: '100%' }}>
+                  <div style={{ position: 'absolute', right: '-10px', bottom: '-40px', fontSize: '18rem', opacity: 0.04, pointerEvents: 'none', zIndex: 0 }}>
+                    🚗
                   </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <span className="stat-color-gray" style={{ display: 'block', fontSize: '2.5rem', fontWeight: 'bold', lineHeight: 1 }}>{users.filter(u => !u.activo).length}</span>
-                    <span className="stat-color-gray" style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>No Activos</span>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '1.5rem', zIndex: 1, position: 'relative' }}>
+                    <span className="dash-stat-label" style={{ margin: 0, fontSize: '1.2rem', color: '#000000ff' }}>Estado de Reservas</span>
+                    <button className="btn-sm" onClick={() => setActiveTab('reservaciones')}>Ir a Reservaciones ➔</button>
                   </div>
-                </div>
-              </div>
 
-              {/* 3. Vehículos Disponibles / En Curso */}
-              <div className="dash-stat-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                <span className="dash-stat-label" style={{ marginBottom: '1rem' }}>Estado de Vehículos</span>
-                <div style={{ display: 'flex', justifyContent: 'space-around', width: '100%' }}>
-                  <div style={{ textAlign: 'center' }}>
-                    <span className="stat-color-green" style={{ display: 'block', fontSize: '2.5rem', fontWeight: 'bold', lineHeight: 1 }}>{vehicles.filter(v => v.estado === 'disponible').length}</span>
-                    <span className="stat-color-green" style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Disponibles</span>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <span className="stat-color-orange" style={{ display: 'block', fontSize: '2.5rem', fontWeight: 'bold', lineHeight: 1 }}>{vehicles.filter(v => v.estado === 'reservado').length}</span>
-                    <span className="stat-color-orange" style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>En Curso</span>
-                  </div>
-                </div>
-              </div>
+                  {(() => {
+                    const resCounts = {
+                      pendiente: reservations.filter(r => r.estado === 'pendiente').length,
+                      aprobada: reservations.filter(r => r.estado === 'aprobada').length,
+                      en_curso: reservations.filter(r => r.estado === 'en_curso').length,
+                      completada: reservations.filter(r => r.estado === 'completada').length,
+                      otras: reservations.filter(r => ['cancelada', 'rechazada'].includes(r.estado)).length,
+                    };
+                    const colors: Record<string, string> = { pendiente: '#f59e0b', aprobada: '#22c55e', en_curso: '#3b82f6', completada: '#8b5cf6', otras: '#ef4444' };
 
-              {/* 3. Mantenimiento */}
-              <div className="dash-stat-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                <span className="dash-stat-label">En Mantenimiento</span>
-                <span className="stat-color-red dash-stat-value" style={{ fontSize: '3rem', margin: '0.5rem 0' }}>{vehicles.filter(v => v.estado === 'mantenimiento').length}</span>
-                <span className="dash-stat-sub" style={{ fontWeight: 'bold' }}>Vehículos no disponibles</span>
-              </div>
+                    const data = [
+                      { name: 'Pendientes', value: resCounts.pendiente, color: colors.pendiente },
+                      { name: 'Aprobadas', value: resCounts.aprobada, color: colors.aprobada },
+                      { name: 'En Curso', value: resCounts.en_curso, color: colors.en_curso },
+                      { name: 'Completadas', value: resCounts.completada, color: colors.completada },
+                      { name: 'Canceladas/Rech.', value: resCounts.otras, color: colors.otras },
+                    ].filter(item => item.value > 0);
 
-              {/* 4. Reservas Pie Chart (Full Width) */}
-              <div className="dash-stat-card dash-stat-full" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'center', padding: '1.5rem' }}>
-                <span className="dash-stat-label" style={{ marginBottom: '1.5rem', fontSize: '1.2rem' }}>Estado de Reservas</span>
-                {(() => {
-                  const resCounts = {
-                    pendiente: reservations.filter(r => r.estado === 'pendiente').length,
-                    aprobada: reservations.filter(r => r.estado === 'aprobada').length,
-                    en_curso: reservations.filter(r => r.estado === 'en_curso').length,
-                    completada: reservations.filter(r => r.estado === 'completada').length,
-                    otras: reservations.filter(r => ['cancelada', 'rechazada'].includes(r.estado)).length,
-                  };
-                  const total = reservations.length || 1;
-                  const colors = { pendiente: '#f59e0b', aprobada: '#22c55e', en_curso: '#3b82f6', completada: '#8b5cf6', otras: '#ef4444' };
+                    const today = new Date().toISOString().split('T')[0];
+                    const salidasHoy = reservations.filter(r => r.fechaInicio && r.fechaInicio.startsWith(today)).length;
+                    const retornosHoy = reservations.filter(r => r.fechaFin && r.fechaFin.startsWith(today)).length;
 
-                  let currentPercent = 0;
-                  const segments = [];
-                  if (resCounts.pendiente > 0) { const p = (resCounts.pendiente / total) * 100; segments.push(`${colors.pendiente} ${currentPercent}% ${currentPercent + p}%`); currentPercent += p; }
-                  if (resCounts.aprobada > 0) { const p = (resCounts.aprobada / total) * 100; segments.push(`${colors.aprobada} ${currentPercent}% ${currentPercent + p}%`); currentPercent += p; }
-                  if (resCounts.en_curso > 0) { const p = (resCounts.en_curso / total) * 100; segments.push(`${colors.en_curso} ${currentPercent}% ${currentPercent + p}%`); currentPercent += p; }
-                  if (resCounts.completada > 0) { const p = (resCounts.completada / total) * 100; segments.push(`${colors.completada} ${currentPercent}% ${currentPercent + p}%`); currentPercent += p; }
-                  if (resCounts.otras > 0) { const p = (resCounts.otras / total) * 100; segments.push(`${colors.otras} ${currentPercent}% ${currentPercent + p}%`); currentPercent += p; }
+                    const recentReservations = [...reservations]
+                      .sort((a, b) => new Date(b.createdAt || b.fechaInicio).getTime() - new Date(a.createdAt || a.fechaInicio).getTime())
+                      .slice(0, 3);
 
-                  const conicGradient = segments.length > 0 ? `conic-gradient(${segments.join(', ')})` : '#555';
+                    return (
+                      <div style={{ display: 'flex', width: '100%', alignItems: 'stretch', justifyContent: 'space-between', flexWrap: 'wrap', gap: '2rem', zIndex: 1, position: 'relative' }}>
 
-                  return (
-                    <div style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'center', gap: '3rem', flexWrap: 'wrap' }}>
-                      <div style={{ width: '150px', height: '150px', borderRadius: '50%', background: reservations.length ? conicGradient : '#555', flexShrink: 0, boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}></div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '1rem', fontWeight: 'bold' }}>
-                        {resCounts.pendiente > 0 && <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '16px', height: '16px', borderRadius: '4px', backgroundColor: colors.pendiente }}></div> Pendientes ({resCounts.pendiente})</div>}
-                        {resCounts.aprobada > 0 && <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '16px', height: '16px', borderRadius: '4px', backgroundColor: colors.aprobada }}></div> Aprobadas ({resCounts.aprobada})</div>}
-                        {resCounts.en_curso > 0 && <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '16px', height: '16px', borderRadius: '4px', backgroundColor: colors.en_curso }}></div> En Curso ({resCounts.en_curso})</div>}
-                        {resCounts.completada > 0 && <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '16px', height: '16px', borderRadius: '4px', backgroundColor: colors.completada }}></div> Completadas ({resCounts.completada})</div>}
-                        {resCounts.otras > 0 && <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '16px', height: '16px', borderRadius: '4px', backgroundColor: colors.otras }}></div> Canceladas / Rechazadas ({resCounts.otras})</div>}
-                        {reservations.length === 0 && <span className="stat-color-gray">Sin reservas registradas</span>}
+                        <div style={{ display: 'flex', flex: 2, alignItems: 'center', justifyContent: 'space-around', flexWrap: 'wrap', gap: '2rem', minWidth: '300px' }}>
+                          {/* Gráfico Donut de Recharts */}
+                          <div style={{ width: '220px', height: '220px' }}>
+                            {reservations.length > 0 ? (
+                              <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                  <Pie
+                                    data={data}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={55}
+                                    outerRadius={80}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                  >
+                                    {data.map((entry, index) => (
+                                      <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
+                                    ))}
+                                  </Pie>
+                                  <Tooltip
+                                    content={({ active, payload }) => {
+                                      if (active && payload && payload.length) {
+                                        return (
+                                          <div style={{ backgroundColor: '#1f2937', padding: '8px 12px', borderRadius: '8px', color: '#fff', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                                            <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>{payload[0].name}</div>
+                                            <div>{payload[0].value}</div>
+                                          </div>
+                                        );
+                                      }
+                                      return null;
+                                    }}
+                                  />
+                                </PieChart>
+                              </ResponsiveContainer>
+                            ) : (
+                              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <span className="stat-color-gray">Sin reservas registradas</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Leyenda Mejorada y Stats Rápidos */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', flex: 1, minWidth: '250px' }}>
+
+                            {/* Indicadores Clave */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+                              <div style={{ background: '#fef3c7', padding: '10px 16px', borderRadius: '12px', borderLeft: `4px solid ${colors.pendiente}`, width: '200px', textAlign: 'center' }}>
+                                <div style={{ fontSize: '0.85rem', color: '#92400e', fontWeight: 'bold' }}>Pendientes</div>
+                                <div style={{ fontSize: '1.6rem', color: '#b45309', fontWeight: '800', lineHeight: 1.2, marginTop: '4px' }}>{resCounts.pendiente}</div>
+                              </div>
+                              <div style={{ background: '#e0f2fe', padding: '10px 16px', borderRadius: '12px', borderLeft: `4px solid ${colors.en_curso}`, width: '200px', textAlign: 'center' }}>
+                                <div style={{ fontSize: '0.85rem', color: '#075985', fontWeight: 'bold' }}>Salidas Hoy</div>
+                                <div style={{ fontSize: '1.6rem', color: '#0ea5e9', fontWeight: '800', lineHeight: 1.2, marginTop: '4px' }}>{salidasHoy}</div>
+                              </div>
+                              <div style={{ background: '#dcfce7', padding: '10px 16px', borderRadius: '12px', borderLeft: `4px solid ${colors.aprobada}`, width: '200px', textAlign: 'center' }}>
+                                <div style={{ fontSize: '0.85rem', color: '#166534', fontWeight: 'bold' }}>Retornos Hoy</div>
+                                <div style={{ fontSize: '1.6rem', color: '#16a34a', fontWeight: '800', lineHeight: 1.2, marginTop: '4px' }}>{retornosHoy}</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Leyenda tipo "Pills" (Todos los estados, abajo) */}
+                          <div style={{ width: '100%', display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center', marginTop: '1rem' }}>
+                            {[
+                              { name: 'Pendientes', value: resCounts.pendiente, color: colors.pendiente },
+                              { name: 'Aprobadas', value: resCounts.aprobada, color: colors.aprobada },
+                              { name: 'En Curso', value: resCounts.en_curso, color: colors.en_curso },
+                              { name: 'Completadas', value: resCounts.completada, color: colors.completada },
+                              { name: 'Canceladas/Rech.', value: resCounts.otras, color: colors.otras },
+                            ].map((item, i) => (
+                              <div key={i} style={{
+                                display: 'flex', alignItems: 'center', gap: '6px',
+                                background: 'white', padding: '6px 14px', borderRadius: '20px',
+                                boxShadow: '0 2px 5px rgba(0,0,0,0.06)', border: '1px solid #f3f4f6',
+                                fontSize: '0.85rem', fontWeight: '600', color: '#111827'
+                              }}>
+                                <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: item.color }}></div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  {item.name}: <div style={{ color: item.color, marginLeft: '2px' }}>{item.value}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Actividad Reciente */}
+                        <div style={{ flex: 1, minWidth: '250px', display: 'flex', flexDirection: 'column', gap: '1rem', borderLeft: '1px solid rgba(0,0,0,0.1)', paddingLeft: '1.5rem' }}>
+                          <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-h)', fontWeight: '700' }}>Última Actividad</h4>
+                          {recentReservations.length > 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                              {recentReservations.map((r, idx) => {
+                                const stColor = ['cancelada', 'rechazada'].includes(r.estado) ? colors.otras : (colors[r.estado] || '#6b7280');
+                                return (
+                                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', padding: '12px', background: 'white', borderRadius: '10px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', color: '#111827' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <div style={{ fontSize: '0.9rem', fontWeight: '700', color: '#111827' }}>{getVehicleName(r.vehiculo)}</div>
+                                      <div style={{ fontSize: '0.75rem', color: 'white', background: stColor, padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
+                                        {r.estado}
+                                      </div>
+                                    </div>
+                                    <div style={{ fontSize: '0.85rem', color: '#4b5563', marginTop: '6px', fontWeight: '500' }}>
+                                      {typeof r.usuario === 'object' && r.usuario !== null ? `${(r.usuario as IUser).nombre} ${(r.usuario as IUser).apellido}` : `Usuario ID: ${r.usuario}`}
+                                    </div>
+                                    <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px' }}>
+                                      Fecha inicio: {new Date(r.fechaInicio).toLocaleDateString()}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <span className="stat-color-gray" style={{ fontSize: '0.9rem' }}>No hay actividad reciente.</span>
+                          )}
+                        </div>
+
                       </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* PANEL DERECHO: 3 Paneles de Resumen */}
+              <div style={{ flex: 1, minWidth: '300px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+                {/* 1. Usuarios */}
+                <div className="dash-stat-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', flex: 1 }}>
+                  <span className="dash-stat-label" style={{ marginBottom: '1rem', color: '#000000ff' }}>Usuarios Activos</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-around', width: '100%' }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div className="stat-color-blue" style={{ fontSize: '2.5rem', fontWeight: 'bold', lineHeight: 1 }}>{users.filter(u => u.activo).length}</div>
+                      <div className="stat-color-blue" style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Activos</div>
                     </div>
-                  );
-                })()}
+                    <div style={{ textAlign: 'center' }}>
+                      <div className="stat-color-gray" style={{ fontSize: '2.5rem', fontWeight: 'bold', lineHeight: 1 }}>{users.filter(u => !u.activo).length}</div>
+                      <div className="stat-color-gray" style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>No Activos</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Vehículos Disponibles / En Curso */}
+                <div className="dash-stat-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', flex: 1 }}>
+                  <span className="dash-stat-label" style={{ marginBottom: '1rem', color: '#000000ff' }}>Estado de Vehículos</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-around', width: '100%' }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div className="stat-color-green" style={{ fontSize: '2.5rem', fontWeight: 'bold', lineHeight: 1 }}>{vehicles.filter(v => v.estado === 'disponible').length}</div>
+                      <div className="stat-color-green" style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Disponibles</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div className="stat-color-orange" style={{ fontSize: '2.5rem', fontWeight: 'bold', lineHeight: 1 }}>{vehicles.filter(v => v.estado === 'reservado').length}</div>
+                      <div className="stat-color-orange" style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>En Curso</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Mantenimiento */}
+                <div className="dash-stat-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', flex: 1 }}>
+                  <span className="dash-stat-label" style={{ color: '#000000ff' }}>En Mantenimiento</span>
+                  <div className="stat-color-red" style={{ fontSize: '3rem', margin: '0.5rem 0', fontWeight: 'bold' }}>{vehicles.filter(v => v.estado === 'mantenimiento').length}</div>
+                  <span className="dash-stat-sub" style={{ fontWeight: 'bold' }}>Vehículos no disponibles</span>
+                </div>
+
               </div>
 
             </div>
@@ -814,7 +962,7 @@ function Dashboard() {
                       <td>{u.telefono || 'N/A'}</td>
                       <td><span className="status-badge" style={{ backgroundColor: u.licenciaAlDia ? '#22c55e' : '#ef4444' }}>{u.licenciaAlDia ? 'Al Día' : 'No Al Día'}</span></td>
                       <td><span className="status-badge" style={{ backgroundColor: u.rol === 'admin' ? '#175fbd' : '#6b7280' }}>{u.rol}</span></td>
-                      <td><span className="status-badge" style={{ backgroundColor: u.id === user?.id ? '#22c55e' : '#ef4444' }}>{u.id === user?.id ? 'Sí' : 'No'}</span></td>
+                      <td><span className="status-badge" style={{ backgroundColor: u.activo ? '#22c55e' : '#ef4444' }}>{u.activo ? 'Sí' : 'No'}</span></td>
                       <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
                         <div style={{ display: 'inline-flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center' }}>
                           <button className="btn btn-sm" onClick={() => setViewUser(u)}>Ver</button>
@@ -998,10 +1146,12 @@ function Dashboard() {
                     <div className="vehicle-card-body">
                       <h2 className="vehicle-card-title">{v.marca} {v.modelo}</h2>
                       <div className="vehicle-card-info">
-                        <span><strong>Patente:</strong> {v.placa}</span>
-                        <span><strong>Año:</strong> {v.anio}</span>
-                        <span><strong>Color:</strong> {v.color}</span>
-                        <span><strong>Km:</strong> {v.kilometraje.toLocaleString('es-CL')}</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+                          <span><strong>Patente:</strong> {v.placa}</span>
+                          <span><strong>Año:</strong> {v.anio}</span>
+                          <span><strong>Color:</strong> {v.color}</span>
+                          <span><strong>Km:</strong> {v.kilometraje.toLocaleString('es-CL')}</span>
+                        </div>
                         {v.nivelBencina !== undefined && (
                           <div style={{ marginTop: '0.5rem', marginBottom: '0.2rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '4px' }}>
@@ -1013,10 +1163,10 @@ function Dashboard() {
                           </div>
                         )}
                         {v.ultimoMantenimiento && (
-                          <span style={{ fontSize: '0.85rem', marginTop: '4px', display: 'block' }}>
-                            <strong>Último Mantenimiento:</strong><br />
-                            {new Date(v.ultimoMantenimiento).toLocaleString('es-CL')}
-                          </span>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginTop: '4px' }}>
+                            <strong>Último Mantenimiento:</strong>
+                            <span>{new Date(v.ultimoMantenimiento).toLocaleString('es-CL')}</span>
+                          </div>
                         )}
                       </div>
                       <span className="status-badge" style={{ backgroundColor: ESTADO_VEHICLE_COLORS[v.estado] }}>
@@ -1040,7 +1190,7 @@ function Dashboard() {
 
         {/* ══════════ TAB: INSPECCIONES ALEATORIAS ══════════ */}
         {activeTab === 'inspecciones' && (
-          <RandomInspectionsPanel token={token} />
+          <RandomInspectionsPanel token={token} users={users} vehicles={vehicles} />
         )}
 
         {/* ══════════ TAB: REPORTES DE GASTOS (MOCK) ══════════ */}
@@ -1085,33 +1235,31 @@ function Dashboard() {
                 <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.4rem' }}>Hasta</label>
                 <input type="date" className="reserv-input" defaultValue="2026-08-31" style={{ width: '100%', boxSizing: 'border-box', height: '45px' }} />
               </div>
-              <button className="btn" style={{ padding: '0 1.2rem', height: '45px' }}>Generar Reporte</button>
+              <button className="btn" style={{ padding: '0 1.2rem', height: '45px', display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={exportToCSV}>
+                <span></span> Exportar Excel
+              </button>
             </div>
 
             {/* Gráfico y Tabla */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem' }}>
               <div className="filter-panel" style={{ borderRadius: '12px' }}>
-                <h3 style={{ marginTop: 0, color: '#fff', backgroundColor: '#175fbd', padding: '12px 16px', borderRadius: '8px', marginBottom: '1rem' }}>Costo Estimado por Departamento ($)</h3>
+                <h3 style={{ margin: 0, color: '#fff', backgroundColor: '#175fbd', padding: '12px 16px', borderRadius: '12px 12px 0 0', marginBottom: '1rem' }}>Costo Estimado por Departamento ($)</h3>
                 <div style={{ width: '100%', height: '300px' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={[
-                      { name: 'Ventas', costo: 120000, km: 800, horas: 45 },
-                      { name: 'Soporte', costo: 85000, km: 560, horas: 30 },
-                      { name: 'Gerencia', costo: 40000, km: 260, horas: 15 },
-                      { name: 'RRHH', costo: 25000, km: 160, horas: 10 },
-                      { name: 'Logística', costo: 75000, km: 500, horas: 25 },
-                    ]}>
+                    <BarChart data={MOCK_REPORTES_DATA} margin={{ top: 20 }}>
                       <XAxis dataKey="name" tick={{ fill: 'var(--text-p)' }} stroke="var(--border)" />
-                      <YAxis tick={{ fill: 'var(--text-p)' }} stroke="var(--border)" />
-                      <Tooltip contentStyle={{ backgroundColor: 'var(--bg-input)', borderColor: 'var(--border)' }} itemStyle={{ color: 'var(--text-p)', textAlign: 'center' }} labelStyle={{ color: 'var(--text-h)', textAlign: 'center' }} />
-                      <Bar dataKey="costo" fill="#3D9FD3" radius={[4, 4, 0, 0]} />
+                      <YAxis hide />
+                      <Tooltip contentStyle={{ backgroundColor: 'var(--bg-input)', borderColor: 'var(--border)' }} itemStyle={{ color: 'var(--text-p)', textAlign: 'center' }} labelStyle={{ color: 'var(--text-h)', textAlign: 'center' }} formatter={(val: number) => `$${val.toLocaleString('es-CL')}`} />
+                      <Bar dataKey="costo" fill="#3D9FD3" radius={[4, 4, 0, 0]}>
+                        <LabelList dataKey="costo" position="insideTop" fill="#fff" formatter={(val: number) => `$${val.toLocaleString('es-CL')}`} offset={15} style={{ fontWeight: 'bold', fontSize: '0.9rem' }} />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
               <div className="filter-panel" style={{ borderRadius: '12px', overflowX: 'auto' }}>
-                <h3 style={{ marginTop: 0, color: '#fff', backgroundColor: '#175fbd', padding: '12px 16px', borderRadius: '8px', marginBottom: '1rem' }}>Detalle por Departamento</h3>
+                <h3 style={{ margin: 0, color: '#fff', backgroundColor: '#175fbd', padding: '12px 16px', borderRadius: '12px 12px 0 0' }}>Detalle por Departamento</h3>
                 <table style={{ width: '100%', borderCollapse: 'collapse', color: 'var(--text-p)' }}>
                   <thead>
                     <tr style={{ borderBottom: '2px solid var(--border)' }}>
@@ -1123,13 +1271,7 @@ function Dashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {[
-                      { name: 'Ventas', res: 12, costo: 120000, km: 800, horas: 45 },
-                      { name: 'Soporte', res: 8, costo: 85000, km: 560, horas: 30 },
-                      { name: 'Logística', res: 6, costo: 75000, km: 500, horas: 25 },
-                      { name: 'Gerencia', res: 3, costo: 40000, km: 260, horas: 15 },
-                      { name: 'RRHH', res: 2, costo: 25000, km: 160, horas: 10 },
-                    ].map((d, i) => (
+                    {MOCK_REPORTES_DATA.map((d, i) => (
                       <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
                         <td style={{ padding: '0.5rem', fontWeight: 'bold', textAlign: 'left' }}>{d.name}</td>
                         <td style={{ padding: '0.5rem', textAlign: 'left' }}>{d.res}</td>
@@ -1476,8 +1618,8 @@ function Dashboard() {
                 </select>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <label style={{ fontWeight: '600' }}>Activo:</label>
-                <input type="checkbox" checked={editForm.activo} onChange={e => setEditForm(f => ({ ...f, activo: e.target.checked }))} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
+                <label style={{ fontWeight: '600', color: editForm.activo ? '#22c55e' : '#ef4444', minWidth: '70px' }}>{editForm.activo ? 'Activo' : 'Inactivo'}:</label>
+                <input type="checkbox" checked={editForm.activo} onChange={e => setEditForm(f => ({ ...f, activo: e.target.checked }))} style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: editForm.activo ? '#22c55e' : '#ef4444' }} />
               </div>
             </div>
             <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'center' }}>
