@@ -212,7 +212,7 @@ export default function FlotaScreen() {
                   <View style={styles.fotosWrapper}>
                     <Text style={styles.historyTitle}>Fotos del Vehículo:</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.fotosScroll}>
-                      {selectedVehicleDetails.fotosVehiculo.map((foto, index) => (
+                      {selectedVehicleDetails.fotosVehiculo.slice(0, -1).map((foto, index) => (
                         <Image key={index} source={{ uri: foto }} style={styles.galeriaFoto} />
                       ))}
                     </ScrollView>

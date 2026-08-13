@@ -41,6 +41,7 @@ export default function AdminDashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<'pendiente' | 'todas' | 'inspecciones'>('pendiente');
+  const [inspFiltro, setInspFiltro] = useState<'todas' | 'pendientes' | 'contestadas'>('todas');
   const [inspecciones, setInspecciones] = useState<IInspeccion[]>([]);
   const [selectedInspeccion, setSelectedInspeccion] = useState<IInspeccion | null>(null);
 
@@ -65,7 +66,7 @@ export default function AdminDashboardScreen() {
       if (!isRefresh) setLoading(true);
       const todas = await reservationService.getAllReservations();
       setReservas(todas);
-      const insp = await inspectionService.getTodayInspections();
+      const insp = await inspectionService.getAllInspections();
       setInspecciones(insp);
     } catch (err) {
       showAlert('Error', 'No se pudieron cargar las reservas.');
@@ -178,6 +179,13 @@ export default function AdminDashboardScreen() {
   );
 
   const listaFiltrada = filtro === 'pendiente' ? pendientes : reservas;
+  
+  const listaInspeccionesFiltrada = inspecciones.filter(i => {
+    if (inspFiltro === 'todas') return true;
+    if (inspFiltro === 'pendientes') return i.estado === 'pendiente';
+    if (inspFiltro === 'contestadas') return i.estado === 'respondida';
+    return true;
+  });
 
   const renderInspeccion = ({ item }: { item: IInspeccion }) => {
     const color = item.estado === 'pendiente' ? colors.warning : item.estado === 'respondida' ? colors.success : colors.danger;
@@ -464,22 +472,45 @@ export default function AdminDashboardScreen() {
         </TouchableOpacity>
       </View>
 
+      {filtro === 'inspecciones' && (
+        <View style={[styles.filtroRow, { marginTop: -5 }]}>
+          <TouchableOpacity
+            style={[styles.filtroBtn, inspFiltro === 'todas' && styles.filtroBtnActive]}
+            onPress={() => setInspFiltro('todas')}
+          >
+            <Text style={[styles.filtroBtnText, inspFiltro === 'todas' && styles.filtroBtnTextActive]}>Todas</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filtroBtn, inspFiltro === 'pendientes' && styles.filtroBtnActive]}
+            onPress={() => setInspFiltro('pendientes')}
+          >
+            <Text style={[styles.filtroBtnText, inspFiltro === 'pendientes' && styles.filtroBtnTextActive]}>Pendientes</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filtroBtn, inspFiltro === 'contestadas' && styles.filtroBtnActive]}
+            onPress={() => setInspFiltro('contestadas')}
+          >
+            <Text style={[styles.filtroBtnText, inspFiltro === 'contestadas' && styles.filtroBtnTextActive]}>Contestadas</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Cargando reservas...</Text>
         </View>
-      ) : (filtro === 'inspecciones' && inspecciones.length === 0) || (filtro !== 'inspecciones' && listaFiltrada.length === 0) ? (
+      ) : (filtro === 'inspecciones' && listaInspeccionesFiltrada.length === 0) || (filtro !== 'inspecciones' && listaFiltrada.length === 0) ? (
         <View style={styles.centered}>
           <Text style={styles.emptyIcon}>📋</Text>
           <Text style={styles.emptyText}>
-            {filtro === 'pendiente' ? 'No hay solicitudes pendientes' : filtro === 'inspecciones' ? 'No hay inspecciones hoy' : 'No hay reservas registradas'}
+            {filtro === 'pendiente' ? 'No hay solicitudes pendientes' : filtro === 'inspecciones' ? 'No hay inspecciones con ese filtro' : 'No hay reservas registradas'}
           </Text>
         </View>
       ) : (
         <Animated.FlatList
-          style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
-          data={filtro === 'inspecciones' ? inspecciones as any : listaFiltrada as any}
+          style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+          data={filtro === 'inspecciones' ? listaInspeccionesFiltrada as any : listaFiltrada as any}
           keyExtractor={(item: any) => item._id}
           renderItem={filtro === 'inspecciones' ? renderInspeccion as any : renderReserva}
           contentContainerStyle={styles.list}
@@ -499,7 +530,7 @@ export default function AdminDashboardScreen() {
       {/* Modal Detalles de Inspeccion */}
       <Modal visible={!!selectedInspeccion} transparent animationType="slide" onRequestClose={() => setSelectedInspeccion(null)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { maxHeight: '80%', width: '90%' }]}>
+          <View style={[styles.modalCard, { maxHeight: '80%', width: '100%' }]}>
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.modalHeader}>
                 <Ionicons name="clipboard" size={28} color={colors.primary} />
@@ -529,7 +560,7 @@ export default function AdminDashboardScreen() {
                 </View>
               )}
             </ScrollView>
-            <TouchableOpacity style={[styles.modalBtn, styles.cancelModalBtn, { marginTop: 20, width: '100%' }]} onPress={() => setSelectedInspeccion(null)}>
+            <TouchableOpacity style={[styles.cancelModalBtn, { marginTop: 20, width: '100%', paddingVertical: 15, borderRadius: 12, alignItems: 'center' }]} onPress={() => setSelectedInspeccion(null)}>
               <Text style={styles.cancelModalBtnText}>Cerrar</Text>
             </TouchableOpacity>
           </View>

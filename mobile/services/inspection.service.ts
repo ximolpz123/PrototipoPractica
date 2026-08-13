@@ -19,6 +19,11 @@ export const inspectionService = {
     return response.data;
   },
 
+  getAllInspections: async (): Promise<IInspeccion[]> => {
+    const response = await api.get('/inspections?all=true');
+    return response.data;
+  },
+
   getPendingInspections: async (): Promise<IInspeccion[]> => {
     const response = await api.get('/inspections/pending');
     return response.data;

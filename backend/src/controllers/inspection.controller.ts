@@ -4,10 +4,14 @@ import InspeccionAleatoria from '../models/InspeccionAleatoria.js';
 
 export const getInspections = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const filter: any = { fechaActivacion: { $gte: today } };
+    const filter: any = {};
+    
+    // Si no solicita todas explícitamente, filtramos por hoy por defecto para retrocompatibilidad
+    if (req.query.all !== 'true') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      filter.fechaActivacion = { $gte: today };
+    }
     
     // Si no es admin, solo ve sus propias inspecciones
     if (req.userRol !== 'admin') {

@@ -273,7 +273,7 @@ export default function PerfilScreen({ route }: any) {
             <View>
               <Text style={styles.licenseStatus}>✅ VIGENTE</Text>
               <Text style={styles.licenseDate}>
-                Vence el: {fechaVencimiento ? new Date(fechaVencimiento).toLocaleDateString() : 'N/A'}
+                Vence el: {fechaVencimiento ? fechaVencimiento.split('T')[0].split('-').reverse().join('/') : 'N/A'}
               </Text>
             </View>
           ) : (
