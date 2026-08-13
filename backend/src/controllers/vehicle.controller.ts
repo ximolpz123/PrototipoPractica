@@ -24,7 +24,10 @@ export const getVehicles = async (_req: Request, res: Response): Promise<void> =
       fechaInicio: { $lte: hoyFin },
       fechaFin: { $gte: hoyInicio },
       estado: { $in: ['aprobada', 'en_curso', 'completada'] }
-    }).populate('usuario', 'nombre apellido departamento').lean();
+    })
+      .populate('usuario', 'nombre apellido departamento')
+      .populate('tramos.conductor', 'nombre apellido departamento')
+      .lean();
 
     const vehiclesWithInfo = vehicles.map(v => {
       let extra = {};
@@ -157,11 +160,11 @@ Extrae la siguiente información y devuélvela ÚNICAMENTE como un objeto JSON v
       res.json(data);
     } catch (e) {
       console.error("Gemini returned invalid JSON:", text);
-      res.status(500).json({ message: 'La IA no devolvió un formato válido', raw: text });
+      res.status(400).json({ message: 'No se pudieron extraer datos de la imagen. Asegúrate de que la foto sea clara y los elementos sean visibles.', raw: text });
     }
   } catch (error: any) {
     console.error('Error en iaCreateVehicle:', error);
-    res.status(500).json({ message: 'Error procesando las imágenes con IA', detail: error.message, stack: error.stack });
+    res.status(400).json({ message: 'Error procesando las imágenes con IA. Es posible que las fotos no sean claras o sean demasiado oscuras.', detail: error.message });
   }
 };
 

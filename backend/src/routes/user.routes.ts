@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getUsers, createUser, updateUser, deleteUser, updatePerfil, updateLicencia, getUserFlags, assignFlag, updatePushToken } from '../controllers/user.controller.js';
+import { getUsers, createUser, updateUser, deleteUser, updatePerfil, updateLicencia, invalidateLicencia, getUserFlags, assignFlag, updatePushToken } from '../controllers/user.controller.js';
 import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
 import { upload } from '../config/cloudinary.js';
 
@@ -15,6 +15,7 @@ router.get('/', getUsers);
 router.get('/:id/flags', getUserFlags);
 router.patch('/:id/perfil', upload.single('avatar'), updatePerfil);
 router.patch('/:id/licencia', upload.single('imagen'), updateLicencia);
+router.delete('/:id/licencia', invalidateLicencia);
 router.patch('/:id/push-token', updatePushToken);
 
 // Rutas administrativas

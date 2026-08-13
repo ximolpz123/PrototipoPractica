@@ -217,6 +217,36 @@ No devuelvas ningún otro texto, solo 'INVALIDA' o la fecha (YYYY-MM-DD).`;
   }
 };
 
+// DELETE /api/users/:id/licencia
+export const invalidateLicencia = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (req.params.id !== (req as any).userId && (req as any).userRol !== 'admin') {
+      res.status(403).json({ message: 'No tienes permiso para actualizar esta licencia' });
+      return;
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      {
+        licenciaEstado: 'invalida',
+        licenciaAlDia: false,
+        licenciaVencimiento: null,
+        licenciaFotoUrl: null
+      },
+      { new: true }
+    ).select('-password');
+
+    if (!user) {
+      res.status(404).json({ message: 'Usuario no encontrado' });
+      return;
+    }
+
+    res.json({ message: 'Licencia invalidada correctamente', user });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al invalidar licencia', error });
+  }
+};
+
 // DELETE /api/users/:id
 export const deleteUser = async (req: Request, res: Response): Promise<void> => {
   try {

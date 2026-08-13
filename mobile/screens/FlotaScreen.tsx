@@ -422,12 +422,12 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     marginTop: 15,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: colors.border,
   },
   historyTitle: {
     fontSize: 13,
     fontWeight: 'bold',
-    color: '#555',
+    color: colors.text,
     marginBottom: 5,
   },
   historyItem: {
@@ -439,7 +439,7 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     marginTop: 15,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: colors.border,
   },
   fotosScroll: {
     marginTop: 8,
@@ -450,7 +450,7 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     height: 60,
     borderRadius: 8,
     marginRight: 8,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: colors.border,
   },
   historyTime: {
     fontSize: 12,
@@ -460,12 +460,12 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
   },
   historyUser: {
     fontSize: 12,
-    color: '#333',
+    color: colors.text,
     flex: 1,
   },
   historyState: {
     fontSize: 10,
-    color: '#888',
+    color: colors.textMuted,
     textTransform: 'capitalize',
   },
   modalOverlay: {

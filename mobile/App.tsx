@@ -143,6 +143,27 @@ function AdminTabNavigator({ route }: any) {
             resizeMode="contain" 
           />
         ),
+        headerRight: () => (
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 15 }}>
+            <TouchableOpacity 
+              onPress={() => {
+                if (themePreference === 'light') setThemePreference('dark');
+                else if (themePreference === 'dark') setThemePreference('system');
+                else setThemePreference('light');
+              }}
+              style={{ marginRight: 20 }}
+            >
+              <Ionicons 
+                name={themePreference === 'light' ? 'sunny' : themePreference === 'dark' ? 'moon' : 'phone-portrait-outline'} 
+                size={24} 
+                color={colors.primary} 
+              />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setLogoutModalVisible(true)}>
+              <Ionicons name="log-out-outline" size={24} color={COLORS.danger} />
+            </TouchableOpacity>
+          </View>
+        ),
       })}
     >
       <Tab.Screen
@@ -151,27 +172,6 @@ function AdminTabNavigator({ route }: any) {
         options={{
           title: 'Panel Admin',
           tabBarLabel: 'Solicitudes',
-          headerRight: () => (
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 15 }}>
-              <TouchableOpacity 
-                onPress={() => {
-                  if (themePreference === 'light') setThemePreference('dark');
-                  else if (themePreference === 'dark') setThemePreference('system');
-                  else setThemePreference('light');
-                }}
-                style={{ marginRight: 20 }}
-              >
-                <Ionicons 
-                  name={themePreference === 'light' ? 'sunny' : themePreference === 'dark' ? 'moon' : 'phone-portrait-outline'} 
-                  size={24} 
-                  color={colors.primary} 
-                />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setLogoutModalVisible(true)}>
-                <Ionicons name="log-out-outline" size={24} color={COLORS.danger} />
-              </TouchableOpacity>
-            </View>
-          ),
         }}
       />
       <Tab.Screen

@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl, ScrollView, Modal, TextInput, Animated
+  ActivityIndicator, RefreshControl, ScrollView, Modal, TextInput, Animated, Image
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -42,6 +42,7 @@ export default function AdminDashboardScreen() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<'pendiente' | 'todas' | 'inspecciones'>('pendiente');
   const [inspecciones, setInspecciones] = useState<IInspeccion[]>([]);
+  const [selectedInspeccion, setSelectedInspeccion] = useState<IInspeccion | null>(null);
 
   // Animaciones
   const [fadeAnim] = useState(new Animated.Value(0));
@@ -183,7 +184,7 @@ export default function AdminDashboardScreen() {
     const vehiculo = item.reserva?.vehiculo ? `${item.reserva.vehiculo.marca} ${item.reserva.vehiculo.modelo}` : 'Vehículo';
     
     return (
-      <View style={styles.card}>
+      <TouchableOpacity style={styles.card} onPress={() => setSelectedInspeccion(item)}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardConductor}>
             {item.usuario ? `${item.usuario.nombre} ${item.usuario.apellido}` : 'Desconocido'}
@@ -201,7 +202,7 @@ export default function AdminDashboardScreen() {
           {item.respuestaTexto ? <Text style={styles.infoLine}>🗣️ {item.respuestaTexto}</Text> : null}
           {item.respuestaFotosUrls && item.respuestaFotosUrls.length > 0 ? <Text style={[styles.infoLine, {color: colors.primary}]}>🖼️ Contiene {item.respuestaFotosUrls.length} foto(s) adjunta(s)</Text> : null}
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -494,6 +495,47 @@ export default function AdminDashboardScreen() {
       >
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
+
+      {/* Modal Detalles de Inspeccion */}
+      <Modal visible={!!selectedInspeccion} transparent animationType="slide" onRequestClose={() => setSelectedInspeccion(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: '80%', width: '90%' }]}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.modalHeader}>
+                <Ionicons name="clipboard" size={28} color={colors.primary} />
+                <Text style={styles.modalTitle}>Detalles de Inspección</Text>
+              </View>
+              {selectedInspeccion && (
+                <View>
+                  <Text style={[styles.infoLine, { marginBottom: 10 }]}>Conductor: {selectedInspeccion.usuario ? `${selectedInspeccion.usuario.nombre} ${selectedInspeccion.usuario.apellido}` : 'Desconocido'}</Text>
+                  <Text style={[styles.infoLine, { marginBottom: 10 }]}>Vehículo: {selectedInspeccion.reserva?.vehiculo ? `${selectedInspeccion.reserva.vehiculo.marca} ${selectedInspeccion.reserva.vehiculo.modelo}` : 'Vehículo'}</Text>
+                  <Text style={[styles.infoLine, { marginBottom: 10 }]}>Estado: {selectedInspeccion.estado.toUpperCase()}</Text>
+                  <Text style={[styles.infoLine, { marginBottom: 10 }]}>Descripción: {selectedInspeccion.descripcion}</Text>
+                  <Text style={[styles.infoLine, { marginBottom: 10 }]}>Respuesta: {selectedInspeccion.respuestaTexto || 'Ninguna'}</Text>
+                  
+                  {selectedInspeccion.respuestaFotosUrls && selectedInspeccion.respuestaFotosUrls.length > 0 && (
+                    <View style={{ marginTop: 15 }}>
+                      <Text style={[styles.infoLine, { marginBottom: 10, fontWeight: 'bold' }]}>Fotos Adjuntas:</Text>
+                      {selectedInspeccion.respuestaFotosUrls.map((foto, index) => (
+                        <Image 
+                          key={index}
+                          source={{ uri: foto }} 
+                          style={{ width: '100%', height: 250, borderRadius: 10, marginBottom: 10 }}
+                          resizeMode="cover"
+                        />
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
+            </ScrollView>
+            <TouchableOpacity style={[styles.modalBtn, styles.cancelModalBtn, { marginTop: 20, width: '100%' }]} onPress={() => setSelectedInspeccion(null)}>
+              <Text style={styles.cancelModalBtnText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }

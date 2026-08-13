@@ -129,9 +129,9 @@ export default function AddVehicleAIScreen({ navigation }: any) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
       <View style={styles.header}>
-        <Text style={styles.title}>Alta de Vehículo con IA 🤖</Text>
+        <Text style={styles.title}>Agregar un vehículo 🚙</Text>
         <Text style={styles.subtitle}>
-          Toma una foto de la patente (exterior) y otra del tablero (kilometraje). La Inteligencia Artificial hará el resto.
+          Toma las fotos del vehículo lo más claras posible. Ten en cuenta que la foto del tablero y de las patentes (frontal y trasera) serán analizadas con IA para rellenar los campos de forma automática.
         </Text>
       </View>
 
@@ -199,6 +199,7 @@ export default function AddVehicleAIScreen({ navigation }: any) {
           value={patente}
           onChangeText={setPatente}
           autoCapitalize="characters"
+          placeholderTextColor={colors.textMuted}
         />
 
         <View style={styles.row}>
@@ -209,6 +210,7 @@ export default function AddVehicleAIScreen({ navigation }: any) {
               placeholder="Ej: Toyota"
               value={marca}
               onChangeText={setMarca}
+              placeholderTextColor={colors.textMuted}
             />
           </View>
           <View style={{ flex: 1 }}>
@@ -218,6 +220,7 @@ export default function AddVehicleAIScreen({ navigation }: any) {
               placeholder="Ej: Hilux"
               value={modelo}
               onChangeText={setModelo}
+              placeholderTextColor={colors.textMuted}
             />
           </View>
         </View>
@@ -231,6 +234,7 @@ export default function AddVehicleAIScreen({ navigation }: any) {
               value={anio}
               onChangeText={setAnio}
               keyboardType="number-pad"
+              placeholderTextColor={colors.textMuted}
             />
           </View>
           <View style={{ flex: 1 }}>
@@ -240,6 +244,7 @@ export default function AddVehicleAIScreen({ navigation }: any) {
               placeholder="Ej: Blanco"
               value={color}
               onChangeText={setColor}
+              placeholderTextColor={colors.textMuted}
             />
           </View>
         </View>
@@ -251,6 +256,7 @@ export default function AddVehicleAIScreen({ navigation }: any) {
           value={kilometraje}
           onChangeText={setKilometraje}
           keyboardType="number-pad"
+          placeholderTextColor={colors.textMuted}
         />
 
         {aiDataLoaded && nivelBencina ? (

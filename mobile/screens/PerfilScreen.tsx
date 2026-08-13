@@ -173,6 +173,21 @@ export default function PerfilScreen({ route }: any) {
     }
   };
 
+  const handleInvalidateLicencia = async () => {
+    try {
+      const userId = user.id || user._id;
+      const res = await api.delete(`/users/${userId}/licencia`);
+      setLicenciaEstado(res.data.user.licenciaEstado);
+      setFechaVencimiento(res.data.user.licenciaVencimiento);
+      setLicenciaFotoUrl(res.data.user.licenciaFotoUrl);
+      
+      await authService.updateLocalUser(res.data.user);
+      showAlert('Licencia Invalidada', 'Se ha invalidado tu licencia para pruebas.');
+    } catch (error: any) {
+      showAlert('Error', error.response?.data?.message || 'Error al invalidar licencia');
+    }
+  };
+
   return (
     <View style={styles.mainWrapper}>
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
@@ -240,11 +255,18 @@ export default function PerfilScreen({ route }: any) {
 
         {/* LICENSE STATUS SECTION */}
         <View style={[styles.licenseCard, isLicenciaValida ? styles.licenseValid : styles.licenseInvalid]}>
-          <View style={styles.licenseHeader}>
-            <Ionicons name="card" size={24} color={isLicenciaValida ? colors.success : colors.danger} />
-            <Text style={[styles.licenseTitle, { color: isLicenciaValida ? colors.success : colors.danger }]}>
-              Estado de Licencia
-            </Text>
+          <View style={[styles.licenseHeader, { justifyContent: 'space-between' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="card" size={24} color={isLicenciaValida ? colors.success : colors.danger} />
+              <Text style={[styles.licenseTitle, { color: isLicenciaValida ? colors.success : colors.danger, marginLeft: 8 }]}>
+                Estado de Licencia
+              </Text>
+            </View>
+            {isLicenciaValida && (
+              <TouchableOpacity onPress={handleInvalidateLicencia} style={{ padding: 4 }}>
+                <Ionicons name="close-circle" size={24} color={colors.danger} />
+              </TouchableOpacity>
+            )}
           </View>
           
           {isLicenciaValida ? (

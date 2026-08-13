@@ -351,9 +351,24 @@ export default function AdminHistoryScreen() {
           {selectedReserva && (
             <ScrollView style={styles.modalScroll}>
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Conductor</Text>
+                <Text style={styles.sectionTitle}>Conductor(es)</Text>
                 <Text style={styles.sectionText}>
-                  {selectedReserva.usuario ? `${selectedReserva.usuario.nombre} ${selectedReserva.usuario.apellido}` : 'N/A'}
+                  {(() => {
+                    let conductorPrincipal = selectedReserva.usuario ? `${selectedReserva.usuario.nombre} ${selectedReserva.usuario.apellido}` : 'N/A';
+                    if (selectedReserva.tramos && selectedReserva.tramos.length > 0) {
+                      const conductoresList = [conductorPrincipal];
+                      selectedReserva.tramos.forEach((t: any) => {
+                        if (t.conductor) {
+                          const nombreCompleto = `${t.conductor.nombre} ${t.conductor.apellido}`;
+                          if (nombreCompleto !== conductoresList[conductoresList.length - 1]) {
+                            conductoresList.push(nombreCompleto);
+                          }
+                        }
+                      });
+                      return conductoresList.join(', ');
+                    }
+                    return conductorPrincipal;
+                  })()}
                 </Text>
               </View>
 
