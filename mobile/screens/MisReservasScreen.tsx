@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, ScrollView, TextInput, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { COLORS } from '../constants';
+import { COLORS, AppColors } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 import { reservationService, IReservation } from '../services/reservation.service';
 
 const ESTADO_MAP: Record<string, { label: string; color: string }> = {
@@ -26,11 +27,19 @@ function formatTime(dateStr: string) {
 }
 
 export default function MisReservasScreen({ navigation }: any) {
+  const { colors, isDark } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
+  
+
   const [reservations, setReservations] = useState<IReservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedReserva, setSelectedReserva] = useState<IReservation | null>(null);
+
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [canceling, setCanceling] = useState(false);
 
   const fetchReservations = async () => {
     try {
@@ -42,6 +51,28 @@ export default function MisReservasScreen({ navigation }: any) {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const handleCancelReservation = async () => {
+    if (!selectedReserva) return;
+    if (!cancelReason.trim()) {
+      Alert.alert('Error', 'El motivo de cancelación es obligatorio.');
+      return;
+    }
+    
+    setCanceling(true);
+    try {
+      await reservationService.cancel(selectedReserva._id, cancelReason.trim());
+      Alert.alert('Éxito', 'La reserva ha sido cancelada.');
+      setCancelModalVisible(false);
+      setSelectedReserva(null);
+      setCancelReason('');
+      fetchReservations();
+    } catch (err: any) {
+      Alert.alert('Error', err.response?.data?.message || 'No se pudo cancelar la reserva.');
+    } finally {
+      setCanceling(false);
     }
   };
 
@@ -59,7 +90,7 @@ export default function MisReservasScreen({ navigation }: any) {
   };
 
   const renderItem = ({ item }: { item: IReservation }) => {
-    const estado = ESTADO_MAP[item.estado] ?? { label: item.estado, color: COLORS.textMuted };
+    const estado = ESTADO_MAP[item.estado] ?? { label: item.estado, color: colors.textMuted };
     const vehiculo = item.vehiculo
       ? `${item.vehiculo.marca} ${item.vehiculo.modelo}`
       : 'Vehículo desconocido';
@@ -89,7 +120,7 @@ export default function MisReservasScreen({ navigation }: any) {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Cargando reservas...</Text>
       </View>
     );
@@ -133,7 +164,7 @@ export default function MisReservasScreen({ navigation }: any) {
           renderItem={renderItem}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
         />
       )}
 
@@ -144,7 +175,7 @@ export default function MisReservasScreen({ navigation }: any) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Detalle de Reserva</Text>
               <TouchableOpacity onPress={() => setSelectedReserva(null)}>
-                <Ionicons name="close" size={28} color={COLORS.text} />
+                <Ionicons name="close" size={28} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -171,8 +202,15 @@ export default function MisReservasScreen({ navigation }: any) {
 
                 {(selectedReserva.estado === 'cancelada' || selectedReserva.estado === 'rechazada') && selectedReserva.motivoRechazo ? (
                   <View style={styles.modalSection}>
-                    <Text style={[styles.modalSectionTitle, { color: COLORS.danger }]}>Motivo de Rechazo</Text>
+                    <Text style={[styles.modalSectionTitle, { color: colors.danger }]}>Motivo de Rechazo</Text>
                     <Text style={styles.modalSectionText}>{selectedReserva.motivoRechazo}</Text>
+                  </View>
+                ) : null}
+
+                {selectedReserva.estado === 'cancelada' && selectedReserva.motivoCancelacion ? (
+                  <View style={styles.modalSection}>
+                    <Text style={[styles.modalSectionTitle, { color: colors.danger }]}>Motivo de Cancelación</Text>
+                    <Text style={styles.modalSectionText}>{selectedReserva.motivoCancelacion}</Text>
                   </View>
                 ) : null}
 
@@ -184,6 +222,56 @@ export default function MisReservasScreen({ navigation }: any) {
                 )}
               </ScrollView>
             )}
+
+            {selectedReserva && (selectedReserva.estado === 'pendiente' || selectedReserva.estado === 'aprobada') && (
+              <TouchableOpacity 
+                style={[styles.modalBtn, { backgroundColor: colors.danger, marginTop: 15 }]} 
+                onPress={() => setCancelModalVisible(true)}
+              >
+                <Text style={styles.modalBtnText}>Cancelar Reserva</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Cancelación */}
+      <Modal visible={cancelModalVisible} animationType="fade" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.cancelModalContainer}>
+            <Text style={styles.modalTitle}>Cancelar Reserva</Text>
+            <Text style={{ color: colors.text, marginBottom: 12 }}>Por favor ingresa el motivo de la cancelación:</Text>
+            
+            <TextInput
+              style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+              placeholder="Motivo (obligatorio)"
+              placeholderTextColor={colors.textMuted}
+              multiline
+              value={cancelReason}
+              onChangeText={setCancelReason}
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity 
+                style={styles.modalCancelBtn} 
+                onPress={() => { setCancelModalVisible(false); setCancelReason(''); }} 
+                disabled={canceling}
+              >
+                <Text style={styles.modalCancelBtnText}>Atrás</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.modalConfirmBtn} 
+                onPress={handleCancelReservation} 
+                disabled={canceling}
+              >
+                {canceling ? (
+                  <ActivityIndicator color={colors.white} />
+                ) : (
+                  <Text style={styles.modalConfirmBtnText}>Confirmar</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -191,39 +279,39 @@ export default function MisReservasScreen({ navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     paddingTop: 20,
   },
   centered: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   loadingText: {
     marginTop: 12,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontSize: 14,
   },
   errorText: {
-    color: COLORS.danger,
+    color: colors.danger,
     fontSize: 15,
     textAlign: 'center',
     marginBottom: 16,
   },
   retryBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 10,
     borderRadius: 8,
     marginTop: 8,
   },
   retryBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: 'bold',
   },
   emptyIcon: {
@@ -232,7 +320,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginBottom: 20,
   },
   header: {
@@ -245,21 +333,21 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   newBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
   },
   newBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: 'bold',
     fontSize: 14,
   },
@@ -268,7 +356,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   card: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -287,7 +375,7 @@ const styles = StyleSheet.create({
   vehicleTitle: {
     fontSize: 17,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
     flex: 1,
   },
   statusBadge: {
@@ -296,32 +384,32 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   cardBody: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
     padding: 12,
     borderRadius: 8,
     gap: 4,
   },
   infoText: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   rejectBox: {
     marginTop: 8,
-    backgroundColor: '#FFF0F0',
+    backgroundColor: colors.danger + '20',
     borderRadius: 8,
     padding: 10,
     borderLeftWidth: 3,
-    borderLeftColor: COLORS.danger,
+    borderLeftColor: colors.danger,
   },
   rejectLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: COLORS.danger,
+    color: colors.danger,
     marginBottom: 3,
   },
   rejectText: {
     fontSize: 13,
-    color: '#C0392B',
+    color: colors.danger,
     lineHeight: 18,
   },
   // Modal de Detalles
@@ -331,7 +419,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContainer: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 24,
@@ -348,7 +436,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
   },
   modalScroll: {
     paddingBottom: 20,
@@ -359,13 +447,69 @@ const styles = StyleSheet.create({
   modalSectionTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginBottom: 4,
   },
   modalSectionText: {
     fontSize: 16,
-    color: COLORS.text,
+    color: colors.text,
     lineHeight: 22,
   },
+  modalBtn: {
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalBtnText: {
+    color: colors.white,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  cancelModalContainer: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 24,
+    marginHorizontal: 20,
+    marginBottom: 'auto',
+    marginTop: 'auto',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 15,
+    color: colors.text,
+    backgroundColor: colors.background,
+    marginBottom: 20,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  modalCancelBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalCancelBtnText: {
+    color: colors.text,
+    fontWeight: 'bold',
+  },
+  modalConfirmBtn: {
+    backgroundColor: colors.danger,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 100,
+  },
+  modalConfirmBtnText: {
+    color: colors.white,
+    fontWeight: 'bold',
+  },
 });
-

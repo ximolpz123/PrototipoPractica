@@ -18,6 +18,8 @@ export interface ITramo {
   gpsActivo: boolean;
   kmInicio?: number;
   kmFin?: number;
+  fotosInicio?: IFotosEvidencia;
+  requiereFotosInicio?: boolean;
 }
 
 export interface IReservation extends Document {
@@ -27,8 +29,9 @@ export interface IReservation extends Document {
   fechaFin: Date;
   destino: string;
   motivo: string;
-  estado: 'pendiente' | 'aprobada' | 'en_curso' | 'completada' | 'cancelada' | 'rechazada';
+  estado: 'pendiente' | 'aprobada' | 'en_curso' | 'en_transicion' | 'completada' | 'cancelada' | 'rechazada';
   kmSalida?: number;
+  observacionKmSalida?: string;
   kmRetorno?: number;
   // ── Fotos v2 (objeto con posiciones) ──
   fotosSalida?: IFotosEvidencia;
@@ -41,8 +44,18 @@ export interface IReservation extends Document {
   kmTableroUrl?: string;          // URL de la foto del tablero para la IA
   // ── Sub-viajes / cambio de conductor ──
   tramos?: ITramo[];
+  solicitudTraspaso?: {
+    conductorDestino: Types.ObjectId;
+    conductorOrigen: Types.ObjectId;
+    estado: 'pendiente' | 'aceptada' | 'rechazada' | 'cancelada';
+    motivoRechazo?: string;
+  };
   observaciones?: string;
   motivoRechazo?: string;
+  motivoCancelacion?: string;
+  // ── Firmas Digitales ──
+  firmaInicio?: string;           // URL de la firma digital al inicio del viaje
+  firmaFin?: string;              // URL de la firma digital al finalizar el viaje
   // ── Notificaciones de retraso ──
   notificadoRetraso?: boolean;
   notificadoAdmin?: boolean;
@@ -73,6 +86,8 @@ const tramoSchema = new Schema<ITramo>(
     gpsActivo:  { type: Boolean, default: true },
     kmInicio:   { type: Number, min: 0 },
     kmFin:      { type: Number, min: 0 },
+    fotosInicio: { type: fotosEvidenciaSchema },
+    requiereFotosInicio: { type: Boolean, default: false }
   },
   { _id: false }
 );
@@ -116,10 +131,17 @@ const reservationSchema = new Schema<IReservation>(
     },
     estado: {
       type: String,
-      enum: ['pendiente', 'aprobada', 'en_curso', 'completada', 'cancelada', 'rechazada'],
+      enum: ['pendiente', 'aprobada', 'en_curso', 'en_transicion', 'completada', 'cancelada', 'rechazada'],
       default: 'pendiente',
     },
-    kmSalida:  { type: Number, min: 0 },
+    kmSalida: {
+      type: Number,
+      required: false
+    },
+    observacionKmSalida: {
+      type: String,
+      required: false
+    },
     kmRetorno: { type: Number, min: 0 },
     // ── Fotos v2 ──
     fotosSalida:   { type: fotosEvidenciaSchema },
@@ -132,11 +154,24 @@ const reservationSchema = new Schema<IReservation>(
     kmTableroUrl:        { type: String },
     // ── Tramos ──
     tramos: [tramoSchema],
+    solicitudTraspaso: {
+      conductorDestino: { type: Schema.Types.ObjectId, ref: 'User' },
+      conductorOrigen:  { type: Schema.Types.ObjectId, ref: 'User' },
+      estado: { type: String, enum: ['pendiente', 'aceptada', 'rechazada', 'cancelada'] },
+      motivoRechazo: { type: String, trim: true }
+    },
     observaciones:  { type: String, trim: true },
     motivoRechazo: {
       type: String,
       trim: true,
     },
+    motivoCancelacion: {
+      type: String,
+      trim: true,
+    },
+    // ── Firmas Digitales ──
+    firmaInicio: { type: String },   // base64 PNG de la firma al iniciar
+    firmaFin:    { type: String },   // base64 PNG de la firma al finalizar
     // ── Notificaciones de retraso ──
     notificadoRetraso: {
       type: Boolean,

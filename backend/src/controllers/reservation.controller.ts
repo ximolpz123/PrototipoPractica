@@ -12,10 +12,17 @@ import { sendPushNotification, notifyAdmins } from '../services/notification.ser
 // Obtener todas las reservas (admin ve todas, usuario solo las suyas)
 export const getReservations = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const filter = req.userRol === 'admin' ? {} : { usuario: req.userId };
+    const filter = req.userRol === 'admin' ? {} : { 
+      $or: [
+        { usuario: req.userId },
+        { 'tramos.conductor': req.userId },
+        { 'solicitudTraspaso.conductorDestino': req.userId, 'solicitudTraspaso.estado': 'pendiente' }
+      ]
+    };
     const reservations = await Reservation.find(filter)
       .populate('usuario', 'nombre apellido email departamento')
-      .populate('vehiculo', 'placa marca modelo color tipo tipoIndicador')
+      .populate('vehiculo', 'placa marca modelo color tipo tipoIndicador kilometraje')
+      .populate('tramos.conductor', 'nombre apellido email departamento')
       .sort({ fechaInicio: -1 });
     res.json(reservations);
   } catch (error) {
@@ -35,6 +42,21 @@ export const createReservation = async (req: AuthRequest, res: Response): Promis
     // ── Validación 1: Campos obligatorios ──────────────────────────────────
     if (!vehiculo || !fechaInicio || !fechaFin || !destino || !motivo) {
       res.status(400).json({ message: 'Todos los campos son obligatorios' });
+      return;
+    }
+
+    // ── Validación 1.5: Validar Licencia del Usuario ──────────────────────
+    const userToCheck = await User.findById(targetUserId);
+    if (!userToCheck) {
+      res.status(404).json({ message: 'Usuario no encontrado' });
+      return;
+    }
+    const isLicenciaValida = userToCheck.licenciaEstado === 'vigente' && 
+                             userToCheck.licenciaVencimiento && 
+                             new Date(userToCheck.licenciaVencimiento) > new Date();
+                             
+    if (!isLicenciaValida && !isAdmin) { // Admin can override maybe, but let's block driver
+      res.status(403).json({ message: 'No puedes solicitar reservas. Tu licencia está vencida o no es válida.' });
       return;
     }
 
@@ -167,12 +189,13 @@ export const startReservation = async (req: AuthRequest, res: Response): Promise
     }
 
     // Solo el dueño o un admin puede iniciar
-    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin') {
+    const isInTramos = reservation.tramos?.some((t: any) => t.conductor.toString() === req.userId);
+    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin' && !isInTramos) {
       res.status(403).json({ message: 'No tienes permiso para iniciar esta reserva' });
       return;
     }
 
-    if (reservation.estado !== 'aprobada') {
+    if (reservation.estado !== 'aprobada' && reservation.estado !== 'en_transicion') {
       res.status(400).json({ message: `No se puede iniciar: la reserva está en estado '${reservation.estado}'` });
       return;
     }
@@ -191,11 +214,53 @@ export const startReservation = async (req: AuthRequest, res: Response): Promise
 
     // Obtener el kilometraje actual del vehículo para registrarlo como kmSalida
     const vehicle = await Vehicle.findById(reservation.vehiculo);
-    const kmSalida = vehicle?.kilometraje ?? 0;
+    let kmFinalSalida = vehicle?.kilometraje ?? 0;
+    
+    const { kmSalida, observacionKmSalida, isTramo } = req.body;
+    
+    if (isTramo) {
+      if (reservation.tramos && reservation.tramos.length > 0) {
+        const lastTramo = reservation.tramos[reservation.tramos.length - 1];
+        lastTramo.requiereFotosInicio = false;
+        if (kmSalida !== undefined && typeof kmSalida === 'number') {
+          lastTramo.kmInicio = kmSalida;
+          if (kmSalida > (vehicle?.kilometraje ?? 0)) {
+            await Vehicle.findByIdAndUpdate(reservation.vehiculo, { kilometraje: kmSalida });
+          }
+        }
+      }
+      await reservation.save();
+      res.json({ message: 'Tramo iniciado exitosamente', reservation });
+      return;
+    }
+
+    if (kmSalida !== undefined && typeof kmSalida === 'number') {
+      kmFinalSalida = kmSalida;
+      if (kmSalida > (vehicle?.kilometraje ?? 0)) {
+        await Vehicle.findByIdAndUpdate(reservation.vehiculo, { kilometraje: kmSalida });
+      }
+    }
 
     reservation.estado = 'en_curso';
-    reservation.kmSalida = kmSalida; // ← Registrar odómetro al salir
+    reservation.kmSalida = kmFinalSalida;
+    if (observacionKmSalida) {
+      reservation.observacionKmSalida = observacionKmSalida;
+    }
     await reservation.save();
+
+    // Check if the start is delayed by more than 15 minutes
+    const toleranciaMinutos = 15;
+    const tiempoRetrasoMinutos = (currentTime.getTime() - fechaInicioReserva.getTime()) / 60000;
+    
+    if (tiempoRetrasoMinutos > toleranciaMinutos && !isTramo) {
+      await Flag.create({
+        usuario: req.userId,
+        reserva: reservation._id,
+        color: 'amarilla',
+        motivo: `Inicio de reserva atrasado por ${Math.floor(tiempoRetrasoMinutos)} minutos.`,
+        tipo: 'automatica'
+      });
+    }
 
     // Marcar el vehículo como reservado
     await Vehicle.findByIdAndUpdate(reservation.vehiculo, { estado: 'reservado' });
@@ -244,18 +309,22 @@ export const cancelReservation = async (req: AuthRequest, res: Response): Promis
     }
 
     // Solo el dueño o un admin puede cancelar
-    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin') {
+    const isInTramos = reservation.tramos?.some((t: any) => t.conductor.toString() === req.userId);
+    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin' && !isInTramos) {
       res.status(403).json({ message: 'No tienes permiso para cancelar esta reserva' });
       return;
     }
 
-    const { motivoRechazo } = req.body;
+    const { motivoCancelacion } = req.body;
+
+    if (!motivoCancelacion || motivoCancelacion.trim() === '') {
+      res.status(400).json({ message: 'El motivo de la cancelación es obligatorio' });
+      return;
+    }
 
     reservation.estado = 'cancelada';
-    // Si es un admin rechazando, guarda el motivo
-    if (motivoRechazo && req.userRol === 'admin') {
-      reservation.motivoRechazo = motivoRechazo;
-    }
+    reservation.motivoCancelacion = motivoCancelacion.trim();
+    
     await reservation.save();
 
     // Actualizar el estado del vehículo a 'disponible'
@@ -264,6 +333,261 @@ export const cancelReservation = async (req: AuthRequest, res: Response): Promis
     res.json({ message: 'Reserva cancelada exitosamente', reservation });
   } catch (error) {
     res.status(500).json({ message: 'Error al cancelar reserva', error });
+  }
+};
+
+// Solicitar cambio de conductor (guarda estado y envía notificación)
+export const requestCambioConductorTramo = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const reservation = await Reservation.findById(req.params.id);
+    if (!reservation) {
+      res.status(404).json({ message: 'Reserva no encontrada' });
+      return;
+    }
+    if (reservation.estado !== 'en_curso') {
+      res.status(400).json({ message: 'La reserva no está en curso' });
+      return;
+    }
+
+    const { nuevoConductorId, kmActual } = req.body;
+    const vehiculo = await Vehicle.findById(reservation.vehiculo);
+    
+    // Obtener datos del conductor origen para la notificación
+    const conductorOrigen = await User.findById(req.userId);
+    const nombreOrigen = conductorOrigen ? `${conductorOrigen.nombre} ${conductorOrigen.apellido}` : 'Un conductor';
+
+    // Guardar solicitud en BD
+    reservation.solicitudTraspaso = {
+      conductorDestino: nuevoConductorId,
+      conductorOrigen: req.userId as any,
+      estado: 'pendiente'
+    };
+    await reservation.save();
+
+    await sendPushNotification(
+      nuevoConductorId,
+      'Transferencia de Vehículo',
+      `${nombreOrigen} quiere pasarte el mando del vehículo ${vehiculo?.placa}. ¿Aceptas?`,
+      { 
+        type: 'HANDOVER_REQUEST', 
+        reservaId: reservation._id,
+        kmActual: kmActual || vehiculo?.kilometraje
+      }
+    );
+
+    res.json({ message: 'Solicitud enviada al conductor' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al solicitar cambio', error });
+  }
+};
+
+// Responder a solicitud de traspaso
+export const responderTraspaso = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const reservation = await Reservation.findById(req.params.id);
+    if (!reservation || !reservation.solicitudTraspaso || reservation.solicitudTraspaso.estado !== 'pendiente') {
+      res.status(400).json({ message: 'No hay solicitud pendiente para esta reserva' });
+      return;
+    }
+    
+    // Verificamos que el que responde es el destino
+    if (reservation.solicitudTraspaso.conductorDestino.toString() !== req.userId) {
+      res.status(403).json({ message: 'No tienes permiso para responder a esta solicitud' });
+      return;
+    }
+
+    const { respuesta, tipo, motivo, kmActual } = req.body; 
+    const vehiculo = await Vehicle.findById(reservation.vehiculo);
+    const currentKm = kmActual ?? vehiculo?.kilometraje ?? 0;
+    const now = new Date();
+
+    if (respuesta === 'rechazar') {
+      reservation.solicitudTraspaso.estado = 'rechazada';
+      reservation.solicitudTraspaso.motivoRechazo = motivo;
+      await reservation.save();
+
+      // Notificar al conductor de origen
+      await sendPushNotification(
+        reservation.solicitudTraspaso.conductorOrigen.toString(),
+        'Traspaso Rechazado',
+        `El traspaso del vehículo ${vehiculo?.placa} fue rechazado. Motivo: ${motivo}`,
+        { type: 'HANDOVER_REJECTED', reservaId: reservation._id }
+      );
+
+      res.json({ message: 'Traspaso rechazado. El viaje original continúa.' });
+      return;
+    }
+
+    if (respuesta === 'aceptar') {
+      reservation.solicitudTraspaso.estado = 'aceptada';
+      
+      if (!reservation.tramos) {
+        reservation.tramos = [];
+      }
+      
+      if (reservation.tramos.length === 0) {
+        reservation.tramos.push({
+          conductor: reservation.usuario,
+          fechaInicio: reservation.fechaInicio,
+          fechaFin: now,
+          gpsActivo: true,
+          kmInicio: reservation.kmSalida,
+          kmFin: currentKm
+        });
+      } else {
+        const lastTramo = reservation.tramos[reservation.tramos.length - 1];
+        lastTramo.fechaFin = now;
+        lastTramo.kmFin = currentKm;
+      }
+
+      // Nuevo tramo
+      reservation.tramos.push({
+        conductor: reservation.solicitudTraspaso.conductorDestino,
+        fechaInicio: now,
+        gpsActivo: true,
+        kmInicio: currentKm,
+        requiereFotosInicio: tipo === 'regreso'
+      });
+
+      await reservation.save();
+
+      if (vehiculo && currentKm > vehiculo.kilometraje) {
+        vehiculo.kilometraje = currentKm;
+        await vehiculo.save();
+      }
+
+      // Notificar al origen que se aceptó
+      await sendPushNotification(
+        reservation.solicitudTraspaso.conductorOrigen.toString(),
+        'Traspaso Aceptado',
+        `El conductor ha aceptado el vehículo ${vehiculo?.placa}. Tu tramo ha finalizado.`,
+        { type: 'HANDOVER_ACCEPTED', reservaId: reservation._id }
+      );
+
+      // Desactivamos el gps del conductor origen mandando push para que la app sepa (opcional, la app de origen puede hacer polling o manejar la push)
+      
+      res.json({ message: 'Traspaso aceptado exitosamente', requiereFotos: tipo === 'regreso' });
+      return;
+    }
+
+    res.status(400).json({ message: 'Respuesta inválida' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al responder traspaso', error });
+  }
+};
+
+// Cancelar traspaso (por el conductor origen si se arrepiente y reanuda GPS)
+export const cancelarTraspaso = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const reservation = await Reservation.findById(req.params.id);
+    if (!reservation || !reservation.solicitudTraspaso || reservation.solicitudTraspaso.estado !== 'pendiente') {
+      res.status(400).json({ message: 'No hay solicitud pendiente para esta reserva' });
+      return;
+    }
+    
+    // Verificamos que el que cancela es el conductor origen
+    if (reservation.solicitudTraspaso.conductorOrigen.toString() !== req.userId) {
+      res.status(403).json({ message: 'No tienes permiso para cancelar esta solicitud' });
+      return;
+    }
+
+    reservation.solicitudTraspaso.estado = 'cancelada';
+    await reservation.save();
+
+    res.json({ message: 'Traspaso cancelado exitosamente.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al cancelar traspaso', error });
+  }
+};
+
+// Cambio de conductor en tramo (aceptar)
+export const cambioConductorTramo = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const reservation = await Reservation.findById(req.params.id);
+    if (!reservation) {
+      res.status(404).json({ message: 'Reserva no encontrada' });
+      return;
+    }
+
+    if (reservation.estado !== 'en_curso') {
+      res.status(400).json({ message: 'Solo se puede cambiar conductor si la reserva está en curso' });
+      return;
+    }
+
+    const { nuevoConductorId, kmActual } = req.body;
+    if (!nuevoConductorId) {
+      res.status(400).json({ message: 'Se requiere el ID del nuevo conductor' });
+      return;
+    }
+
+    const nuevoConductor = await User.findById(nuevoConductorId);
+    if (!nuevoConductor) {
+      res.status(404).json({ message: 'Nuevo conductor no encontrado' });
+      return;
+    }
+
+    if (!reservation.tramos) {
+      reservation.tramos = [];
+    }
+
+    const now = new Date();
+    const vehiculo = await Vehicle.findById(reservation.vehiculo);
+    const currentKm = kmActual ?? vehiculo?.kilometraje ?? 0;
+
+    if (reservation.tramos.length === 0) {
+      // Create the first tramo retroactively for the original driver
+      reservation.tramos.push({
+        conductor: reservation.usuario,
+        fechaInicio: reservation.fechaInicio,
+        fechaFin: now,
+        gpsActivo: true,
+        kmInicio: reservation.kmSalida,
+        kmFin: currentKm
+      });
+    } else {
+      // Close the last tramo
+      const lastTramo = reservation.tramos[reservation.tramos.length - 1];
+      lastTramo.fechaFin = now;
+      lastTramo.kmFin = currentKm;
+    }
+
+    // Create the new tramo for the new driver
+    reservation.tramos.push({
+      conductor: nuevoConductor._id,
+      fechaInicio: now,
+      gpsActivo: true,
+      kmInicio: currentKm
+    });
+
+    await reservation.save();
+
+    if (vehiculo && currentKm > vehiculo.kilometraje) {
+      vehiculo.kilometraje = currentKm;
+      await vehiculo.save();
+    }
+
+    // Notify Admins
+    const admins = await User.find({ rol: 'admin' });
+    for (const admin of admins) {
+      await sendPushNotification(
+        admin._id.toString(),
+        'Cambio de conductor',
+        `El vehículo ${vehiculo?.placa} ahora es conducido por ${nuevoConductor.nombre} ${nuevoConductor.apellido}.`,
+        { reservaId: reservation._id }
+      );
+    }
+
+    // Notify New Driver
+    await sendPushNotification(
+      nuevoConductor._id.toString(),
+      'Vehículo entregado',
+      `Se te ha asignado el vehículo ${vehiculo?.placa} en la ruta actual.`,
+      { reservaId: reservation._id }
+    );
+
+    res.json({ message: 'Cambio de conductor registrado exitosamente', tramos: reservation.tramos });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al cambiar conductor', error });
   }
 };
 
@@ -286,7 +610,8 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
     }
 
     // Solo el admin o el dueño de la reserva pueden completarla
-    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin') {
+    const isInTramos = reservation.tramos?.some((t: any) => t.conductor.toString() === req.userId);
+    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin' && !isInTramos) {
       res.status(403).json({ message: 'No tienes permiso para completar esta reserva' });
       return;
     }
@@ -439,8 +764,8 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
-    if (!['salida', 'retorno'].includes(tipo)) {
-      res.status(400).json({ message: 'El tipo debe ser "salida" o "retorno"' });
+    if (!['salida', 'retorno', 'tramo'].includes(tipo)) {
+      res.status(400).json({ message: 'El tipo debe ser "salida", "retorno" o "tramo"' });
       return;
     }
 
@@ -450,7 +775,8 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
-    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin') {
+    const isInTramos = reservation.tramos?.some((t: any) => t.conductor.toString() === req.userId);
+    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin' && !isInTramos) {
       res.status(403).json({ message: 'No tienes permiso para modificar esta reserva' });
       return;
     }
@@ -467,8 +793,13 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
     // Initialize if undefined
     if (tipo === 'salida') {
       if (!reservation.fotosSalida) reservation.fotosSalida = {};
-    } else {
+    } else if (tipo === 'retorno') {
       if (!reservation.fotosRetorno) reservation.fotosRetorno = {};
+    } else if (tipo === 'tramo') {
+      if (reservation.tramos && reservation.tramos.length > 0) {
+        const lastTramo = reservation.tramos[reservation.tramos.length - 1];
+        if (!lastTramo.fotosInicio) lastTramo.fotosInicio = {};
+      }
     }
 
     // Map files to positions
@@ -477,14 +808,19 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
       if (pos) {
         if (tipo === 'salida') {
           (reservation.fotosSalida as any)[pos] = file.path;
-        } else {
+        } else if (tipo === 'retorno') {
           (reservation.fotosRetorno as any)[pos] = file.path;
+        } else if (tipo === 'tramo') {
+          const lastTramo = reservation.tramos?.[reservation.tramos.length - 1];
+          if (lastTramo && lastTramo.fotosInicio) {
+            (lastTramo.fotosInicio as any)[pos] = file.path;
+          }
         }
       } else {
         // Fallback for legacy app versions
         if (tipo === 'salida') {
           reservation.fotosSalidaLegacy = [...(reservation.fotosSalidaLegacy || []), file.path];
-        } else {
+        } else if (tipo === 'retorno') {
           reservation.fotosRetornoLegacy = [...(reservation.fotosRetornoLegacy || []), file.path];
         }
       }
@@ -516,7 +852,8 @@ export const uploadFotoTablero = async (req: AuthRequest, res: Response): Promis
       return;
     }
 
-    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin') {
+    const isInTramos = reservation.tramos?.some((t: any) => t.conductor.toString() === req.userId);
+    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin' && !isInTramos) {
       res.status(403).json({ message: 'No tienes permiso para modificar esta reserva' });
       return;
     }
@@ -657,3 +994,45 @@ export const handleDelayResponse = async (req: AuthRequest, res: Response): Prom
     res.status(500).json({ message: 'Error al manejar la respuesta de retraso', error });
   }
 };
+
+// ── PATCH /api/reservations/:id/firma ────────────────────────────────────────
+// Guarda la firma digital (base64) de inicio o fin de viaje
+export const saveFirma = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { tipo, firma } = req.body; // tipo: 'inicio' | 'fin', firma: base64 string
+
+    if (!tipo || !firma) {
+      res.status(400).json({ message: 'Debes proporcionar tipo ("inicio" o "fin") y la firma en base64.' });
+      return;
+    }
+
+    if (!['inicio', 'fin'].includes(tipo)) {
+      res.status(400).json({ message: 'El tipo debe ser "inicio" o "fin".' });
+      return;
+    }
+
+    const reservation = await Reservation.findById(id);
+    if (!reservation) {
+      res.status(404).json({ message: 'Reserva no encontrada.' });
+      return;
+    }
+
+    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin') {
+      res.status(403).json({ message: 'Sin permiso para modificar esta reserva.' });
+      return;
+    }
+
+    if (tipo === 'inicio') {
+      reservation.firmaInicio = firma;
+    } else {
+      reservation.firmaFin = firma;
+    }
+
+    await reservation.save();
+    res.json({ message: `Firma de ${tipo} guardada correctamente.` });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al guardar la firma', error });
+  }
+};
+

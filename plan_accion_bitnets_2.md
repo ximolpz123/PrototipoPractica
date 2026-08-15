@@ -1,6 +1,6 @@
 # 📅 Plan de Acción — Sistema Flota Bitnets v2
-**Fecha límite:** Viernes 7 de Agosto, 2026 | **Equipo:** Joaquín López (Mobile/Backend) + Gustavo (Web Frontend)
-**Revisión:** Segunda entrega — Post aprobación del cliente.
+**Reunión:** Miércoles 12 de Agosto, 2026 | **Equipo:** Joaquín López (Mobile/Backend) + Gustavo (Web Frontend)
+**Revisión:** Tercera entrega — Observaciones Post-Testing del 7 de Agosto.
 
 ---
 
@@ -201,50 +201,42 @@ Antes del plan, aquí va el análisis técnico de cada requerimiento con la prop
 
 ---
 
-### **Miércoles 6 de Agosto**
-> **Foco: KPIs por Departamento + Sistema de Banderas + Admin crea reservas**
+### **Jueves 6 de Agosto**
+> **Foco: Banderas Automáticas, Flujo Avanzado de Reservas y Tracking GPS**
 
 #### Joaquín (Backend + Móvil)
-- 🔵 **Backend:** Endpoint `GET /api/dashboard/department-costs` → gastos agrupados por departamento.
-- 🔵 **Backend:** Lógica de asignación automática de banderas al cerrar una reserva.
-- 🔵 **Backend:** Modelo `Flag` → `{usuario, tipo, motivo, fecha, asignadoPor}`.
-- 🔵 **Backend:** Endpoint `POST /api/users/:id/flags` → admin asigna bandera manual.
-- 🔵 **Backend:** Endpoint `GET /api/users/:id/flags` → historial de banderas de un usuario.
-- 🔵 **Móvil:** Nueva pantalla `AdminCreateReservationScreen` → admin asigna reserva a usuario.
-- 🔵 **Móvil:** En el perfil del usuario, mostrar badge de banderas (verde/amarilla/naranja/roja) con historial.
-- 🔵 **Móvil:** En `AdminDashboardScreen`: botón para asignar bandera manual con selector de tipo y motivo.
+- 🔵 **Backend:** Completar lógica oculta (`node-cron` y triggers) para asignación **automática de banderas** por comportamiento.
+- 🔵 **Backend:** Ajustar modelo `Reservation` para soportar las 6 fotos obligatorias y los subviajes (cambio de conductor).
+- 🔵 **Móvil:** **Tracking GPS Estricto**: Cambiar rastreo a 1 minuto y obligar a prender el GPS antes de iniciar viaje.
+- 🔵 **Móvil & Backend:** **Flujo de Reservas Avanzado**: Subida de las 6 fotos obligatorias y la IA que lea los kilómetros al devolver el auto.
+- 🎨 **Móvil & Web:** **Branding**: Actualizar el Logo y los colores base en el código (Reemplazar icon.png y splash.png).
 
 #### Gustavo (Web)
 - 🟢 **Web:** Panel de KPIs por departamento con gráfico de barras y tabla de costos.
-- 🟢 **Web:** En el perfil de usuario web, mostrar el badge de banderas y el historial.
+- 🟢 **Web:** Mostrar el historial de banderas asignadas automáticamente.
 
 ---
 
-### **Jueves 7 de Agosto** *(entrega — foco en detalles y pulido)*
-> **Foco: Validación de fotos tardías + Diseño + Flota mejorada + Inspecciones aleatorias (base)**
+### **Viernes 7 de Agosto** *(entrega — foco en detalles y nuevos módulos)*
+> **Foco: Notificaciones de retraso, Inspecciones Aleatorias, Pasar el Mando**
 
 #### Joaquín (Backend + Móvil)
-- 🔵 **Backend:** `node-cron` job cada minuto → detectar reservas `en_curso` con `fechaFin` vencida → enviar push al conductor.
-- 🔵 **Backend:** Si pasan 15 min → notificación al admin con nombre y teléfono del conductor.
-- 🔵 **Backend:** Endpoint para que admin envíe mensaje de demora al conductor de la siguiente reserva.
-- 🔵 **Backend:** Base del sistema de inspecciones aleatorias → modelo `InspeccionAleatoria`, endpoint de activación y respuesta.
-- 🔵 **Móvil:** En `FlotaScreen`: mostrar nombre del conductor y departamento en el vehículo `en_curso`.
-- 🔵 **Móvil:** En detalle del vehículo: historial diario de conductores.
-- 🎨 **Móvil:** Pulido de diseño general → gradientes más suaves, micro-animaciones, sombras mejoradas, logo actualizado en todos los headers.
-- 🔵 **Móvil:** Notificación de inspección aleatoria al conductor (base funcional).
+- 🔵 **Backend:** **Sistema de Retrasos**: `node-cron` job cada minuto para detectar reservas atrasadas y enviar notificaciones push.
+- 🔵 **Móvil:** Pantalla `AdminCreateReservationScreen` para que el Admin asigne reservas de forma directa a los usuarios.
+- 🔵 **Backend & Móvil:** **Flujo de Transferencia (Pasar el mando)**: Pasar el control de un auto y su GPS de un conductor a otro en plena calle.
+- 🔵 **Backend & Móvil:** **Módulo de Inspecciones Aleatorias**: Tareas sorpresa (revisar neumáticos, foto interior) puestas por el sistema durante un viaje.
+- 🔵 **Móvil:** Pulido de diseño final y testing.
 
 #### Gustavo (Web)
-- 🟢 **Web:** Actualizar el logo en el panel web.
-- 🟢 **Web:** En el mapa, mostrar el nombre del conductor y su departamento en el marcador del vehículo.
 - 🟢 **Web:** Panel de inspecciones aleatorias → ver cuáles están pendientes y cuáles respondidas.
-- 🟢 **Web:** Mejorar diseño del dashboard (toques más elegantes y detallados según feedback del cliente).
+- 🟢 **Web:** En el mapa, mostrar el nombre del conductor activo (incluso si hubo transferencia de mando).
 - 🔵🟢 **Ambos:** Pruebas del Happy Path completo con todos los nuevos flujos.
 
 ---
 
-## 📦 Backlog (Post-entrega del Viernes 7)
+## 📦 Backlog (Post-entrega de la v2)
 
-Estos ítems son más complejos o de alcance amplio. Se recomiendan para la v3:
+Estos ítems son de alcance amplio para una posible iteración futura:
 
 | Ítem | Complejidad | Razón |
 |------|------------|-------|
@@ -266,12 +258,37 @@ Estos ítems son más complejos o de alcance amplio. Se recomiendan para la v3:
 
 ---
 
-## 💡 Ideas Adicionales que Puedes Proponer para el Siguiente Sprint
+## 💡 Ideas Adicionales — Aprobadas para implementar en Sprint v3
 
-- **QR de Vehículo:** Cada auto tiene un QR que al escanearlo el conductor lo vincula directamente a su reserva activa, sin necesidad de buscar el vehículo en la lista.
-- **Firma digital al inicio/fin del viaje:** El conductor firma en pantalla al recibir y devolver el vehículo, como comprobante legal.
-- **Reporte PDF por reserva:** El admin puede exportar un PDF con todos los detalles de un viaje (fotos, km, conductor, rutas GPS).
-- **Modo oscuro en la app:** Ya que el cliente valora el diseño, una opción de modo oscuro puede ser un diferenciador.
+### 📱 QR de Vehículo *(¿Cómo funcionaría?)*
+- Cada vehículo generaría un **código QR único** (basado en su `_id` de la DB) que el admin puede imprimir y pegar en el parabrisas del auto.
+- Al escanear el QR con la app (usando `expo-camera` ya instalado), el sistema busca si el conductor tiene una **reserva aprobada** para ese vehículo.
+- Si hay coincidencia: vincula automáticamente la reserva y habilita el botón de "Iniciar Viaje" sin que el conductor tenga que buscar el auto en la lista.
+- Si no hay reserva activa para ese vehículo: muestra un error *"No tienes una reserva asignada para este vehículo"*.
+- **Ventaja principal:** Elimina confusiones de "agarré el vehículo equivocado" y agiliza el proceso de inicio de viaje.
+- **Técnicamente:** Backend genera el QR con la librería `qrcode`, la app lo escanea con `expo-barcode-scanner`.
+
+### ✍️ Firma Digital al Inicio/Fin del Viaje
+- Al iniciar y finalizar el viaje, el conductor ve una pantalla de **firma en pantalla táctil** (tipo tableta de firma).
+- La firma se convierte en una imagen PNG y se guarda en la DB junto a la reserva como `firmaInicio` y `firmaFin`.
+- El admin puede ver las firmas en el detalle de cada reserva como comprobante legal.
+- **Tecnología:** `expo-signature` o `react-native-signature-canvas`.
+
+### 🌑 Modo Oscuro en la App
+- Toggle de Modo Oscuro / Modo Claro en la pantalla de Perfil.
+- El sistema detecta automáticamente la preferencia del sistema operativo (`Appearance.getColorScheme()` de React Native).
+- Los colores principales cambian de fondo blanco/azul a fondo oscuro con acentos en azul neón.
+
+### 🏴 Panel de Banderas con Filtros (Web Admin — Obs. 9)
+- Nueva sección en el panel Admin de la Web: **"Gestión de Banderas"**.
+- **Filtros disponibles:** Por usuario, por color de bandera (🟢🟡🟠🔴), por rango de fechas, por tipo (manual/automática).
+- Cada bandera en la lista es **cliqueable** y abre un modal de detalle con: foto del evento, motivo, reserva vinculada, conductor, fecha exacta.
+- El admin puede **eliminar o corregir** una bandera asignada automáticamente por error.
+- **Ídem para Inspecciones:** La lista de inspecciones aleatorias también es cliqueable y muestra las fotos que el conductor subió como evidencia, con opción de aprobar/rechazar la respuesta.
+- **Responsable:** Gustavo (Web Frontend).
+
+### 📄 Reporte PDF por Reserva
+- El admin puede exportar un PDF con todos los detalles de un viaje (fotos, km, conductor, rutas GPS).
 
 ---
 
@@ -285,5 +302,100 @@ El logo actualizado de Bitnets ha sido recibido y se integrará en:
 
 ---
 
+## 🔁 Observaciones Post-Testing (7 de Agosto) — Sprint v2.1
+
+Estas tareas surgen del testing del Happy Path realizado el 7 de agosto. Se organizan por prioridad/dependencia para ser completadas antes del miércoles 12.
+
+---
+
+### 🗓️ Jueves 7 de Agosto (HOY)
+> **Foco: Quick Fixes Críticos — Errores visibles en producción**
+
+#### Joaquín (Backend + Móvil)
+- [x] 🔵 **Móvil:** Fix — Bloquear pantalla "Nueva Reserva" si la licencia del usuario no está validada, con mensaje claro para ir al Perfil a escanearla.
+- [x] 🔵 **Backend:** Fix — El endpoint `/auth/login` no retornaba los campos de licencia (`licenciaEstado`, `licenciaVencimiento`, etc.), haciendo que al reiniciar sesión se viera como vencida.
+- [x] 🔵 **Backend:** Fix — El endpoint `GET /api/users` era solo para Admins; los conductores no podían cargarlo para "Pasar el mando". Se movió fuera del middleware de admin.
+- [x] 🔵 **Móvil:** Fix — En la lista de conductores para "Pasar el mando", el conductor actual se seguía viendo a sí mismo por un problema de comparación de `id` vs `_id`.
+
+---
+
+### 🗓️ Viernes 8 de Agosto
+> **Foco: Obs. 3, 6 y 2 — Datos de perfil, UX de login y botón de reserva**
+
+#### Joaquín (Backend + Móvil)
+- [x] 🔵 **Backend & Móvil (Obs. 3):** Fix — El campo `telefono` existe en la DB pero no se muestra en el Perfil. Ajustar controlador y `PerfilScreen`.
+- [x] 🔵 **Móvil (Obs. 6):** Agregar botón **"ojito"** (mostrar/ocultar contraseña) en la pantalla de Login.
+- [x] 🎨 **Móvil (Obs. 2):** Rediseñar el botón **"+ Crear Reserva"** en el Inicio para que sea más grande, llamativo (gradiente, ícono, sombra).
+- [x] 🎨 **Móvil (Nueva Idea):** Implementar **Modo Oscuro** automático/manual usando `Appearance` de React Native y un toggle en el Perfil.
+
+---
+
+### 🗓️ Sábado 9 de Agosto
+> **Foco: Obs. 5 y 8 — Cancelación con motivo e Inspecciones Aleatorias mejoradas**
+
+#### Joaquín (Backend + Móvil)
+- [ ] 🔵 **Móvil (Obs. 5):** Al cancelar una reserva, mostrar modal que **pida el motivo** antes de confirmar. El motivo se guarda en la DB.
+- [ ] 🔵 **Móvil (Obs. 8):** Permitir **múltiples fotos** en la respuesta de Inspección Aleatoria.
+- [ ] 🔵 **Móvil (Obs. 8):** Agregar botón de **"Minimizar"** al panel de Inspección Aleatoria para que el conductor pueda ocultar el aviso.
+- [ ] 🔵 **Backend & Móvil (Nueva Idea):** Implementar **Firma Digital** (`react-native-signature-canvas`) obligatoria al iniciar y finalizar un viaje. Guardar en DB.
+
+---
+
+### 🗓️ Domingo 10 de Agosto
+> **Foco: Obs. 7 — IA del odómetro también al INICIO del viaje**
+
+#### Joaquín (Backend + Móvil)
+- [ ] 🔵 **Backend & Móvil (Obs. 7):** Extender el flujo de IA del odómetro al **inicio del viaje** (fotos de salida). La IA lee el km inicial y lo guarda como `kmSalida` para calcular km reales por reserva.
+- [ ] 🔵 **Backend & Móvil (Nueva Idea):** Implementar el escaneo de **QR de Vehículo** (`expo-barcode-scanner`). Al escanear un QR generado desde la DB, vincula automáticamente el vehículo a la reserva activa del conductor.
+
+---
+
+### 🗓️ Lunes 11 de Agosto
+> **Foco: Obs. 1 y 4 — Fotos del vehículo en creación + Flujo completo de Pasar el Mando**
+
+#### Joaquín (Backend + Móvil)
+- [ ] 🔵 **Backend & Móvil (Obs. 1):** Al **crear un vehículo**, agregar paso de **5 fotos de presentación** (Frontal, Trasero, Lateral Izq., Lateral Der., Interior). Se muestran en la galería del detalle del vehículo.
+- [ ] 🔵 **Backend & Móvil (Obs. 4 — Flujo completo de Aceptación del Mando):**
+  1. Conductor A pulsa "Pasar el Mando" y selecciona Conductor B → **push notification** al B.
+  2. En el Inicio del B aparece **banner de solicitud**: *"Juan Pérez quiere pasarte el mando del [PLACA]. ¿Aceptas?"*
+  3. Si B **rechaza**: escribe motivo, se notifica a A, y A **reanuda su viaje automáticamente sin nuevas fotos**.
+  4. Si B **acepta**, se le pregunta: *¿Continúas el trayecto o harás el viaje de vuelta?*
+     - **Continúa:** GPS se transfiere a B. A cierra su tramo sin fotos. B sigue normalmente.
+     - **Vuelta:** Se activa flujo de **6 fotos de salida** para B con IA de odómetro para registrar `kmSalida` del nuevo tramo.
+
+#### Gustavo (Web)
+- [ ] 🟢 **Web (Obs. 9):** Panel de **"Gestión de Banderas"** con filtros por usuario, color y fecha. Cada bandera es cliqueable con modal de detalle (fotos, motivo, reserva vinculada). Inspecciones aleatorias también clicables con opción de aprobar/rechazar la respuesta del conductor.
+- [ ] 🟢 **Backend & Web (Nueva Idea):** Implementar exportación de **Reporte PDF por Reserva** con todos los detalles (fotos, kilómetros, conductor).
+
+#### Joaquín (Móvil)
+- [x] 🔵 **Móvil (Nueva Idea):** Implementar **Pantalla de Gestión de Banderas (Solo Lectura para Admin)**. El admin puede ver un listado general de banderas asignadas a todos los usuarios, con filtros básicos, para auditar desde su teléfono.
+
+---
+
+### 🗓️ Martes 12 de Agosto (Reunión)
+> **Foco: Testing final, pulido y preparación para la reunión**
+
+#### Joaquín (Backend + Móvil)
+- [ ] 🔵 **Testing:** Prueba del Happy Path completo con todos los flujos v2.1.
+- [ ] 🔵 **Móvil:** Pulido final de diseño en pantallas nuevas o modificadas.
+- [ ] 🔵 **Documentación:** Actualizar el plan con tareas completadas y resumen para la reunión.
+
+---
+
+## ❓ Respuesta: GPS y Notificaciones en Segundo Plano
+
+**Estado actual (desarrollo local con Expo Go):**
+- El GPS usa `startLocationUpdatesAsync` → funciona en segundo plano **en dispositivos físicos**. En emulador puede fallar.
+- Las notificaciones push solo llegan si la app está en primer plano (Expo Go no tiene push real).
+
+**Una vez publicada la app con `eas build`:**
+- GPS rastreará en segundo plano de forma nativa.
+- Inspecciones aleatorias llegarán como notificaciones reales aunque el teléfono esté bloqueado.
+
+**Conclusión:** Ya está todo programado. Se activará al 100% cuando se lance la app con `eas build`.
+
+---
+
 *Plan creado en base a la reunión de revisión del 1 de Agosto, 2026.*
-*Próxima revisión: Viernes 7 de Agosto, 2026.*
+*Actualizado: Jueves 7 de Agosto, 2026 — Observaciones post-testing.*
+*Próxima reunión: Miércoles 12 de Agosto, 2026.*

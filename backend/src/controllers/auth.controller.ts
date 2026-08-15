@@ -105,7 +105,13 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         apellido: user.apellido,
         email: user.email,
         departamento: user.departamento,
+        telefono: user.telefono,
         rol: user.rol,
+        licenciaEstado: user.licenciaEstado,
+        licenciaVencimiento: user.licenciaVencimiento,
+        licenciaFotoUrl: user.licenciaFotoUrl,
+        licenciaAlDia: user.licenciaAlDia,
+        fechaVencimientoLicencia: user.fechaVencimientoLicencia,
       },
     });
   } catch (error) {

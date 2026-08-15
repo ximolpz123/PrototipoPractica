@@ -4,7 +4,8 @@ import {
   ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Modal
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { COLORS } from '../constants';
+import { COLORS, AppColors } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
 import { vehicleService, IVehicle } from '../services/vehicle.service';
 import { userService } from '../services/user.service';
@@ -16,6 +17,10 @@ const TIPO_ICON: Record<string, string> = {
 };
 
 export default function AdminCreateReservationScreen({ navigation }: any) {
+  const { colors, isDark } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
+  
+
   const { showAlert } = useAlert();
   
   const [vehicles, setVehicles] = useState<IVehicle[]>([]);
@@ -108,7 +113,7 @@ export default function AdminCreateReservationScreen({ navigation }: any) {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -256,59 +261,59 @@ export default function AdminCreateReservationScreen({ navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: AppColors) => StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  container: { flex: 1, backgroundColor: '#f4f6f9' },
+  container: { flex: 1, backgroundColor: colors.background },
   scroll: { padding: 20, paddingBottom: 60 },
-  label: { fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginTop: 20, marginBottom: 10 },
+  label: { fontSize: 16, fontWeight: 'bold', color: colors.text, marginTop: 20, marginBottom: 10 },
   
   selectButton: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     padding: 15,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.border,
   },
-  selectButtonText: { color: '#999', fontSize: 16 },
-  selectButtonTextSelected: { color: COLORS.text, fontSize: 16, fontWeight: 'bold' },
+  selectButtonText: { color: colors.textMuted, fontSize: 16 },
+  selectButtonTextSelected: { color: colors.text, fontSize: 16, fontWeight: 'bold' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#fff', borderRadius: 10, padding: 20 },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },
-  modalItem: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  modalItemTitle: { fontSize: 16, fontWeight: 'bold', color: COLORS.text },
-  modalItemSub: { fontSize: 13, color: '#666' },
-  closeModalBtn: { marginTop: 15, padding: 12, backgroundColor: '#eee', borderRadius: 8, alignItems: 'center' },
-  closeModalText: { fontSize: 16, color: '#333', fontWeight: 'bold' },
+  modalContent: { backgroundColor: colors.white, borderRadius: 10, padding: 20 },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, textAlign: 'center', color: colors.text },
+  modalItem: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  modalItemTitle: { fontSize: 16, fontWeight: 'bold', color: colors.text },
+  modalItemSub: { fontSize: 13, color: colors.textMuted },
+  closeModalBtn: { marginTop: 15, padding: 12, backgroundColor: colors.border, borderRadius: 8, alignItems: 'center' },
+  closeModalText: { fontSize: 16, color: colors.text, fontWeight: 'bold' },
 
   carList: { flexDirection: 'row', marginBottom: 10 },
   carCard: {
-    backgroundColor: '#fff', padding: 15, borderRadius: 12, marginRight: 15,
+    backgroundColor: colors.white, padding: 15, borderRadius: 12, marginRight: 15,
     borderWidth: 2, borderColor: 'transparent', alignItems: 'center',
     width: 120,
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 2,
   },
-  carCardSelected: { borderColor: COLORS.primary, backgroundColor: '#eef7ff' },
+  carCardSelected: { borderColor: colors.primary, backgroundColor: colors.primary + '15' },
   carIcon: { fontSize: 32, marginBottom: 5 },
-  carMarca: { fontSize: 14, fontWeight: 'bold', textAlign: 'center' },
-  carPlaca: { fontSize: 12, color: '#666', marginTop: 2 },
+  carMarca: { fontSize: 14, fontWeight: 'bold', textAlign: 'center', color: colors.text },
+  carPlaca: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   
   dateRow: { flexDirection: 'row', justifyContent: 'space-between' },
   dateBtn: {
-    backgroundColor: '#fff', padding: 15, borderRadius: 10, flex: 1,
+    backgroundColor: colors.white, padding: 15, borderRadius: 10, flex: 1,
     marginHorizontal: 5, alignItems: 'center',
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 2,
   },
-  dateLabel: { fontSize: 12, color: '#666', marginBottom: 5 },
-  dateValue: { fontSize: 16, fontWeight: 'bold', color: COLORS.primary },
+  dateLabel: { fontSize: 12, color: colors.textMuted, marginBottom: 5 },
+  dateValue: { fontSize: 16, fontWeight: 'bold', color: colors.primary },
 
   input: {
-    backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 15,
+    backgroundColor: colors.white, color: colors.text, padding: 15, borderRadius: 10, marginBottom: 15,
     fontSize: 16, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 2,
   },
   submitBtn: {
-    backgroundColor: COLORS.primary, padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 20,
-    shadowColor: COLORS.primary, shadowOpacity: 0.4, shadowRadius: 6, shadowOffset: { width: 0, height: 4 },
+    backgroundColor: colors.primary, padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 20,
+    shadowColor: colors.primary, shadowOpacity: 0.4, shadowRadius: 6, shadowOffset: { width: 0, height: 4 },
   },
   submitBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
 });

@@ -20,22 +20,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { authService } from './services/auth.service';
 import { userService } from './services/user.service';
 import { reservationService } from './services/reservation.service';
-import './services/location.service'; // Import location service for global TaskManager registration
+import { locationService } from './services/location.service'; // Import location service for global TaskManager registration
 import type { IUser } from './types';
 import { COLORS } from './constants';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+if (Constants.appOwnership !== 'expo') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}
 
 // Screens
 import HomeScreen from './screens/HomeScreen';
@@ -49,7 +51,10 @@ import AdminHistoryScreen from './screens/AdminHistoryScreen';
 import AdminMapScreen from './screens/AdminMapScreen';
 import AddVehicleAIScreen from './screens/AddVehicleAIScreen';
 import AdminCreateReservationScreen from './screens/AdminCreateReservationScreen';
+import AdminBanderasScreen from './screens/AdminBanderasScreen';
+import ScanQRScreen from './screens/ScanQRScreen';
 import { AlertProvider, useAlert } from './context/AlertContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -57,6 +62,7 @@ const Tab = createBottomTabNavigator();
 // ── Navegación del CONDUCTOR ────────────────────────────────────────────────
 function MainTabNavigator({ route }: any) {
   const { user, handleLogout } = route.params;
+  const { colors } = useTheme();
 
   return (
     <Tab.Navigator
@@ -76,8 +82,11 @@ function MainTabNavigator({ route }: any) {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textMuted,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarStyle: { backgroundColor: colors.background, borderTopColor: colors.border },
+        headerStyle: { backgroundColor: colors.background },
+        headerTintColor: colors.text,
         headerShown: true,
         headerLeft: () => (
           <Image 
@@ -100,6 +109,7 @@ function MainTabNavigator({ route }: any) {
 function AdminTabNavigator({ route }: any) {
   const { user, handleLogout } = route.params;
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const { themePreference, setThemePreference, colors } = useTheme();
 
   return (
     <>
@@ -115,11 +125,16 @@ function AdminTabNavigator({ route }: any) {
             iconName = focused ? 'car' : 'car-outline';
           } else if (route.name === 'Historial Admin') {
             iconName = focused ? 'list' : 'list-outline';
+          } else if (route.name === 'Banderas') {
+            iconName = focused ? 'flag' : 'flag-outline';
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textMuted,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarStyle: { backgroundColor: colors.background, borderTopColor: colors.border },
+        headerStyle: { backgroundColor: colors.background },
+        headerTintColor: colors.text,
         headerShown: true,
         headerLeft: () => (
           <Image 
@@ -127,6 +142,27 @@ function AdminTabNavigator({ route }: any) {
             style={{ width: 30, height: 30, marginLeft: 15 }} 
             resizeMode="contain" 
           />
+        ),
+        headerRight: () => (
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 15 }}>
+            <TouchableOpacity 
+              onPress={() => {
+                if (themePreference === 'light') setThemePreference('dark');
+                else if (themePreference === 'dark') setThemePreference('system');
+                else setThemePreference('light');
+              }}
+              style={{ marginRight: 20 }}
+            >
+              <Ionicons 
+                name={themePreference === 'light' ? 'sunny' : themePreference === 'dark' ? 'moon' : 'phone-portrait-outline'} 
+                size={24} 
+                color={colors.primary} 
+              />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setLogoutModalVisible(true)}>
+              <Ionicons name="log-out-outline" size={24} color={COLORS.danger} />
+            </TouchableOpacity>
+          </View>
         ),
       })}
     >
@@ -136,14 +172,6 @@ function AdminTabNavigator({ route }: any) {
         options={{
           title: 'Panel Admin',
           tabBarLabel: 'Solicitudes',
-          headerRight: () => (
-            <TouchableOpacity 
-              onPress={() => setLogoutModalVisible(true)} 
-              style={{ marginRight: 15 }}
-            >
-              <Ionicons name="log-out-outline" size={24} color={COLORS.danger} />
-            </TouchableOpacity>
-          ),
         }}
       />
       <Tab.Screen
@@ -160,6 +188,11 @@ function AdminTabNavigator({ route }: any) {
         name="Historial Admin"
         component={AdminHistoryScreen}
         options={{ title: 'Auditoría y Evidencia', tabBarLabel: 'Historial' }}
+      />
+      <Tab.Screen
+        name="Banderas"
+        component={AdminBanderasScreen}
+        options={{ title: 'Gestión de Banderas', tabBarLabel: 'Banderas' }}
       />
     </Tab.Navigator>
     
@@ -191,14 +224,22 @@ function AdminTabNavigator({ route }: any) {
 // ====== COMPONENTE PRINCIPAL ======
 function MainApp() {
   const { showAlert } = useAlert();
+  const { colors } = useTheme();
   const [user, setUser] = useState<any>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
 
   // Funciones de Push Notifications
   const registerForPushNotificationsAsync = async (currentUser: any) => {
+    // Evitar Crash en Expo Go (SDK 53+)
+    if (Constants.appOwnership === 'expo') {
+      console.log('⚠️ Push Notifications desactivadas en Expo Go (SDK 53+). Usa un dev build para notificaciones remotas.');
+      return;
+    }
+
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'default',
@@ -254,6 +295,7 @@ function MainApp() {
   // Listeners de Notificaciones
   useEffect(() => {
     if (!user) return;
+    if (Constants.appOwnership === 'expo') return;
 
     const subscription = Notifications.addNotificationReceivedListener(notification => {
       const data = notification.request.content.data as any;
@@ -288,6 +330,12 @@ function MainApp() {
           ],
           { cancelable: false }
         );
+      } else if (data && data.type === 'HANDOVER_REQUEST') {
+        // En v2, el Home maneja la persistencia mediante solicitudTraspaso.
+        // Solo refrescamos las reservas si estamos autenticados.
+        showAlert('Traspaso Recibido', notification.request.content.body || 'Alguien quiere pasarte el mando.');
+        // Para forzar refresh, podríamos disparar un evento global o simplemente dejar que 
+        // el focus listener de Home actúe si el usuario entra a la app.
       }
     });
 
@@ -330,9 +378,9 @@ function MainApp() {
   // Pantalla de carga inicial
   if (checkingSession) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>Cargando...</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textMuted }]}>Cargando...</Text>
       </View>
     );
   }
@@ -362,6 +410,11 @@ function MainApp() {
                 component={CreateReservationScreen}
                 options={{ title: 'Crear Reserva' }}
               />
+              <Stack.Screen
+                name="ScanQR"
+                component={ScanQRScreen}
+                options={{ title: 'Escanear QR Vehículo' }}
+              />
             </>
           )}
           {isAdmin && (
@@ -375,6 +428,11 @@ function MainApp() {
                 name="AdminCreateReservation"
                 component={AdminCreateReservationScreen}
                 options={{ title: 'Asignar Vehículo' }}
+              />
+              <Stack.Screen
+                name="ScanQR"
+                component={ScanQRScreen}
+                options={{ title: 'Escanear QR Vehículo' }}
               />
             </>
           )}
@@ -416,14 +474,26 @@ function MainApp() {
               keyboardType="email-address"
             />
 
-            <TextInput
-              style={styles.inputNew}
-              placeholder="Contraseña"
-              placeholderTextColor={COLORS.textMuted}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+            <View style={styles.passwordContainerNew}>
+              <TextInput
+                style={styles.passwordInputNew}
+                placeholder="Contraseña"
+                placeholderTextColor={COLORS.textMuted}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity 
+                style={styles.eyeButtonNew} 
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <Ionicons 
+                  name={showPassword ? 'eye-off' : 'eye'} 
+                  size={22} 
+                  color={COLORS.textMuted} 
+                />
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
               style={[styles.loginBtnNew, loading && styles.loginBtnDisabled]}
@@ -445,9 +515,11 @@ function MainApp() {
 
 export default function App() {
   return (
-    <AlertProvider>
-      <MainApp />
-    </AlertProvider>
+    <ThemeProvider>
+      <AlertProvider>
+        <MainApp />
+      </AlertProvider>
+    </ThemeProvider>
   );
 }
 
@@ -657,5 +729,25 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  passwordContainerNew: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    backgroundColor: '#f8fafc',
+    marginBottom: 14,
+  },
+  passwordInputNew: {
+    flex: 1,
+    padding: 14,
+    fontSize: 15,
+    color: COLORS.text,
+  },
+  eyeButtonNew: {
+    padding: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

@@ -10,6 +10,11 @@ import {
   uploadFotoTablero,
   notifyDelayToNextReservation,
   handleDelayResponse,
+  cambioConductorTramo,
+  requestCambioConductorTramo,
+  responderTraspaso,
+  cancelarTraspaso,
+  saveFirma,
 } from '../controllers/reservation.controller.js';
 import { authMiddleware, adminMiddleware, licenciaMiddleware } from '../middleware/auth.js';
 import { upload } from '../config/cloudinary.js';
@@ -41,6 +46,18 @@ router.post('/:id/notify-delay', authMiddleware, adminMiddleware, notifyDelayToN
 // POST /api/reservations/:id/handle-delay-response
 router.post('/:id/handle-delay-response', authMiddleware, handleDelayResponse);
 
+// POST /api/reservations/:id/tramos/cambio/request (Solicitar cambio de conductor)
+router.post('/:id/tramos/cambio/request', authMiddleware, requestCambioConductorTramo);
+
+// POST /api/reservations/:id/responder-traspaso
+router.post('/:id/responder-traspaso', authMiddleware, responderTraspaso);
+
+// PATCH /api/reservations/:id/cancelar-traspaso (Cancelar traspaso por el conductor origen)
+router.patch('/:id/cancelar-traspaso', authMiddleware, cancelarTraspaso);
+
+// POST /api/reservations/:id/tramos/cambio (Registra cambio de conductor en ruta)
+router.post('/:id/tramos/cambio', authMiddleware, cambioConductorTramo);
+
 // POST /api/reservations/:id/upload
 // Sube hasta 4 fotos y las asocia a la reserva (tipo: 'salida' o 'retorno')
 router.post(
@@ -58,5 +75,9 @@ router.post(
   upload.single('foto'),
   uploadFotoTablero
 );
+
+// PATCH /api/reservations/:id/firma
+// Guarda la firma digital de inicio o fin (base64 image)
+router.patch('/:id/firma', authMiddleware, saveFirma);
 
 export default router;

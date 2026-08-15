@@ -4,17 +4,24 @@ import {
   ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { COLORS } from '../constants';
+import { COLORS, AppColors } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
 import { vehicleService, IVehicle } from '../services/vehicle.service';
 import { reservationService } from '../services/reservation.service';
+import { authService } from '../services/auth.service';
 
 const TIPO_ICON: Record<string, string> = {
   pickup: '🛻', sedan: '🚗', suv: '🚙', van: '🚐',
 };
 
-export default function CreateReservationScreen({ navigation }: any) {
+export default function CreateReservationScreen({ navigation, route }: any) {
+  const { colors, isDark } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
+  const preselectedVehicleId: string | undefined = route?.params?.preselectedVehicleId;
+
   const { showAlert } = useAlert();
+  const [user, setUser] = useState<any>(null);
   const [vehicles, setVehicles] = useState<IVehicle[]>([]);
   const [loadingVehicles, setLoadingVehicles] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -31,18 +38,28 @@ export default function CreateReservationScreen({ navigation }: any) {
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
   useEffect(() => {
-    loadAvailableVehicles();
+    loadData();
   }, []);
 
-  const loadAvailableVehicles = async () => {
+  const loadData = async () => {
     try {
       setLoadingVehicles(true);
+      
+      const currentUser = await authService.getCurrentUser();
+      setUser(currentUser);
+      
       const all = await vehicleService.getAll();
       // Mostrar todos los vehículos operativos (no los de mantenimiento o fuera de servicio)
       // Los reservados/en_curso aún se pueden seleccionar para reservar en otro horario
-      setVehicles(all.filter((v) => v.estado !== 'mantenimiento' && v.estado !== 'fuera_de_servicio'));
+      const filtered = all.filter((v) => v.estado !== 'mantenimiento' && v.estado !== 'fuera_de_servicio');
+      setVehicles(filtered);
+      // Si viene pre-seleccionado desde escaneo QR, auto-seleccionarlo
+      if (preselectedVehicleId) {
+        const found = filtered.find(v => v._id === preselectedVehicleId);
+        if (found) setSelectedVehicle(found);
+      }
     } catch (err) {
-      showAlert('Error', 'No se pudo cargar la lista de vehículos.');
+      showAlert('Error', 'No se pudo cargar la información.');
     } finally {
       setLoadingVehicles(false);
     }
@@ -106,6 +123,36 @@ export default function CreateReservationScreen({ navigation }: any) {
   const formatTime = (d: Date) =>
     d.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
 
+  // Validación de Licencia
+  if (loadingVehicles) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  const licenciaVigente = user?.licenciaEstado === 'vigente' || user?.licenciaAlDia === true;
+  const fechaVencimiento = user?.licenciaVencimiento || user?.fechaVencimientoLicencia;
+  const isLicenciaValida = licenciaVigente && fechaVencimiento && new Date(fechaVencimiento) > new Date();
+
+  if (!isLicenciaValida) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+        <Text style={{ fontSize: 40, marginBottom: 10 }}>⚠️</Text>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.danger, textAlign: 'center', marginBottom: 10 }}>
+          Licencia Inválida o No Escaneada
+        </Text>
+        <Text style={{ fontSize: 16, color: colors.text, textAlign: 'center', marginBottom: 20 }}>
+          Para poder realizar reservas valida primero tu carnet de conducir en tu perfil.
+        </Text>
+        <TouchableOpacity style={styles.confirmBtn} onPress={() => navigation.goBack()}>
+          <Text style={styles.confirmBtnText}>Volver al Inicio</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
@@ -116,7 +163,7 @@ export default function CreateReservationScreen({ navigation }: any) {
         <Text style={styles.label}>1. Selecciona un Vehículo</Text>
         {loadingVehicles ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator color={COLORS.primary} />
+            <ActivityIndicator color={colors.primary} />
             <Text style={styles.loadingText}>Cargando vehículos disponibles...</Text>
           </View>
         ) : vehicles.length === 0 ? (
@@ -205,7 +252,7 @@ export default function CreateReservationScreen({ navigation }: any) {
           value={destino}
           onChangeText={setDestino}
           placeholder="Ej: Planta Bitnets, Santiago Centro..."
-          placeholderTextColor={COLORS.textMuted}
+          placeholderTextColor={colors.textMuted}
         />
 
         {/* 4. Motivo */}
@@ -215,7 +262,7 @@ export default function CreateReservationScreen({ navigation }: any) {
           value={motive}
           onChangeText={setMotive}
           placeholder="Ej: Visita a cliente en terreno, traslado de equipos..."
-          placeholderTextColor={COLORS.textMuted}
+          placeholderTextColor={colors.textMuted}
           multiline
           numberOfLines={3}
         />
@@ -226,7 +273,7 @@ export default function CreateReservationScreen({ navigation }: any) {
           disabled={submitting || loadingVehicles}
         >
           {submitting
-            ? <ActivityIndicator color={COLORS.white} />
+            ? <ActivityIndicator color={colors.white} />
             : <Text style={styles.confirmBtnText}>Confirmar Reserva</Text>
           }
         </TouchableOpacity>
@@ -235,29 +282,29 @@ export default function CreateReservationScreen({ navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+const getStyles = (colors: AppColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   scrollContent: { padding: 20, paddingBottom: 50 },
-  title: { fontSize: 26, fontWeight: 'bold', color: COLORS.text, marginBottom: 4 },
-  subtitle: { fontSize: 15, color: COLORS.textMuted, marginBottom: 24 },
-  label: { fontSize: 16, fontWeight: '700', color: COLORS.text, marginBottom: 10, marginTop: 8 },
-  loadingContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 16, backgroundColor: COLORS.white, borderRadius: 8, marginBottom: 12 },
-  loadingText: { color: COLORS.textMuted, fontSize: 14 },
-  emptyVehicles: { backgroundColor: COLORS.white, borderRadius: 8, padding: 16, alignItems: 'center', marginBottom: 12 },
-  emptyVehiclesText: { color: COLORS.textMuted, fontSize: 14, textAlign: 'center' },
+  title: { fontSize: 26, fontWeight: 'bold', color: colors.text, marginBottom: 4 },
+  subtitle: { fontSize: 15, color: colors.textMuted, marginBottom: 24 },
+  label: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 10, marginTop: 8 },
+  loadingContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 16, backgroundColor: colors.white, borderRadius: 8, marginBottom: 12 },
+  loadingText: { color: colors.textMuted, fontSize: 14 },
+  emptyVehicles: { backgroundColor: colors.white, borderRadius: 8, padding: 16, alignItems: 'center', marginBottom: 12 },
+  emptyVehiclesText: { color: colors.textMuted, fontSize: 14, textAlign: 'center' },
   vehicleList: { marginBottom: 8 },
   vehicleOption: {
-    borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 10,
-    padding: 14, marginBottom: 10, backgroundColor: COLORS.white,
+    borderWidth: 1.5, borderColor: colors.border, borderRadius: 10,
+    padding: 14, marginBottom: 10, backgroundColor: colors.white,
     flexDirection: 'row', alignItems: 'center', gap: 12,
   },
-  vehicleOptionSelected: { borderColor: COLORS.primary, backgroundColor: '#EBF5FB' },
+  vehicleOptionSelected: { borderColor: colors.primary, backgroundColor: '#EBF5FB' },
   vehicleIcon: { fontSize: 24 },
   vehicleInfo: { flex: 1 },
-  vehicleOptionText: { fontSize: 15, color: COLORS.text, fontWeight: '600' },
-  vehicleOptionTextSelected: { color: COLORS.primary },
-  vehicleSubText: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
-  checkmark: { color: COLORS.primary, fontSize: 18, fontWeight: 'bold' },
+  vehicleOptionText: { fontSize: 15, color: colors.text, fontWeight: '600' },
+  vehicleOptionTextSelected: { color: colors.primary },
+  vehicleSubText: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  checkmark: { color: colors.primary, fontSize: 18, fontWeight: 'bold' },
   vehicleOptionBusy: { borderColor: '#FFA500', borderStyle: 'dashed' },
   vehicleNameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 2 },
   estadoBadge: {
@@ -267,21 +314,21 @@ const styles = StyleSheet.create({
   estadoBadgeText: { fontSize: 10, fontWeight: '700' },
   vehicleBusyHint: { fontSize: 11, color: '#FFA500', marginTop: 4, fontStyle: 'italic' },
   input: {
-    backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.border,
-    borderRadius: 8, padding: 14, fontSize: 15, marginBottom: 10, color: COLORS.text,
+    backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border,
+    borderRadius: 8, padding: 14, fontSize: 15, marginBottom: 10, color: colors.text,
   },
   textArea: { height: 80, textAlignVertical: 'top' },
   datePickerBtn: {
-    backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border,
     borderRadius: 8, padding: 14, marginBottom: 12,
   },
-  datePickerLabel: { fontSize: 12, color: COLORS.textMuted, marginBottom: 4 },
-  datePickerValue: { fontSize: 15, color: COLORS.text, fontWeight: '500' },
+  datePickerLabel: { fontSize: 12, color: colors.textMuted, marginBottom: 4 },
+  datePickerValue: { fontSize: 15, color: colors.text, fontWeight: '500' },
   timeRow: { flexDirection: 'row' },
   confirmBtn: {
-    backgroundColor: COLORS.primary, padding: 16, borderRadius: 10,
+    backgroundColor: colors.primary, padding: 16, borderRadius: 10,
     alignItems: 'center', marginTop: 20,
   },
   confirmBtnDisabled: { opacity: 0.6 },
-  confirmBtnText: { color: COLORS.white, fontWeight: 'bold', fontSize: 16 },
+  confirmBtnText: { color: colors.white, fontWeight: 'bold', fontSize: 16 },
 });

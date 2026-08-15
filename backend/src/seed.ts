@@ -27,13 +27,14 @@ const seedData = async () => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash('password123', salt);
 
+    // Crear usuarios de prueba (v2)
     const users = await User.insertMany([
       {
-        nombre: 'Carlos',
-        apellido: 'Martínez',
+        nombre: 'Admin',
+        apellido: 'Sistema',
         email: 'admin@empresa.com',
         password: hashedPassword,
-        departamento: 'TI',
+        departamento: 'Jefatura',
         telefono: '+56911112222',
         rol: 'admin',
         activo: true,
@@ -48,6 +49,19 @@ const seedData = async () => {
         password: hashedPassword,
         departamento: 'Operaciones',
         telefono: '+56933334444',
+        rol: 'usuario',
+        activo: true,
+        licenciaAlDia: true,
+        fechaVencimientoLicencia: new Date('2027-06-30'),
+        licenciaEstado: 'vigente',
+      },
+      {
+        nombre: 'Luis',
+        apellido: 'Pérez',
+        email: 'usuario2@empresa.com',
+        password: hashedPassword,
+        departamento: 'Operaciones',
+        telefono: '+56955556666',
         rol: 'usuario',
         activo: true,
         licenciaAlDia: true,
@@ -141,6 +155,7 @@ const seedData = async () => {
     console.log('\n📋 Credenciales de prueba:');
     console.log('   Admin:     admin@empresa.com   / password123');
     console.log('   Conductor: usuario@empresa.com / password123');
+    console.log('   Cond. 2:   usuario2@empresa.com / password123');
     console.log('========================================\n');
 
     await mongoose.connection.close();

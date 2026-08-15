@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Modal, TextInput } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { COLORS, API_URL } from '../constants';
+import { COLORS, AppColors, API_URL, BORDER_RADIUS, SHADOWS } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
 import axios from 'axios';
 import { authService } from '../services/auth.service';
@@ -12,8 +13,12 @@ const POSITIONS = ['frontal', 'lateralDer', 'lateralIzq', 'trasero', 'tablero', 
 const LABELS = ['Frontal', 'Lateral Derecho', 'Lateral Izquierdo', 'Trasero', 'Tablero', 'Interior'];
 
 export default function CameraScreen({ route, navigation }: any) {
+  const { colors, isDark } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
+  
+
   const { showAlert } = useAlert();
-  const { reservaId, tipo, tipoIndicador } = route.params;
+  const { reservaId, tipo, tipoIndicador, kilometrajeActual = 0 } = route.params;
 
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
@@ -28,7 +33,8 @@ export default function CameraScreen({ route, navigation }: any) {
   const [showOdometerModal, setShowOdometerModal] = useState(false);
   const [kmDetectado, setKmDetectado] = useState(-1);
   const [manualKm, setManualKm] = useState('');
-  const [finalKmRetorno, setFinalKmRetorno] = useState<number | null>(null);
+  const [finalKmTablero, setFinalKmTablero] = useState<number | null>(null);
+  const [observacionKm, setObservacionKm] = useState('');
   const [isEditingKm, setIsEditingKm] = useState(false);
 
   // Gas level states
@@ -39,26 +45,17 @@ export default function CameraScreen({ route, navigation }: any) {
       if (canGoBack) return;
       e.preventDefault();
 
-      const title = tipo === 'salida' ? 'Fotos Obligatorias' : 'Atención';
+      const title = tipo === 'salida' ? 'Volver al Inicio' : 'Atención';
       const msg = tipo === 'salida'
-        ? 'Debes tomar fotos de evidencia para iniciar tu viaje. Si retrocedes, tu viaje será cancelado automáticamente.'
+        ? 'Aún no has iniciado tu viaje. Si retrocedes, podrás iniciarlo más tarde.'
         : 'Aún no has completado tu viaje. Si retrocedes, tu viaje seguirá "En Curso" y deberás finalizarlo más tarde.';
 
       showAlert(title, msg, [
-        { text: 'Tomar fotos', style: 'cancel', onPress: () => { } },
+        { text: 'Quedarme aquí', style: 'cancel', onPress: () => { } },
         {
-          text: tipo === 'salida' ? 'Cancelar Viaje' : 'Volver al Inicio',
-          style: tipo === 'salida' ? 'destructive' : 'default',
+          text: 'Volver al Inicio',
+          style: 'default',
           onPress: async () => {
-            if (tipo === 'salida') {
-              try {
-                await reservationService.cancel(reservaId);
-                await locationService.stopTracking();
-              } catch (error) {
-                showAlert('Error', 'No se pudo cancelar el viaje.');
-                return;
-              }
-            }
             setCanGoBack(true);
             navigation.dispatch(e.data.action);
           },
@@ -71,13 +68,13 @@ export default function CameraScreen({ route, navigation }: any) {
   }, [navigation, canGoBack, tipo, reservaId]);
 
   if (!permission) {
-    return <View style={styles.container}><ActivityIndicator size="large" color={COLORS.primary} /></View>;
+    return <View style={styles.container}><ActivityIndicator size="large" color={colors.primary} /></View>;
   }
 
   if (!permission.granted) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.text}>Necesitamos permiso para usar la cámara</Text>
+        <Text style={styles.text}>Necesitamos permiso para usar la c├ímara</Text>
         <TouchableOpacity style={styles.btn} onPress={requestPermission}>
           <Text style={styles.btnText}>Otorgar Permiso</Text>
         </TouchableOpacity>
@@ -110,7 +107,7 @@ export default function CameraScreen({ route, navigation }: any) {
       setShowOdometerModal(true);
     } catch (error: any) {
       console.error(error);
-      showAlert('Error IA', 'No se pudo procesar la foto del tablero. Deberás ingresar el KM manualmente.');
+      showAlert('Error IA', 'No se pudo procesar la foto del tablero. Deber├ís ingresar el KM manualmente.');
       setKmDetectado(-1);
       setIsEditingKm(true);
       setShowOdometerModal(true);
@@ -134,7 +131,7 @@ export default function CameraScreen({ route, navigation }: any) {
     const newPhotos = { ...photos, [pos]: photo.uri };
     setPhotos(newPhotos);
 
-    if (pos === 'tablero' && tipo === 'retorno') {
+    if (pos === 'tablero') {
       await procesarFotoIA(photo.uri);
     } else {
       setCurrentStep(currentStep + 1);
@@ -151,8 +148,18 @@ export default function CameraScreen({ route, navigation }: any) {
       showAlert('Error', 'Ingresa un número válido para el kilometraje.');
       return;
     }
+
+    if (kmNum < kilometrajeActual) {
+      showAlert('Atención', `El kilometraje no puede ser menor al registrado en el sistema (${kilometrajeActual} km). Revisa la foto e ingrésalo correctamente.`);
+      return;
+    }
     
-    setFinalKmRetorno(kmNum);
+    if (tipo === 'salida' && kmNum > kilometrajeActual && !observacionKm.trim()) {
+      showAlert('Atención', 'El kilometraje ingresado es mayor al registrado en el sistema. Por favor, escribe un motivo o justificación.');
+      return;
+    }
+    
+    setFinalKmTablero(kmNum);
     setShowOdometerModal(false);
     setCurrentStep(currentStep + 1);
   };
@@ -181,9 +188,16 @@ export default function CameraScreen({ route, navigation }: any) {
         }
       });
 
-      if (tipo === 'retorno') {
+      if (tipo === 'salida' || tipo === 'tramo') {
+        // Iniciar reserva (o tramo) y rastreo recién ahora (viaje inicia al subir las fotos)
+        await reservationService.startReservation(reservaId, finalKmTablero ?? undefined, observacionKm.trim() || undefined, tipo === 'tramo');
+        const started = await locationService.startTracking(reservaId);
+        if (!started) {
+          showAlert('Aviso de GPS', 'El viaje inició pero no se pudo activar el GPS.');
+        }
+      } else if (tipo === 'retorno') {
         await axios.patch(`${API_URL}/reservations/${reservaId}/complete`, {
-          kmRetorno: finalKmRetorno,
+          kmRetorno: finalKmTablero,
           nivelBencinaRetorno: bencinaLevel
         }, {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -191,7 +205,7 @@ export default function CameraScreen({ route, navigation }: any) {
         await locationService.stopTracking();
       }
 
-      showAlert('Éxito', tipo === 'salida' ? 'Viaje iniciado exitosamente.' : 'Viaje finalizado exitosamente.');
+      showAlert('Éxito', (tipo === 'salida' || tipo === 'tramo') ? 'Viaje iniciado exitosamente.' : 'Viaje finalizado exitosamente.');
       setCanGoBack(true);
       navigation.navigate('MainTabs');
     } catch (error: any) {
@@ -267,10 +281,10 @@ export default function CameraScreen({ route, navigation }: any) {
             </View>
             
             {uploadingIA ? (
-              <View style={styles.aiLoading}>
-                <ActivityIndicator size="large" color="#fff" />
-                <Text style={styles.aiLoadingText}>Leyendo Odómetro con IA...</Text>
-              </View>
+                <View style={styles.aiLoading}>
+                  <ActivityIndicator size="large" color="#fff" />
+                  <Text style={styles.aiLoadingText}>Analizando kilometraje del tablero...</Text>
+                </View>
             ) : (
               <TouchableOpacity style={styles.captureBtn} onPress={takePicture}>
                 <View style={styles.captureInner} />
@@ -299,7 +313,7 @@ export default function CameraScreen({ route, navigation }: any) {
             disabled={uploading}
           >
             {uploading ? (
-              <ActivityIndicator color={COLORS.white} />
+              <ActivityIndicator color={colors.white} />
             ) : (
               <Text style={styles.uploadBtnText}>
                 {tipo === 'salida' ? 'Subir e Iniciar Viaje' : 'Subir y Finalizar Viaje'}
@@ -309,11 +323,12 @@ export default function CameraScreen({ route, navigation }: any) {
         </View>
       )}
 
-      {/* IA Modal */}
-      <Modal visible={showOdometerModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>🤖 IA Odómetro</Text>
+        {/* IA Modal */}
+        <Modal visible={showOdometerModal} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.bottomSheetIndicator} />
+              <Text style={styles.modalTitle}>🤖 IA Odómetro</Text>
             
             {!isEditingKm ? (
               <>
@@ -341,9 +356,21 @@ export default function CameraScreen({ route, navigation }: any) {
                   placeholder="Ej: 12345"
                   autoFocus
                 />
-                <TouchableOpacity style={[styles.modalBtn, styles.btnYes, { width: '100%', marginTop: 15 }]} onPress={confirmarOdometro}>
-                  <Text style={styles.btnYesText}>Guardar Odómetro</Text>
-                </TouchableOpacity>
+                
+                {tipo === 'salida' && parseInt(manualKm || '0', 10) > kilometrajeActual && (
+                  <TextInput
+                    style={[styles.kmInput, { minHeight: 60, textAlignVertical: 'top', fontSize: 16 }]}
+                    placeholder={`El sistema indica ${kilometrajeActual} km. Justifica la diferencia:`}
+                    placeholderTextColor={colors.textMuted}
+                    multiline
+                    value={observacionKm}
+                    onChangeText={setObservacionKm}
+                  />
+                )}
+                
+                                <TouchableOpacity style={[styles.modalBtn, styles.btnYes, { width: '100%', marginTop: 15, paddingVertical: 20 }]} onPress={confirmarOdometro}>
+                    <Text style={[styles.btnYesText, { fontSize: 18, fontWeight: 'bold' }]}>Confirmar</Text>
+                  </TouchableOpacity>
               </>
             )}
           </View>
@@ -353,8 +380,8 @@ export default function CameraScreen({ route, navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+const getStyles = (colors: AppColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   camera: { flex: 1 },
   overlay: {
@@ -372,7 +399,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   stepText: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: 'bold',
     fontSize: 16,
     marginBottom: 5,
@@ -416,7 +443,7 @@ const styles = StyleSheet.create({
   finalTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -437,10 +464,10 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   thumbnailLabel: {
-    color: COLORS.text,
+    color: colors.text,
     fontSize: 11,
     marginTop: 5,
     textAlign: 'center',
@@ -449,7 +476,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -5,
     right: -5,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     width: 24,
     height: 24,
     borderRadius: 12,
@@ -458,7 +485,7 @@ const styles = StyleSheet.create({
   },
   retakeText: { color: '#fff', fontWeight: 'bold' },
   bencinaContainer: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     padding: 15,
     borderRadius: 10,
     marginBottom: 20,
@@ -466,7 +493,7 @@ const styles = StyleSheet.create({
   bencinaTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: 15,
     textAlign: 'center',
   },
@@ -478,23 +505,23 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   analogBtnActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   analogText: {
-    color: COLORS.text,
+    color: colors.text,
     fontWeight: 'bold',
   },
   analogTextActive: {
     color: '#fff',
   },
   uploadBtn: {
-    backgroundColor: COLORS.success,
+    backgroundColor: colors.success,
     padding: 18,
     borderRadius: 10,
     alignItems: 'center',
@@ -505,81 +532,94 @@ const styles = StyleSheet.create({
   uploadBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
+    borderTopLeftRadius: BORDER_RADIUS.xl,
+    borderTopRightRadius: BORDER_RADIUS.xl,
+    padding: 28,
+    paddingTop: 16,
+    paddingBottom: 40,
     width: '100%',
-    borderRadius: 12,
-    padding: 25,
-    alignItems: 'center',
+    ...SHADOWS.elegant,
+  },
+  bottomSheetIndicator: {
+    width: 40,
+    height: 5,
+    backgroundColor: colors.border,
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginBottom: 20,
   },
   modalTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: colors.primary,
     marginBottom: 15,
   },
   modalText: {
     fontSize: 16,
-    color: COLORS.text,
+    color: colors.text,
     textAlign: 'center',
   },
   boldKm: {
     fontSize: 24,
     fontWeight: '900',
-    color: COLORS.text,
+    color: colors.text,
   },
   modalQuestion: {
     fontSize: 18,
     fontWeight: '600',
     marginTop: 15,
     marginBottom: 25,
-    color: COLORS.text,
+    color: colors.text,
   },
   modalBtns: {
     flexDirection: 'row',
     width: '100%',
     justifyContent: 'space-between',
-    gap: 15,
+    gap: 12,
   },
   modalBtn: {
     flex: 1,
-    padding: 14,
-    borderRadius: 8,
+    padding: 18,
+    borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   btnNo: {
     backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    borderWidth: 2,
+    borderColor: colors.border,
   },
   btnNoText: {
-    color: COLORS.text,
+    color: colors.text,
     fontWeight: 'bold',
+    fontSize: 16,
   },
   btnYes: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
+    ...SHADOWS.elegant,
   },
   btnYesText: {
     color: '#fff',
     fontWeight: 'bold',
+    fontSize: 16,
   },
   kmInput: {
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 8,
     width: '100%',
     padding: 15,
     fontSize: 20,
     marginTop: 15,
     textAlign: 'center',
-    color: COLORS.text,
+    color: colors.text,
   },
-  text: { color: COLORS.text, fontSize: 16, marginBottom: 20 },
-  btn: { backgroundColor: COLORS.primary, padding: 12, borderRadius: 8 },
+  text: { color: colors.text, fontSize: 16, marginBottom: 20 },
+  btn: { backgroundColor: colors.primary, padding: 12, borderRadius: 8 },
   btnText: { color: '#fff', fontWeight: 'bold' },
 });

@@ -21,6 +21,17 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
     if (location) {
       try {
         const token = await authService.getToken();
+
+        if (!token) {
+          console.warn('📍 GPS activo pero sin token (sesión cerrada). Deteniendo rastreo.');
+          await AsyncStorage.removeItem(ACTIVE_RESERVA_KEY);
+          const isRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+          if (isRegistered) {
+            await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+          }
+          return;
+        }
+
         // Leer el ID de la reserva activa desde AsyncStorage (no hardcodeado)
         const reservaId = await AsyncStorage.getItem(ACTIVE_RESERVA_KEY);
 
@@ -39,8 +50,18 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
           { headers: { Authorization: `Bearer ${token}` } }
         );
         console.log(`📍 Ubicación enviada [${location.coords.latitude.toFixed(5)}, ${location.coords.longitude.toFixed(5)}]`);
-      } catch (err) {
-        console.error('Error enviando ubicación:', err);
+      } catch (err: any) {
+        if (err?.response?.status === 401) {
+          // Token inválido → auto-limpiar GPS para no quedar pegado
+          console.warn('📍 Error 401: token inválido. Deteniendo GPS automáticamente.');
+          await AsyncStorage.removeItem(ACTIVE_RESERVA_KEY);
+          const isRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+          if (isRegistered) {
+            await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+          }
+        } else {
+          console.error('Error enviando ubicación:', err);
+        }
       }
     }
   }

@@ -21,8 +21,9 @@ export const updateLocation = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    // Solo el usuario de la reserva puede reportar la ubicación (o un admin)
-    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin') {
+    // Solo el usuario de la reserva o los conductores de tramos pueden reportar la ubicación
+    const isInTramos = reservation.tramos?.some((t: any) => t.conductor.toString() === req.userId);
+    if (reservation.usuario.toString() !== req.userId && req.userRol !== 'admin' && !isInTramos) {
       res.status(403).json({ message: 'No tienes permiso para actualizar esta ubicación' });
       return;
     }
@@ -86,5 +87,24 @@ export const getActiveLocations = async (req: AuthRequest, res: Response): Promi
     res.json(locations);
   } catch (error) {
     res.status(500).json({ message: 'Error al obtener ubicaciones', error });
+  }
+};
+
+// Obtener el historial completo del trazado GPS de una reserva
+export const getTrackingHistory = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { reservaId } = req.params;
+
+    // Solo admin puede ver el historial, o el usuario creador (se valida en la ruta si es necesario, 
+    // pero idealmente para el admin panel el authMiddleware + adminMiddleware ya lo protegerán)
+    
+    // Obtenemos los puntos
+    const history = await Tracking.find({ reserva: reservaId })
+      .sort({ timestamp: 1 }) // Orden cronológico (del más antiguo al más nuevo)
+      .select('latitud longitud velocidad timestamp -_id');
+
+    res.json(history);
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener el historial de rastreo', error });
   }
 };

@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Image, ScrollView, Modal } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import QRCode from 'react-native-qrcode-svg';
 import { authService } from '../services/auth.service';
-import { COLORS } from '../constants';
+import { COLORS, AppColors, BORDER_RADIUS, SHADOWS } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 import { vehicleService, IVehicle } from '../services/vehicle.service';
 
 const TIPO_ICON: Record<string, string> = {
@@ -20,12 +23,20 @@ const ESTADO_COLORS: Record<string, { bg: string; text: string; label: string }>
 };
 
 export default function FlotaScreen() {
+  const { colors, isDark } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
+  
+
   const [vehicles, setVehicles] = useState<IVehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const navigation = useNavigation<any>();
+
+  // Modals
+  const [selectedVehicleDetails, setSelectedVehicleDetails] = useState<IVehicle | null>(null);
+  const [selectedQR, setSelectedQR] = useState<string | null>(null);
 
   const fetchVehicles = async () => {
     try {
@@ -57,53 +68,64 @@ export default function FlotaScreen() {
     const icon = TIPO_ICON[item.tipo] ?? '🚗';
 
     return (
-      <View style={styles.card}>
+      <TouchableOpacity 
+        style={styles.card} 
+        activeOpacity={0.7} 
+        onPress={() => setSelectedVehicleDetails(item)}
+      >
         <View style={styles.iconContainer}>
           <Text style={styles.icon}>{icon}</Text>
         </View>
         <View style={styles.infoContainer}>
-          <Text style={styles.vehicleName}>
-            {item.marca} {item.modelo} {item.anio}
-          </Text>
+          <View style={styles.cardHeader}>
+            <Text style={styles.vehicleName}>
+              {item.marca} {item.modelo} {item.anio}
+            </Text>
+            {isAdmin && (
+              <TouchableOpacity 
+                style={styles.qrBtnCard} 
+                onPress={(e) => {
+                  e.stopPropagation();
+                  setSelectedQR(item._id);
+                }}
+              >
+                <Ionicons name="qr-code-outline" size={20} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+          </View>
           <Text style={styles.vehicleDetail}>🎨 {item.color}  •  🪪 {item.placa}</Text>
           <Text style={styles.vehicleDetail}>🛞 {item.kilometraje.toLocaleString()} km</Text>
-          {item.estado === 'reservado' && item.conductorActual && (
+          {item.estado === 'reservado' && (item.conductoresActivos || item.conductorActual) && (
             <View style={styles.conductorContainer}>
-              <Text style={styles.conductorText}>👤 {item.conductorActual.nombre} {item.conductorActual.apellido}</Text>
-              <Text style={styles.conductorDepto}>{item.conductorActual.departamento}</Text>
+              {item.conductoresActivos && item.conductoresActivos.length > 0 ? (
+                item.conductoresActivos.map((conductor: any, index: number) => (
+                  <View key={conductor._id || index} style={{ marginBottom: index !== item.conductoresActivos!.length - 1 ? 6 : 0 }}>
+                    <Text style={styles.conductorText}>
+                      {index === 0 ? '🟢 Inicio:' : '🔄 Relevó:'} {conductor.nombre} {conductor.apellido}
+                    </Text>
+                    <Text style={styles.conductorDepto}>{conductor.departamento}</Text>
+                  </View>
+                ))
+              ) : item.conductorActual ? (
+                <View>
+                  <Text style={styles.conductorText}>👨‍✈️ {item.conductorActual.nombre} {item.conductorActual.apellido}</Text>
+                  <Text style={styles.conductorDepto}>{item.conductorActual.departamento}</Text>
+                </View>
+              ) : null}
             </View>
           )}
           <View style={[styles.statusBadge, { backgroundColor: estado.bg }]}>
             <Text style={[styles.statusText, { color: estado.text }]}>{estado.label}</Text>
           </View>
-          
-          {item.historialHoy && item.historialHoy.length > 0 && (
-            <View style={styles.historyContainer}>
-              <Text style={styles.historyTitle}>Historial de Hoy:</Text>
-              {item.historialHoy.map((res, index) => {
-                const horaIni = new Date(res.fechaInicio).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
-                const horaFin = new Date(res.fechaFin).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
-                return (
-                  <View key={index} style={styles.historyItem}>
-                    <Text style={styles.historyTime}>{horaIni} - {horaFin}</Text>
-                    <Text style={styles.historyUser} numberOfLines={1}>
-                      {res.usuario?.nombre} {res.usuario?.apellido}
-                    </Text>
-                    <Text style={styles.historyState}>({res.estado})</Text>
-                  </View>
-                );
-              })}
-            </View>
-          )}
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Cargando flota...</Text>
       </View>
     );
@@ -130,7 +152,7 @@ export default function FlotaScreen() {
         keyExtractor={(item) => item._id}
         renderItem={renderItem}
         contentContainerStyle={styles.listContainer}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No hay vehículos registrados en la flota.</Text>
@@ -145,54 +167,145 @@ export default function FlotaScreen() {
           <Text style={styles.fabIcon}>🤖</Text>
         </TouchableOpacity>
       )}
+
+      {/* Modal Detalles Vehículo */}
+      <Modal visible={!!selectedVehicleDetails} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.bottomSheetIndicator} />
+            {selectedVehicleDetails && (
+              <>
+                <Text style={styles.modalTitle}>
+                  {selectedVehicleDetails.marca} {selectedVehicleDetails.modelo}
+                </Text>
+                
+                {selectedVehicleDetails.historialHoy && selectedVehicleDetails.historialHoy.length > 0 && (
+                  <View style={styles.historyContainer}>
+                    <Text style={styles.historyTitle}>Historial de Hoy:</Text>
+                    {selectedVehicleDetails.historialHoy.map((res, index) => {
+                      const horaIni = new Date(res.fechaInicio).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+                      const horaFin = new Date(res.fechaFin).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+                        return (
+                          <View key={index} style={[styles.historyItem, { alignItems: 'flex-start' }]}>
+                            <Text style={styles.historyTime}>{horaIni} - {horaFin}</Text>
+                            <View style={{ flex: 1, paddingRight: 5 }}>
+                              {res.conductores && res.conductores.length > 0 ? (
+                                res.conductores.map((c: any, i: number) => (
+                                  <Text key={c._id || i} style={[styles.historyUser, { flex: 0, marginBottom: 2 }]} numberOfLines={1}>
+                                    {i === 0 ? '🟢 Inicio:' : '🔄 Relevó:'} {c.nombre} {c.apellido}
+                                  </Text>
+                                ))
+                              ) : (
+                                <Text style={[styles.historyUser, { flex: 0 }]} numberOfLines={1}>
+                                  🟢 Inicio: {res.usuario?.nombre} {res.usuario?.apellido}
+                                </Text>
+                              )}
+                            </View>
+                            <Text style={styles.historyState}>({res.estado})</Text>
+                          </View>
+                        );
+                    })}
+                  </View>
+                )}
+
+                {selectedVehicleDetails.fotosVehiculo && selectedVehicleDetails.fotosVehiculo.length > 0 && (
+                  <View style={styles.fotosWrapper}>
+                    <Text style={styles.historyTitle}>Fotos del Vehículo:</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.fotosScroll}>
+                      {selectedVehicleDetails.fotosVehiculo.slice(0, -1).map((foto, index) => (
+                        <Image key={index} source={{ uri: foto }} style={styles.galeriaFoto} />
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+
+                <TouchableOpacity 
+                  style={styles.closeBtn} 
+                  onPress={() => setSelectedVehicleDetails(null)}
+                >
+                  <Text style={styles.closeBtnText}>Cerrar Detalles</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal QR */}
+      <Modal visible={!!selectedQR} transparent animationType="fade">
+        <View style={styles.modalOverlayCenter}>
+          <View style={styles.modalCardCenter}>
+            <Text style={styles.modalTitle}>Código QR de Vehículo</Text>
+            <Text style={{ textAlign: 'center', marginBottom: 20, color: colors.textMuted }}>
+              Muestra este código para que el conductor lo escanee al iniciar.
+            </Text>
+            {selectedQR && (
+              <View style={{ alignItems: 'center', marginVertical: 20 }}>
+                <QRCode
+                  value={selectedQR}
+                  size={200}
+                  color={colors.primaryDark}
+                  backgroundColor={colors.white}
+                />
+              </View>
+            )}
+            <TouchableOpacity 
+              style={styles.closeBtn} 
+              onPress={() => setSelectedQR(null)}
+            >
+              <Text style={styles.closeBtnText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     paddingTop: 20,
   },
   centered: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   loadingText: {
     marginTop: 12,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontSize: 14,
   },
   errorText: {
-    color: COLORS.danger,
+    color: colors.danger,
     fontSize: 15,
     textAlign: 'center',
     marginBottom: 16,
   },
   retryBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 10,
     borderRadius: 8,
   },
   retryBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: 'bold',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
     paddingHorizontal: 20,
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     paddingHorizontal: 20,
     marginBottom: 20,
   },
@@ -223,12 +336,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontSize: 16,
     textAlign: 'center',
   },
   card: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 12,
     padding: 16,
     marginBottom: 14,
@@ -259,15 +372,25 @@ const styles = StyleSheet.create({
   vehicleName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  qrBtnCard: {
+    padding: 6,
+    backgroundColor: colors.primary + '15',
+    borderRadius: 8,
   },
   vehicleDetail: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginBottom: 4,
   },
   conductorContainer: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.background,
     padding: 8,
     borderRadius: 8,
     marginTop: 6,
@@ -276,11 +399,11 @@ const styles = StyleSheet.create({
   conductorText: {
     fontSize: 13,
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.text,
   },
   conductorDepto: {
     fontSize: 11,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginLeft: 18,
     marginTop: 2,
   },
@@ -299,12 +422,12 @@ const styles = StyleSheet.create({
     marginTop: 15,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: colors.border,
   },
   historyTitle: {
     fontSize: 13,
     fontWeight: 'bold',
-    color: '#555',
+    color: colors.text,
     marginBottom: 5,
   },
   historyItem: {
@@ -312,20 +435,92 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
+  fotosWrapper: {
+    marginTop: 15,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  fotosScroll: {
+    marginTop: 8,
+    flexDirection: 'row',
+  },
+  galeriaFoto: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 8,
+    backgroundColor: colors.border,
+  },
   historyTime: {
     fontSize: 12,
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: '600',
     width: 90,
   },
   historyUser: {
     fontSize: 12,
-    color: '#333',
+    color: colors.text,
     flex: 1,
   },
   historyState: {
     fontSize: 10,
-    color: '#888',
+    color: colors.textMuted,
     textTransform: 'capitalize',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: BORDER_RADIUS?.xl || 32,
+    borderTopRightRadius: BORDER_RADIUS?.xl || 32,
+    padding: 28,
+    paddingTop: 16,
+    paddingBottom: 40,
+    ...SHADOWS?.elegant,
+  },
+  bottomSheetIndicator: {
+    width: 40,
+    height: 5,
+    backgroundColor: colors.border,
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 15,
+  },
+  closeBtn: {
+    backgroundColor: colors.primary,
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  closeBtnText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  modalOverlayCenter: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalCardCenter: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 25,
+    width: '100%',
+    alignItems: 'center',
+    ...SHADOWS?.elegant,
   },
 });

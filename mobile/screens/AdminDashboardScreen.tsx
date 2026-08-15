@@ -1,14 +1,17 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl, ScrollView, Modal, TextInput,
+  ActivityIndicator, RefreshControl, ScrollView, Modal, TextInput, Animated, Image
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../constants';
+import { COLORS, AppColors, GRADIENTS, SHADOWS, BORDER_RADIUS, getGradients } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
 import { reservationService, IReservation } from '../services/reservation.service';
 import { userService } from '../services/user.service';
+import { inspectionService, IInspeccion } from '../services/inspection.service';
 
 const ESTADO_COLOR: Record<string, string> = {
   pendiente: COLORS.warning,
@@ -27,13 +30,24 @@ function formatFecha(dateStr: string) {
 }
 
 export default function AdminDashboardScreen() {
+  const { colors, isDark } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
+  
+
   const { showAlert } = useAlert();
   const navigation = useNavigation<any>();
   const [reservas, setReservas] = useState<IReservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [filtro, setFiltro] = useState<'pendiente' | 'todas'>('pendiente');
+  const [filtro, setFiltro] = useState<'pendiente' | 'todas' | 'inspecciones'>('pendiente');
+  const [inspFiltro, setInspFiltro] = useState<'todas' | 'pendientes' | 'contestadas'>('todas');
+  const [inspecciones, setInspecciones] = useState<IInspeccion[]>([]);
+  const [selectedInspeccion, setSelectedInspeccion] = useState<IInspeccion | null>(null);
+
+  // Animaciones
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [slideAnim] = useState(new Animated.Value(20));
 
   // Estado modal de rechazo
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
@@ -52,6 +66,8 @@ export default function AdminDashboardScreen() {
       if (!isRefresh) setLoading(true);
       const todas = await reservationService.getAllReservations();
       setReservas(todas);
+      const insp = await inspectionService.getAllInspections();
+      setInspecciones(insp);
     } catch (err) {
       showAlert('Error', 'No se pudieron cargar las reservas.');
     } finally {
@@ -63,7 +79,11 @@ export default function AdminDashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       cargarReservas();
-    }, [])
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.spring(slideAnim, { toValue: 0, friction: 8, tension: 40, useNativeDriver: true })
+      ]).start();
+    }, [fadeAnim, slideAnim])
   );
 
   const onRefresh = useCallback(() => {
@@ -159,9 +179,43 @@ export default function AdminDashboardScreen() {
   );
 
   const listaFiltrada = filtro === 'pendiente' ? pendientes : reservas;
+  
+  const listaInspeccionesFiltrada = inspecciones.filter(i => {
+    if (inspFiltro === 'todas') return true;
+    if (inspFiltro === 'pendientes') return i.estado === 'pendiente';
+    if (inspFiltro === 'contestadas') return i.estado === 'respondida';
+    return true;
+  });
+
+  const renderInspeccion = ({ item }: { item: IInspeccion }) => {
+    const color = item.estado === 'pendiente' ? colors.warning : item.estado === 'respondida' ? colors.success : colors.danger;
+    const vehiculo = item.reserva?.vehiculo ? `${item.reserva.vehiculo.marca} ${item.reserva.vehiculo.modelo}` : 'Vehículo';
+    
+    return (
+      <TouchableOpacity style={styles.card} onPress={() => setSelectedInspeccion(item)}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardConductor}>
+            {item.usuario ? `${item.usuario.nombre} ${item.usuario.apellido}` : 'Desconocido'}
+          </Text>
+          <View style={[styles.estadoBadge, { backgroundColor: color + '20' }]}>
+            <Text style={[styles.estadoText, { color }]}>
+              {item.estado.toUpperCase()}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.cardBody}>
+          <Text style={styles.cardVehiculo}>{vehiculo}</Text>
+          <Text style={[styles.infoLine, { marginTop: 5 }]}>📋 {item.descripcion}</Text>
+          <Text style={styles.infoLine}>🕒 Creada: {formatFecha(item.fechaActivacion)}</Text>
+          {item.respuestaTexto ? <Text style={styles.infoLine}>🗣️ {item.respuestaTexto}</Text> : null}
+          {item.respuestaFotosUrls && item.respuestaFotosUrls.length > 0 ? <Text style={[styles.infoLine, {color: colors.primary}]}>🖼️ Contiene {item.respuestaFotosUrls.length} foto(s) adjunta(s)</Text> : null}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const renderReserva = ({ item }: { item: IReservation }) => {
-    const color = ESTADO_COLOR[item.estado] ?? COLORS.textMuted;
+    const color = ESTADO_COLOR[item.estado] ?? colors.textMuted;
     const vehiculo = item.vehiculo
       ? `${item.vehiculo.marca} ${item.vehiculo.modelo} · ${item.vehiculo.placa}`
       : 'Vehículo desconocido';
@@ -180,7 +234,7 @@ export default function AdminDashboardScreen() {
                   style={{ marginLeft: 8 }}
                   onPress={() => handleOpenFlagModal(item.usuario._id, item.usuario.nombre)}
                 >
-                  <Ionicons name="flag" size={16} color={COLORS.primary} />
+                  <Ionicons name="flag" size={16} color={colors.primary} />
                 </TouchableOpacity>
               )}
             </View>
@@ -200,7 +254,7 @@ export default function AdminDashboardScreen() {
           {/* Motivo de rechazo visible para el admin */}
           {item.motivoRechazo ? (
             <View style={styles.rejectReasonBox}>
-              <Ionicons name="alert-circle-outline" size={14} color={COLORS.danger} />
+              <Ionicons name="alert-circle-outline" size={14} color={colors.danger} />
               <Text style={styles.rejectReasonText}>
                 Motivo de rechazo: {item.motivoRechazo}
               </Text>
@@ -211,7 +265,7 @@ export default function AdminDashboardScreen() {
         {item.estado === 'pendiente' && (
           <View style={styles.actionRow}>
             {actionLoading === item._id ? (
-              <ActivityIndicator color={COLORS.primary} />
+              <ActivityIndicator color={colors.primary} />
             ) : (
               <>
                 <TouchableOpacity
@@ -248,7 +302,7 @@ export default function AdminDashboardScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Ionicons name="close-circle" size={28} color={COLORS.danger} />
+              <Ionicons name="close-circle" size={28} color={colors.danger} />
               <Text style={styles.modalTitle}>Motivo de Rechazo</Text>
             </View>
             <Text style={styles.modalSubtitle}>
@@ -259,7 +313,7 @@ export default function AdminDashboardScreen() {
               value={rejectMotivo}
               onChangeText={setRejectMotivo}
               placeholder="Ej: El vehículo ya está reservado para esa fecha..."
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={colors.textMuted}
               multiline
               numberOfLines={4}
               textAlignVertical="top"
@@ -292,7 +346,7 @@ export default function AdminDashboardScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Ionicons name="flag" size={28} color={COLORS.primary} />
+              <Ionicons name="flag" size={28} color={colors.primary} />
               <Text style={styles.modalTitle}>Asignar Bandera Manual</Text>
             </View>
             <Text style={styles.modalSubtitle}>
@@ -326,7 +380,7 @@ export default function AdminDashboardScreen() {
               value={flagMotivo}
               onChangeText={setFlagMotivo}
               placeholder="Escribe el motivo..."
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={colors.textMuted}
               multiline
               numberOfLines={4}
               textAlignVertical="top"
@@ -339,7 +393,7 @@ export default function AdminDashboardScreen() {
                 <Text style={styles.cancelModalBtnText}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: COLORS.primary }]}
+                style={[styles.modalBtn, { backgroundColor: colors.primary }]}
                 onPress={handleAssignFlag}
                 disabled={flagLoading}
               >
@@ -361,22 +415,33 @@ export default function AdminDashboardScreen() {
         style={styles.kpiScroll}
         contentContainerStyle={styles.kpiContainer}
       >
-        <View style={[styles.kpiCard, { borderLeftColor: COLORS.warning }]}>
-          <Text style={styles.kpiNum}>{pendientes.length}</Text>
-          <Text style={styles.kpiLabel}>Pendientes</Text>
-        </View>
-        <View style={[styles.kpiCard, { borderLeftColor: COLORS.success }]}>
-          <Text style={styles.kpiNum}>{enCurso.length}</Text>
-          <Text style={styles.kpiLabel}>En Ruta</Text>
-        </View>
-        <View style={[styles.kpiCard, { borderLeftColor: COLORS.primary }]}>
-          <Text style={styles.kpiNum}>{hoyCompletadas.length}</Text>
-          <Text style={styles.kpiLabel}>Finalizadas Hoy</Text>
-        </View>
-        <View style={[styles.kpiCard, { borderLeftColor: COLORS.textMuted }]}>
-          <Text style={styles.kpiNum}>{reservas.length}</Text>
-          <Text style={styles.kpiLabel}>Total</Text>
-        </View>
+        <LinearGradient colors={GRADIENTS.warning} style={[styles.kpiCard, { padding: 0 }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+          <View style={{ padding: 15, width: '100%' }}>
+            <Text style={[styles.kpiNum, { color: colors.white }]}>{pendientes.length}</Text>
+            <Text style={[styles.kpiLabel, { color: 'rgba(255,255,255,0.8)' }]}>Pendientes</Text>
+          </View>
+        </LinearGradient>
+        
+        <LinearGradient colors={GRADIENTS.success} style={[styles.kpiCard, { padding: 0 }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+          <View style={{ padding: 15, width: '100%' }}>
+            <Text style={[styles.kpiNum, { color: colors.white }]}>{enCurso.length}</Text>
+            <Text style={[styles.kpiLabel, { color: 'rgba(255,255,255,0.8)' }]}>En Ruta</Text>
+          </View>
+        </LinearGradient>
+
+        <LinearGradient colors={GRADIENTS.primary} style={[styles.kpiCard, { padding: 0 }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+          <View style={{ padding: 15, width: '100%' }}>
+            <Text style={[styles.kpiNum, { color: colors.white }]}>{hoyCompletadas.length}</Text>
+            <Text style={[styles.kpiLabel, { color: 'rgba(255,255,255,0.8)' }]}>Finalizadas Hoy</Text>
+          </View>
+        </LinearGradient>
+
+        <LinearGradient colors={getGradients(isDark).cardBackground} style={[styles.kpiCard, { padding: 0, borderWidth: 1, borderColor: colors.border }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+          <View style={{ padding: 15, width: '100%' }}>
+            <Text style={[styles.kpiNum, { color: colors.text }]}>{reservas.length}</Text>
+            <Text style={[styles.kpiLabel, { color: colors.textMuted }]}>Total</Text>
+          </View>
+        </LinearGradient>
       </ScrollView>
 
       {/* Filtros */}
@@ -397,28 +462,60 @@ export default function AdminDashboardScreen() {
             Todas
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filtroBtn, filtro === 'inspecciones' && styles.filtroBtnActive]}
+          onPress={() => setFiltro('inspecciones')}
+        >
+          <Text style={[styles.filtroBtnText, filtro === 'inspecciones' && styles.filtroBtnTextActive]}>
+            Inspecciones
+          </Text>
+        </TouchableOpacity>
       </View>
+
+      {filtro === 'inspecciones' && (
+        <View style={[styles.filtroRow, { marginTop: -5 }]}>
+          <TouchableOpacity
+            style={[styles.filtroBtn, inspFiltro === 'todas' && styles.filtroBtnActive]}
+            onPress={() => setInspFiltro('todas')}
+          >
+            <Text style={[styles.filtroBtnText, inspFiltro === 'todas' && styles.filtroBtnTextActive]}>Todas</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filtroBtn, inspFiltro === 'pendientes' && styles.filtroBtnActive]}
+            onPress={() => setInspFiltro('pendientes')}
+          >
+            <Text style={[styles.filtroBtnText, inspFiltro === 'pendientes' && styles.filtroBtnTextActive]}>Pendientes</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filtroBtn, inspFiltro === 'contestadas' && styles.filtroBtnActive]}
+            onPress={() => setInspFiltro('contestadas')}
+          >
+            <Text style={[styles.filtroBtnText, inspFiltro === 'contestadas' && styles.filtroBtnTextActive]}>Contestadas</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Cargando reservas...</Text>
         </View>
-      ) : listaFiltrada.length === 0 ? (
+      ) : (filtro === 'inspecciones' && listaInspeccionesFiltrada.length === 0) || (filtro !== 'inspecciones' && listaFiltrada.length === 0) ? (
         <View style={styles.centered}>
           <Text style={styles.emptyIcon}>📋</Text>
           <Text style={styles.emptyText}>
-            {filtro === 'pendiente' ? 'No hay solicitudes pendientes' : 'No hay reservas registradas'}
+            {filtro === 'pendiente' ? 'No hay solicitudes pendientes' : filtro === 'inspecciones' ? 'No hay inspecciones con ese filtro' : 'No hay reservas registradas'}
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={listaFiltrada}
-          keyExtractor={(item) => item._id}
-          renderItem={renderReserva}
+        <Animated.FlatList
+          style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+          data={filtro === 'inspecciones' ? listaInspeccionesFiltrada as any : listaFiltrada as any}
+          keyExtractor={(item: any) => item._id}
+          renderItem={filtro === 'inspecciones' ? renderInspeccion as any : renderReserva}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
         />
       )}
 
@@ -429,28 +526,69 @@ export default function AdminDashboardScreen() {
       >
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
+
+      {/* Modal Detalles de Inspeccion */}
+      <Modal visible={!!selectedInspeccion} transparent animationType="slide" onRequestClose={() => setSelectedInspeccion(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: '80%', width: '100%' }]}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.modalHeader}>
+                <Ionicons name="clipboard" size={28} color={colors.primary} />
+                <Text style={styles.modalTitle}>Detalles de Inspección</Text>
+              </View>
+              {selectedInspeccion && (
+                <View>
+                  <Text style={[styles.infoLine, { marginBottom: 10 }]}>Conductor: {selectedInspeccion.usuario ? `${selectedInspeccion.usuario.nombre} ${selectedInspeccion.usuario.apellido}` : 'Desconocido'}</Text>
+                  <Text style={[styles.infoLine, { marginBottom: 10 }]}>Vehículo: {selectedInspeccion.reserva?.vehiculo ? `${selectedInspeccion.reserva.vehiculo.marca} ${selectedInspeccion.reserva.vehiculo.modelo}` : 'Vehículo'}</Text>
+                  <Text style={[styles.infoLine, { marginBottom: 10 }]}>Estado: {selectedInspeccion.estado.toUpperCase()}</Text>
+                  <Text style={[styles.infoLine, { marginBottom: 10 }]}>Descripción: {selectedInspeccion.descripcion}</Text>
+                  <Text style={[styles.infoLine, { marginBottom: 10 }]}>Respuesta: {selectedInspeccion.respuestaTexto || 'Ninguna'}</Text>
+                  
+                  {selectedInspeccion.respuestaFotosUrls && selectedInspeccion.respuestaFotosUrls.length > 0 && (
+                    <View style={{ marginTop: 15 }}>
+                      <Text style={[styles.infoLine, { marginBottom: 10, fontWeight: 'bold' }]}>Fotos Adjuntas:</Text>
+                      {selectedInspeccion.respuestaFotosUrls.map((foto, index) => (
+                        <Image 
+                          key={index}
+                          source={{ uri: foto }} 
+                          style={{ width: '100%', height: 250, borderRadius: 10, marginBottom: 10 }}
+                          resizeMode="cover"
+                        />
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
+            </ScrollView>
+            <TouchableOpacity style={[styles.cancelModalBtn, { marginTop: 20, width: '100%', paddingVertical: 15, borderRadius: 12, alignItems: 'center' }]} onPress={() => setSelectedInspeccion(null)}>
+              <Text style={styles.cancelModalBtnText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+const getStyles = (colors: AppColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  loadingText: { marginTop: 10, color: COLORS.textMuted, fontSize: 14 },
+  loadingText: { marginTop: 10, color: colors.textMuted, fontSize: 14 },
   emptyIcon: { fontSize: 44, marginBottom: 10 },
-  emptyText: { fontSize: 15, color: COLORS.textMuted, textAlign: 'center' },
+  emptyText: { fontSize: 15, color: colors.textMuted, textAlign: 'center' },
 
   fab: {
     position: 'absolute',
     bottom: 20,
     right: 20,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     width: 60,
     height: 60,
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: COLORS.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 6,
@@ -458,10 +596,10 @@ const styles = StyleSheet.create({
   },
 
   kpiScroll: { flexGrow: 0 },
-  kpiContainer: { paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
+  kpiContainer: { paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
   kpiCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
+    backgroundColor: colors.white,
+    borderRadius: BORDER_RADIUS.lg,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderLeftWidth: 4,
@@ -473,8 +611,8 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  kpiNum: { fontSize: 28, fontWeight: 'bold', color: COLORS.text },
-  kpiLabel: { fontSize: 11, color: COLORS.textMuted, marginTop: 2, textAlign: 'center' },
+  kpiNum: { fontSize: 28, fontWeight: 'bold', color: colors.text },
+  kpiLabel: { fontSize: 11, color: colors.textMuted, marginTop: 2, textAlign: 'center' },
 
   filtroRow: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 10, gap: 8 },
   filtroBtn: {
@@ -482,51 +620,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.white,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
   },
-  filtroBtnActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  filtroBtnText: { fontSize: 13, color: COLORS.textMuted, fontWeight: '600' },
-  filtroBtnTextActive: { color: COLORS.white },
+  filtroBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  filtroBtnText: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
+  filtroBtnTextActive: { color: colors.white },
 
   list: { paddingHorizontal: 16, paddingBottom: 30 },
   card: {
-    backgroundColor: COLORS.white,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 3,
+    backgroundColor: colors.white,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: 18,
+    marginBottom: 16,
+    ...SHADOWS.subtleMauve,
   },
-  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
-  cardConductor: { fontSize: 15, fontWeight: 'bold', color: COLORS.text },
-  cardVehiculo: { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
-  estadoBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginLeft: 8 },
-  estadoText: { fontSize: 10, fontWeight: 'bold' },
-  cardBody: { backgroundColor: '#F8FAFC', borderRadius: 8, padding: 10, gap: 4 },
-  infoLine: { fontSize: 13, color: COLORS.textMuted },
+  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
+  cardConductor: { fontSize: 16, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
+  cardVehiculo: { fontSize: 14, color: colors.textMuted, marginTop: 4, fontWeight: '500' },
+  estadoBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: BORDER_RADIUS.round, marginLeft: 8 },
+  estadoText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  cardBody: { backgroundColor: colors.background, borderRadius: BORDER_RADIUS.md, padding: 12, gap: 6 },
+  infoLine: { fontSize: 13, color: colors.textMuted, fontWeight: '500' },
 
   rejectReasonBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     marginTop: 6,
-    backgroundColor: '#FFF0F0',
+    backgroundColor: colors.danger + '15',
     borderRadius: 6,
     padding: 8,
     gap: 6,
   },
-  rejectReasonText: { fontSize: 12, color: COLORS.danger, flex: 1 },
+  rejectReasonText: { fontSize: 12, color: colors.danger, flex: 1 },
 
   actionRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
   actionBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     paddingVertical: 9, borderRadius: 8, gap: 5,
   },
-  approveBtn: { backgroundColor: COLORS.success },
-  rejectBtn: { backgroundColor: COLORS.danger },
+  approveBtn: { backgroundColor: colors.success },
+  rejectBtn: { backgroundColor: colors.danger },
   actionBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 13 },
 
   // Modal de rechazo
@@ -536,9 +670,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalCard: {
-    backgroundColor: COLORS.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: colors.white,
+    borderTopLeftRadius: BORDER_RADIUS.xl,
+    borderTopRightRadius: BORDER_RADIUS.xl,
+    ...SHADOWS.subtleMauve,
     padding: 24,
     paddingBottom: 40,
   },
@@ -551,22 +686,22 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
   },
   modalSubtitle: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginBottom: 16,
     lineHeight: 20,
   },
   motivoInput: {
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 12,
     padding: 14,
     fontSize: 14,
-    color: COLORS.text,
-    backgroundColor: '#F8FAFC',
+    color: colors.text,
+    backgroundColor: colors.background,
     minHeight: 110,
     marginBottom: 20,
   },
@@ -581,15 +716,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelModalBtn: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   cancelModalBtnText: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontWeight: '700',
     fontSize: 14,
   },
   confirmRejectBtn: {
-    backgroundColor: COLORS.danger,
+    backgroundColor: colors.danger,
   },
   confirmRejectBtnText: {
     color: '#fff',
@@ -606,7 +743,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -614,6 +751,6 @@ const styles = StyleSheet.create({
   },
   flagOptionText: {
     fontSize: 13,
-    color: COLORS.text,
+    color: colors.text,
   }
 });

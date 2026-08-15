@@ -5,7 +5,8 @@ import * as Location from 'expo-location';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
-import { COLORS } from '../constants';
+import { COLORS, AppColors } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
 
 interface IVehicleLocation {
@@ -26,6 +27,10 @@ interface IVehicleLocation {
 }
 
 export default function AdminMapScreen() {
+  const { colors, isDark } = useTheme();
+  const styles = React.useMemo(() => getStyles(colors), [colors]);
+  
+
   const { showAlert } = useAlert();
   const [vehicles, setVehicles] = useState<IVehicleLocation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,7 +61,7 @@ export default function AdminMapScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Cargando mapa...</Text>
       </View>
     );
@@ -96,7 +101,7 @@ export default function AdminMapScreen() {
             onPress={() => setSelectedVehicle(v)}
           >
             <View style={[styles.markerContainer, selectedVehicle?._id === v._id && styles.markerSelected]}>
-              <Ionicons name="car-sport" size={22} color={COLORS.white} />
+              <Ionicons name="car-sport" size={22} color={colors.white} />
             </View>
           </Marker>
         ))}
@@ -105,15 +110,15 @@ export default function AdminMapScreen() {
       {/* Botón de refresco */}
       <TouchableOpacity style={styles.refreshBtn} onPress={fetchLocations} disabled={refreshing}>
         {refreshing ? (
-          <ActivityIndicator size="small" color={COLORS.white} />
+          <ActivityIndicator size="small" color={colors.white} />
         ) : (
-          <Ionicons name="refresh" size={22} color={COLORS.white} />
+          <Ionicons name="refresh" size={22} color={colors.white} />
         )}
       </TouchableOpacity>
 
       {/* Contador de vehículos activos */}
       <View style={styles.legend}>
-        <Ionicons name="car-sport" size={14} color={COLORS.primary} />
+        <Ionicons name="car-sport" size={14} color={colors.primary} />
         <Text style={styles.legendText}>  {activeVehicles.length} vehículo(s) en ruta</Text>
       </View>
 
@@ -123,7 +128,7 @@ export default function AdminMapScreen() {
           {/* Header */}
           <View style={styles.detailHeader}>
             <View style={styles.detailIconBox}>
-              <Ionicons name="car-sport" size={26} color={COLORS.white} />
+              <Ionicons name="car-sport" size={26} color={colors.white} />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.detailTitle}>{selectedVehicle.marca} {selectedVehicle.modelo}</Text>
@@ -133,20 +138,20 @@ export default function AdminMapScreen() {
               </View>
             </View>
             <TouchableOpacity onPress={() => setSelectedVehicle(null)} style={styles.closeBtn}>
-              <Ionicons name="close" size={20} color={COLORS.textMuted} />
+              <Ionicons name="close" size={20} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
 
           {/* Filas de info */}
           <View style={styles.detailRow}>
-            <Ionicons name="card-outline" size={16} color={COLORS.primary} />
+            <Ionicons name="card-outline" size={16} color={colors.primary} />
             <Text style={styles.detailLabel}>Placa</Text>
             <Text style={styles.detailValue}>{selectedVehicle.placa}</Text>
           </View>
 
           {selectedVehicle.conductor && (
             <View style={styles.detailRow}>
-              <Ionicons name="person-outline" size={16} color={COLORS.primary} />
+              <Ionicons name="person-outline" size={16} color={colors.primary} />
               <Text style={styles.detailLabel}>Conductor</Text>
               <Text style={styles.detailValue}>
                 {selectedVehicle.conductor.nombre} {selectedVehicle.conductor.apellido}
@@ -155,7 +160,7 @@ export default function AdminMapScreen() {
           )}
 
           <View style={styles.detailRow}>
-            <Ionicons name="time-outline" size={16} color={COLORS.primary} />
+            <Ionicons name="time-outline" size={16} color={colors.primary} />
             <Text style={styles.detailLabel}>Última señal</Text>
             <Text style={styles.detailValue}>
               {formatTimestamp(selectedVehicle.ubicacionActual!.timestamp)}
@@ -163,7 +168,7 @@ export default function AdminMapScreen() {
           </View>
 
           <View style={styles.detailRow}>
-            <Ionicons name="location-outline" size={16} color={COLORS.primary} />
+            <Ionicons name="location-outline" size={16} color={colors.primary} />
             <Text style={styles.detailLabel}>Coordenadas</Text>
             <Text style={styles.detailValue}>
               {selectedVehicle.ubicacionActual!.latitud.toFixed(4)}, {selectedVehicle.ubicacionActual!.longitud.toFixed(4)}
@@ -175,18 +180,18 @@ export default function AdminMapScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+const getStyles = (colors: AppColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 10, color: COLORS.textMuted },
+  loadingText: { marginTop: 10, color: colors.textMuted },
   map: { flex: 1 },
 
   markerContainer: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     padding: 8,
     borderRadius: 24,
     borderWidth: 2.5,
-    borderColor: COLORS.white,
+    borderColor: colors.white,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.35,
@@ -203,7 +208,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 16,
     left: 16,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -222,7 +227,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: colors.white,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
@@ -232,7 +237,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-  legendText: { fontSize: 13, fontWeight: '700', color: COLORS.text },
+  legendText: { fontSize: 13, fontWeight: '700', color: colors.text },
 
   // Panel de detalles inferior
   detailPanel: {
@@ -240,7 +245,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -257,14 +262,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   detailIconBox: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 14,
     padding: 10,
   },
   detailTitle: {
     fontSize: 17,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
   },
   statusBadge: {
     flexDirection: 'row',
@@ -295,14 +300,14 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginLeft: 8,
     flex: 1,
   },
   detailValue: {
     fontSize: 13,
     fontWeight: '600',
-    color: COLORS.text,
+    color: colors.text,
     flex: 2,
     textAlign: 'right',
   },

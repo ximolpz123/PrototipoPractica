@@ -1,11 +1,13 @@
 // Interfaces TypeScript — iguales a las del frontend web
 
 export interface IUser {
-  id: string;
+  id?: string;
+  _id?: string;
   nombre: string;
   apellido: string;
   email: string;
   departamento: string;
+  telefono?: string;
   rol: 'usuario' | 'admin';
   activo: boolean;
 }
@@ -22,6 +24,7 @@ export interface IVehicle {
   kilometraje: number;
   ultimoMantenimiento?: string;
   imagenUrl?: string;
+  nivelBencina?: number;
   tipoIndicador?: 'digital' | 'analogico';
 }
 
