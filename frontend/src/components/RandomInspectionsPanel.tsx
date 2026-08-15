@@ -7,19 +7,25 @@ interface RandomInspectionsPanelProps {
   vehicles?: IVehicle[];
 }
 
-export function RandomInspectionsPanel({ token, users = [], vehicles = [] }: RandomInspectionsPanelProps) {
+const getLocalDatetimeString = () => {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  return now.toISOString().slice(0, 16);
+};
+
+export function RandomInspectionsPanel({ users = [], vehicles = [] }: RandomInspectionsPanelProps) {
   const [inspections, setInspections] = useState<IRandomInspection[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [loading] = useState(false);
+  const [error] = useState('');
   const [selectedInspection, setSelectedInspection] = useState<IRandomInspection | null>(null);
-  
+
   // Modal de Creación
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newInspection, setNewInspection] = useState({
     conductorId: '',
     vehiculoId: '',
     tarea: '',
-    fechaActivacion: new Date().toISOString().slice(0, 16) // yyyy-mm-ddThh:mm
+    fechaActivacion: getLocalDatetimeString()
   });
 
   // Cargar datos iniciales
@@ -63,6 +69,7 @@ export function RandomInspectionsPanel({ token, users = [], vehicles = [] }: Ran
     setInspections(mockInspections);
   }, []);
 
+  /* 
   // Timer para caducar inspecciones pendientes tras 2 minutos
   useEffect(() => {
     const interval = setInterval(() => {
@@ -83,9 +90,10 @@ export function RandomInspectionsPanel({ token, users = [], vehicles = [] }: Ran
         return changed ? updated : prev;
       });
     }, 5000); // Revisar cada 5 segundos
-    
+
     return () => clearInterval(interval);
   }, []);
+  */
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,7 +110,7 @@ export function RandomInspectionsPanel({ token, users = [], vehicles = [] }: Ran
       estado: 'pendiente',
       fechaActivacion: new Date(newInspection.fechaActivacion).toISOString()
     };
-    
+
     setInspections(prev => [created, ...prev]);
     setShowCreateModal(false);
     // Reiniciar formulario
@@ -110,7 +118,7 @@ export function RandomInspectionsPanel({ token, users = [], vehicles = [] }: Ran
       conductorId: '',
       vehiculoId: '',
       tarea: '',
-      fechaActivacion: new Date().toISOString().slice(0, 16)
+      fechaActivacion: getLocalDatetimeString()
     });
   };
 
@@ -126,7 +134,7 @@ export function RandomInspectionsPanel({ token, users = [], vehicles = [] }: Ran
   return (
     <div style={{ width: '100%', overflowX: 'auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '700', color: 'var(--text-h)' }}> Inspecciones Aleatorias</h2>
+        <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '700', color: 'var(--text-h)' }}>Inspecciones Aleatorias</h2>
         <button className="btn btn-create" onClick={() => setShowCreateModal(true)}>Crear Inspección</button>
       </div>
 
@@ -169,27 +177,27 @@ export function RandomInspectionsPanel({ token, users = [], vehicles = [] }: Ran
           <div className="modal-content" style={{ backgroundColor: 'var(--bg-card, #fff)', padding: '2rem', borderRadius: '12px', maxWidth: '500px', width: '90%', position: 'relative', color: 'var(--text-p)' }}>
             <button onClick={() => setShowCreateModal(false)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold' }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1.5rem', color: 'var(--text-h)', textAlign: 'center' }}>Nueva Inspección</h2>
-            
+
             <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 'bold' }}>Fecha y Hora de Activación</label>
-                <input 
-                  type="datetime-local" 
-                  className="reserv-input" 
+                <input
+                  type="datetime-local"
+                  className="reserv-input"
                   style={{ width: '100%', boxSizing: 'border-box' }}
                   value={newInspection.fechaActivacion}
-                  onChange={e => setNewInspection({...newInspection, fechaActivacion: e.target.value})}
-                  required 
+                  onChange={e => setNewInspection({ ...newInspection, fechaActivacion: e.target.value })}
+                  required
                 />
               </div>
-              
+
               <div>
                 <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 'bold' }}>Conductor</label>
-                <select 
-                  className="reserv-select" 
+                <select
+                  className="reserv-select"
                   style={{ width: '100%', boxSizing: 'border-box' }}
                   value={newInspection.conductorId}
-                  onChange={e => setNewInspection({...newInspection, conductorId: e.target.value})}
+                  onChange={e => setNewInspection({ ...newInspection, conductorId: e.target.value })}
                   required
                 >
                   <option value="">Seleccione conductor...</option>
@@ -201,11 +209,11 @@ export function RandomInspectionsPanel({ token, users = [], vehicles = [] }: Ran
 
               <div>
                 <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 'bold' }}>Vehículo</label>
-                <select 
-                  className="reserv-select" 
+                <select
+                  className="reserv-select"
                   style={{ width: '100%', boxSizing: 'border-box' }}
                   value={newInspection.vehiculoId}
-                  onChange={e => setNewInspection({...newInspection, vehiculoId: e.target.value})}
+                  onChange={e => setNewInspection({ ...newInspection, vehiculoId: e.target.value })}
                   required
                 >
                   <option value="">Seleccione vehículo...</option>
@@ -217,20 +225,20 @@ export function RandomInspectionsPanel({ token, users = [], vehicles = [] }: Ran
 
               <div>
                 <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 'bold' }}>Tarea / Instrucción</label>
-                <input 
+                <input
                   type="text"
                   placeholder="Ej. Tomar foto del interior"
-                  className="reserv-input" 
+                  className="reserv-input"
                   style={{ width: '100%', boxSizing: 'border-box' }}
                   value={newInspection.tarea}
-                  onChange={e => setNewInspection({...newInspection, tarea: e.target.value})}
-                  required 
+                  onChange={e => setNewInspection({ ...newInspection, tarea: e.target.value })}
+                  required
                 />
               </div>
 
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', justifyContent: 'center' }}>
-                <button type="submit" className="btn" style={{ backgroundColor: '#175fbd', color: 'white' }}>Crear</button>
-                <button type="button" className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'white' }} onClick={() => setShowCreateModal(false)}>Cancelar</button>
+                <button type="submit" className="btn" style={{ backgroundColor: '#175fbd', color: 'black' }}>Crear</button>
+                <button type="button" className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black' }} onClick={() => setShowCreateModal(false)}>Cancelar</button>
               </div>
             </form>
           </div>

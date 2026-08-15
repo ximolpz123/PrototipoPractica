@@ -182,7 +182,7 @@ function Reservations() {
           />
           <div className="sidebar-profile-info">
             <span className="sidebar-profile-name">
-              {user?.nombre ?? ''} {user?.apellido ?? ''} | <span title={`Departamento de: ${user?.departamento || 'Sin Departamento'}`} style={{ fontWeight: 'normal', color: 'rgba(255,255,255,0.85)', fontSize: '14px', cursor: 'default' }}>{user?.departamento || 'Sin Departamento'}</span>
+              {user?.nombre ?? ''} {user?.apellido ?? ''} | <span title={`Departamento de: ${user?.departamento || 'Sin Departamento'}`} style={{ fontWeight: 'normal', color: 'rgba(255,255,255,0.85)', fontSize: '14px', cursor: 'default' }}>{user?.departamento ? user.departamento.slice(0, 2) : 'Sin'}</span>
             </span>
             {user?.rol !== 'admin' && (
               <div style={{ fontSize: '16px', color: 'rgba(255,255,255,0.9)', textAlign: 'left', marginTop: '2px' }}>
@@ -204,12 +204,8 @@ function Reservations() {
       <main className="dashboard-content">
         <div className="page" style={{ position: 'relative', width: '100%', boxSizing: 'border-box', padding: '2rem' }}>
 
-          <h1 style={{ textAlign: 'center', marginTop: '3rem', marginBottom: '1.5rem', fontSize: '2rem', color: '#000' }}>
-            Cree su Reservación
-          </h1>
-
           {success ? (
-            <div className="reserv-form-panel" style={{ textAlign: 'center', maxWidth: '600px', margin: '0 auto' }}>
+            <div className="reserv-form-panel" style={{ textAlign: 'center', maxWidth: '600px', margin: '0 auto', marginTop: '3rem' }}>
               <p style={{ fontSize: '1.3rem', fontWeight: 'bold', color: '#22c55e', marginBottom: '1.5rem' }}>
                 ¡Solicitud enviada correctamente!
               </p>
@@ -221,145 +217,71 @@ function Reservations() {
               </button>
             </div>
           ) : (
-            <form className="reserv-form-panel" onSubmit={handleSubmit}>
-
-              {/* ── Vehículo ── */}
-              <div className="reserv-form-row">
-                <label className="reserv-label" htmlFor="vehiculo-select">
-                  Elija el tipo de Vehículo
-                </label>
-                <div style={{ flex: 1 }}>
-                  <select
-                    id="vehiculo-select"
-                    className={`reserv-select${vehiculoError ? ' reserv-select-error' : ''}`}
-                    value={vehiculoId}
-                    onChange={handleVehiculoChange}
-                    disabled={loadingVehicles}
-                    required
-                  >
-                    <option value="">{loadingVehicles ? 'Cargando vehículos...' : '— Seleccione un vehículo —'}</option>
-                    {vehiclesList.map((v) => (
-                      <option key={v._id} value={v._id}>
-                        {v.marca} {v.modelo} - Placa: {v.placa} ({v.estado.replace('_', ' ')})
-                      </option>
-                    ))}
-                  </select>
-                  {vehiculoError && (
-                    <p className="reserv-field-error">
-                      ⚠️ Este vehículo no está disponible. Por favor seleccione otro.
-                    </p>
-                  )}
-                  {selectedVehicle && !vehiculoError && (
-                    <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <img
-                        src={getVehicleImage(selectedVehicle)}
-                        alt={`${selectedVehicle.marca} ${selectedVehicle.modelo}`}
-                        style={{ width: '80px', height: '55px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ddd' }}
-                      />
-                      <span style={{ color: '#22c55e', fontWeight: '600' }}>✔ Disponible</span>
+            <>
+              <h1 style={{ textAlign: 'center', marginTop: '3rem', marginBottom: '1.5rem', fontSize: '2rem', color: 'var(--text-h)' }}>
+                Crear Nueva Reservación
+              </h1>
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: '3rem', maxWidth: '1300px', margin: '0 auto', flexWrap: 'wrap' }}>
+                <div className="filter-panel" style={{ padding: '2.5rem', borderRadius: '12px', width: '100%', flex: '1', minWidth: '400px', maxWidth: '900px', boxSizing: 'border-box' }}>
+                  <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    <div>
+                      <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Vehículo</label>
+                      <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={vehiculoId} onChange={handleVehiculoChange} disabled={loadingVehicles} required>
+                        <option value="">{loadingVehicles ? 'Cargando vehículos...' : 'Seleccione un vehículo'}</option>
+                        {vehiclesList.map(v => (
+                          <option key={v._id} value={v._id}>{v.marca} {v.modelo} - Placa: {v.placa}</option>
+                        ))}
+                      </select>
+                      {vehiculoError && <p className="reserv-field-error" style={{ marginBottom: '1rem', color: '#ef4444', textAlign: 'center', marginTop: '0.5rem' }}>⚠️ Este vehículo no está disponible.</p>}
                     </div>
-                  )}
+
+                    <div style={{ display: 'flex', gap: '1rem' }}>
+                      <div style={{ flex: 1 }}>
+                        <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Fecha de Inicio</label>
+                        <input type="datetime-local" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={fechaInicio} onChange={e => setFechaInicio(e.target.value)} required />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Fecha de Fin</label>
+                        <input type="datetime-local" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={fechaFin} min={fechaInicio} onChange={e => setFechaFin(e.target.value)} required />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Destino</label>
+                      <input type="text" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={destino} onChange={e => setDestino(e.target.value)} required placeholder="Ej: Santiago Centro" />
+                    </div>
+
+                    <div>
+                      <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Motivo</label>
+                      <textarea className="reserv-textarea" style={{ width: '100%', boxSizing: 'border-box', minHeight: '60px', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-p)' }} value={motivo} onChange={e => setMotivo(e.target.value)} required placeholder="Describa el motivo de uso..." />
+                    </div>
+
+                    {apiError && <p className="reserv-field-error" style={{ marginBottom: '1rem', color: '#ef4444', textAlign: 'center' }}>{apiError}</p>}
+
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', justifyContent: 'center' }}>
+                      <button type="submit" className="btn" disabled={loading || vehiculoError || !vehiculoId || !fechaInicio || !fechaFin || !destino} style={{ background: 'linear-gradient(to right, #3D9FD3, #FFFFFF, #B5B8BE)', color: 'black', border: '2px solid black', borderRadius: '8px', padding: '0.5rem 1rem', margin: 0, opacity: (loading || vehiculoError || !vehiculoId || !fechaInicio || !fechaFin || !destino) ? 0.5 : 1 }}>
+                        {loading ? 'Creando...' : '➕ Crear Reservación'}
+                      </button>
+                      <button type="button" className="btn" onClick={handleCancel} style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black', borderRadius: '8px', padding: '0.5rem 1rem', margin: 0 }}>Cancelar</button>
+                    </div>
+                  </form>
                 </div>
-              </div>
 
-              <hr className="reserv-divider" />
-
-              {/* ── Fechas ── */}
-              <div className="reserv-form-row">
-                <label className="reserv-label">Seleccione una Fecha</label>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                    <label style={{ fontWeight: '600', minWidth: '80px', color: '#333' }}>Inicio:</label>
-                    <input
-                      id="fecha-inicio"
-                      type="datetime-local"
-                      className="reserv-input"
-                      value={fechaInicio}
-                      onChange={(e) => setFechaInicio(e.target.value)}
-                      required
-                      style={{ textAlign: 'center' }}
+                {selectedVehicle && !vehiculoError && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', border: '2px solid #ccc', borderRadius: '8px', padding: '1.5rem', backgroundColor: 'var(--bg-panel)', width: '400px', boxSizing: 'border-box', marginTop: '4.5rem' }}>
+                    <img
+                      src={getVehicleImage(selectedVehicle)}
+                      alt={`${selectedVehicle.marca} ${selectedVehicle.modelo}`}
+                      style={{ width: '100%', height: '260px', objectFit: 'cover', borderRadius: '6px' }}
                     />
+                    <span style={{ color: '#22c55e', fontWeight: '600', marginTop: '1.5rem', fontSize: '1.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: '#22c55e', display: 'inline-block' }}></span>
+                      Disponible
+                    </span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                    <label style={{ fontWeight: '600', minWidth: '80px', color: '#333' }}>Fin:</label>
-                    <input
-                      id="fecha-fin"
-                      type="datetime-local"
-                      className="reserv-input"
-                      value={fechaFin}
-                      min={fechaInicio}
-                      onChange={(e) => setFechaFin(e.target.value)}
-                      required
-                      style={{ textAlign: 'center' }}
-                    />
-                  </div>
-                </div>
+                )}
               </div>
-
-              <hr className="reserv-divider" />
-
-              {/* ── Destino ── */}
-              <div className="reserv-form-row">
-                <label className="reserv-label" htmlFor="destino-input">
-                  Su Destino
-                </label>
-                <input
-                  id="destino-input"
-                  type="text"
-                  className="reserv-input"
-                  placeholder="Ej: Planta Norte, Santiago..."
-                  value={destino}
-                  onChange={(e) => setDestino(e.target.value)}
-                  required
-                  style={{ flex: 1 }}
-                />
-              </div>
-
-              <hr className="reserv-divider" />
-
-              {/* ── Motivo ── */}
-              <div className="reserv-form-row" style={{ alignItems: 'flex-start' }}>
-                <label className="reserv-label" style={{ paddingTop: '0.5rem' }}>
-                  El Motivo<br />
-                </label>
-                <textarea
-                  id="motivo-textarea"
-                  className="reserv-textarea"
-                  placeholder="Describa brevemente el motivo del viaje..."
-                  value={motivo}
-                  onChange={(e) => setMotivo(e.target.value)}
-                  rows={4}
-                />
-              </div>
-
-              {apiError && (
-                <p className="reserv-field-error" style={{ textAlign: 'center' }}>
-                  ⚠️ {apiError}
-                </p>
-              )}
-
-              {/* ── Botones ── */}
-              <div className="reserv-form-actions">
-                <button
-                  id="btn-crear-reservacion"
-                  type="submit"
-                  className="btn"
-                  disabled={loading || vehiculoError || !vehiculoId || !fechaInicio || !fechaFin || !destino}
-                  style={{ backgroundColor: '#175fbd', color: 'black', opacity: (loading || vehiculoError || !vehiculoId || !fechaInicio || !fechaFin || !destino) ? 0.5 : 1 }}
-                >
-                  {loading ? 'Enviando…' : ' Crear la Reservación'}
-                </button>
-                <button
-                  id="btn-cancelar-reservacion"
-                  type="button"
-                  className="btn"
-                  onClick={handleCancel}
-                  style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'white', border: '2px solid #000000', borderRadius: '10px', fontWeight: '700' }}
-                >
-                  Cancelar
-                </button>
-              </div>
-            </form>
+            </>
           )}
         </div>
 
@@ -375,7 +297,7 @@ function Reservations() {
                 backgroundColor: 'white',
                 padding: '2rem',
                 borderRadius: '8px',
-                maxWidth: '400px',
+                maxWidth: '500px',
                 width: '90%',
                 color: '#000',
                 textAlign: 'center',

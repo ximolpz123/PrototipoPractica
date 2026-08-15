@@ -13,7 +13,7 @@ import toyotaHiluxBlancoImg from '../assets/toyota hilux srv blanco.png';
 import toyotaHiluxPlataImg from '../assets/toyota hilux srv plata.png';
 import vwAmarokBlancoImg from '../assets/volkswagen amarok blanco.png';
 import vwAmarokGrisImg from '../assets/volkswagen amarok gris.png';
-import defaultProfileImg from '../assets/foto-preterminada.png';
+const defaultProfileImg = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
 import logo from '../assets/bit-mejorado.png';
 
 // ─── Helpers de colores/etiquetas ────────────────────────────────────────────
@@ -37,7 +37,7 @@ const ESTADO_RES_COLORS: Record<string, string> = {
   cancelada: '#ef4444',
 };
 
-type DashTab = 'dashboard' | 'usuarios' | 'reservaciones' | 'vehiculos-activos' | 'vehiculos' | 'reportes' | 'inspecciones';
+type DashTab = 'dashboard' | 'usuarios' | 'reservaciones' | 'vehiculos-activos' | 'vehiculos' | 'reportes' | 'inspecciones' | 'perfil' | 'soporte';
 
 const MOCK_REPORTES_DATA = [
   { name: 'Ventas', res: 12, costo: 120000, km: 800, horas: 45 },
@@ -328,21 +328,27 @@ function Dashboard() {
           const uploadData = await uploadRes.json();
           finalImageUrl = uploadData.url;
         } else {
-          throw new Error('Error al subir imagen');
+          const errData = await uploadRes.json().catch(() => ({}));
+          throw new Error(`Upload Falló: ${errData.message || uploadRes.statusText}`);
         }
       }
 
       const body = { ...vehicleForm, imagenUrl: finalImageUrl, ultimoMantenimiento: vehicleForm.ultimoMantenimiento || undefined };
-      await fetch('http://localhost:5000/api/vehicles', {
+      const createRes = await fetch('http://localhost:5000/api/vehicles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
       });
+      if (!createRes.ok) {
+        const errData = await createRes.json().catch(() => ({}));
+        throw new Error(`BD Falló: ${errData.message || createRes.statusText}`);
+      }
+
       setShowCreateVehicle(false);
       setVehicleForm(EMPTY_VEHICLE_FORM);
       setVehicleImageFile(null);
       fetchVehicles();
-    } catch { alert('Error al crear vehículo'); }
+    } catch (error: any) { alert(`Error al crear vehículo:\n${error.message || error}`); }
   };
 
   const openEditVehicle = (v: IVehicle) => {
@@ -454,37 +460,58 @@ function Dashboard() {
 
   // ────────── Helper: form vehículo compartido ──────────
   const renderVehicleFormFields = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-      {([
-        ['placa', 'Placa'], ['marca', 'Marca'], ['modelo', 'Modelo'],
-        ['color', 'Color'],
-      ] as [keyof typeof vehicleForm, string][]).map(([field, label]) => (
-        <div key={field}>
-          <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>{label}:</label>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '220px' }}>
+          <label style={{ fontWeight: '600', width: '70px', margin: 0, textAlign: 'right' }}>Placa:</label>
           <input
             className="reserv-input"
-            style={{ width: '100%', boxSizing: 'border-box' }}
-            value={String(vehicleForm[field])}
+            style={{ flex: 1, boxSizing: 'border-box', margin: 0 }}
+            value={String(vehicleForm.placa)}
             onChange={e => {
-              let val = e.target.value;
-              if (field === 'placa') {
-                val = val.toUpperCase().replace(/[^A-Z0-9-]/g, '');
-                if (val.length === 4 && val[3] !== '-') {
-                  val = val.slice(0, 3) + '-' + val.slice(3);
-                }
-              }
-              setVehicleForm(f => ({ ...f, [field]: val }));
+              let val = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+              setVehicleForm(f => ({ ...f, placa: val }));
             }}
-            required={field !== 'imagenUrl'}
-            {...(field === 'placa' ? {
-              pattern: "[A-Z]{3}-[0-9]{3}",
-              maxLength: 7,
-              title: "Formato requerido: 3 letras, un guion y 3 números (ej: AAA-111)",
-              placeholder: "AAA-111"
-            } : {})}
+            required
+            maxLength={8}
+            title="Formato requerido (ej: AAA-123 o BBB-1234)"
+            placeholder="AAA-123"
           />
         </div>
-      ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '220px' }}>
+          <label style={{ fontWeight: '600', width: '70px', margin: 0, textAlign: 'right' }}>Marca:</label>
+          <input
+            className="reserv-input"
+            style={{ flex: 1, boxSizing: 'border-box', margin: 0 }}
+            value={String(vehicleForm.marca)}
+            onChange={e => setVehicleForm(f => ({ ...f, marca: e.target.value }))}
+            required
+          />
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '220px' }}>
+          <label style={{ fontWeight: '600', width: '70px', margin: 0, textAlign: 'right' }}>Modelo:</label>
+          <input
+            className="reserv-input"
+            style={{ flex: 1, boxSizing: 'border-box', margin: 0 }}
+            value={String(vehicleForm.modelo)}
+            onChange={e => setVehicleForm(f => ({ ...f, modelo: e.target.value }))}
+            required
+          />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '220px' }}>
+          <label style={{ fontWeight: '600', width: '70px', margin: 0, textAlign: 'right' }}>Color:</label>
+          <input
+            className="reserv-input"
+            style={{ flex: 1, boxSizing: 'border-box', margin: 0 }}
+            value={String(vehicleForm.color)}
+            onChange={e => setVehicleForm(f => ({ ...f, color: e.target.value }))}
+            required
+          />
+        </div>
+      </div>
+      {/* 
       <div>
         <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>URL de Imagen:</label>
         <input
@@ -495,65 +522,92 @@ function Dashboard() {
           placeholder="Ej: https://... (o sube una imagen abajo)"
         />
       </div>
-      <div>
-        <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>O Subir Imagen (.png):</label>
-        <input
-          type="file"
-          accept=".png"
-          className="reserv-input"
-          style={{ width: '100%', boxSizing: 'border-box', padding: '0.4rem' }}
-          onChange={e => {
-            if (e.target.files && e.target.files[0]) {
-              const file = e.target.files[0];
-              if (file.type !== 'image/png' && !file.name.toLowerCase().endsWith('.png')) {
-                alert('Solo se permiten imágenes en formato .png');
-                e.target.value = '';
-                return;
-              }
-              setVehicleImageFile(file);
-            } else {
-              setVehicleImageFile(null);
-            }
-          }}
-        />
-        {vehicleImageFile && <div style={{ fontSize: '0.85rem', color: '#10b981', marginTop: '0.25rem' }}>Archivo seleccionado: {vehicleImageFile.name}</div>}
-      </div>
-      <div style={{ display: 'flex', gap: '1rem' }}>
-        <div style={{ flex: 1 }}>
-          <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Año:</label>
-          <input className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} type="number"
+      */}
+      <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '220px' }}>
+          <label style={{ fontWeight: '600', width: '70px', margin: 0, textAlign: 'right' }}>Año:</label>
+          <input className="reserv-input" style={{ flex: 1, boxSizing: 'border-box', margin: 0 }} type="number"
             value={vehicleForm.anio} onChange={e => setVehicleForm(f => ({ ...f, anio: Number(e.target.value) }))} />
         </div>
-        <div style={{ flex: 1 }}>
-          <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Kilometraje:</label>
-          <input className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} type="number"
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '220px' }}>
+          <label style={{ fontWeight: '600', width: '70px', margin: 0, textAlign: 'right' }}>Km:</label>
+          <input className="reserv-input" style={{ flex: 1, boxSizing: 'border-box', margin: 0 }} type="number"
             value={vehicleForm.kilometraje} onChange={e => setVehicleForm(f => ({ ...f, kilometraje: Number(e.target.value) }))} />
         </div>
       </div>
-      <div style={{ display: 'flex', gap: '1rem' }}>
-        <div style={{ flex: 1 }}>
-          <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Tipo:</label>
-          <select className="reserv-select" value={vehicleForm.tipo} onChange={e => setVehicleForm(f => ({ ...f, tipo: e.target.value as IVehicle['tipo'] }))}>
+      <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '220px' }}>
+          <label style={{ fontWeight: '600', width: '70px', margin: 0, textAlign: 'right' }}>Tipo:</label>
+          <select className="reserv-select" style={{ flex: 1, margin: 0 }} value={vehicleForm.tipo} onChange={e => setVehicleForm(f => ({ ...f, tipo: e.target.value as IVehicle['tipo'] }))}>
             <option value="sedan">Sedán</option>
             <option value="suv">SUV</option>
             <option value="pickup">Pickup</option>
             <option value="van">Van</option>
           </select>
         </div>
-        <div style={{ flex: 1 }}>
-          <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Estado:</label>
-          <select className="reserv-select" value={vehicleForm.estado} onChange={e => setVehicleForm(f => ({ ...f, estado: e.target.value as IVehicle['estado'] }))}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '220px' }}>
+          <label style={{ fontWeight: '600', width: '70px', margin: 0, textAlign: 'right' }}>Estado:</label>
+          <select className="reserv-select" style={{ flex: 1, margin: 0 }} value={vehicleForm.estado} onChange={e => setVehicleForm(f => ({ ...f, estado: e.target.value as IVehicle['estado'] }))}>
             <option value="disponible">Disponible</option>
-            <option value="reservado">Reservado</option>
+            {!showCreateVehicle && <option value="reservado">Reservado</option>}
             <option value="mantenimiento">Mantenimiento</option>
             <option value="fuera_de_servicio">Fuera de Servicio</option>
           </select>
         </div>
       </div>
-      <div>
-        <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Último Mantenimiento:</label>
-        <input className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} type="datetime-local"
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
+        <label style={{ fontWeight: '600', whiteSpace: 'nowrap', margin: 0 }}>Último Mantenimiento:</label>
+        <input className="reserv-input" style={{ width: '200px', boxSizing: 'border-box', margin: 0 }} type="datetime-local"
           value={vehicleForm.ultimoMantenimiento} onChange={e => setVehicleForm(f => ({ ...f, ultimoMantenimiento: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
+          <label style={{ fontWeight: '600', whiteSpace: 'nowrap', margin: 0 }}>Subir Imagen (.png):</label>
+          <input
+            key={vehicleImageFile ? vehicleImageFile.name : 'empty'}
+            type="file"
+            accept=".png"
+            className="reserv-input"
+            style={{ width: '240px', boxSizing: 'border-box', padding: '0.4rem', margin: 0 }}
+            onChange={e => {
+              if (e.target.files && e.target.files[0]) {
+                const file = e.target.files[0];
+                if (file.type !== 'image/png' && !file.name.toLowerCase().endsWith('.png')) {
+                  alert('Solo se permiten imágenes en formato .png');
+                  e.target.value = '';
+                  return;
+                }
+                setVehicleImageFile(file);
+              } else {
+                setVehicleImageFile(null);
+              }
+            }}
+          />
+        </div>
+        {vehicleImageFile && (
+          <div style={{ position: 'relative', marginTop: '0.5rem' }}>
+            <img
+              src={URL.createObjectURL(vehicleImageFile)}
+              alt="Preview"
+              style={{ width: '200px', height: '120px', objectFit: 'cover', borderRadius: '4px', border: '2px solid #e5e7eb', backgroundColor: '#f9fafb' }}
+            />
+            <button
+              type="button"
+              onClick={() => setVehicleImageFile(null)}
+              style={{
+                position: 'absolute', top: '-10px', right: '-10px',
+                width: '24px', height: '24px', borderRadius: '50%',
+                backgroundColor: '#ef4444', color: 'white', border: 'none',
+                cursor: 'pointer', fontWeight: 'bold', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', padding: 0,
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              }}
+              title="Quitar imagen"
+            >
+              X
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -641,7 +695,7 @@ function Dashboard() {
           />
           <div className="sidebar-profile-info">
             <span className="sidebar-profile-name">
-              {user?.nombre ?? ''} {user?.apellido ?? ''} | <span title={`Departamento de: ${user?.departamento || 'Sin Departamento'}`} style={{ fontWeight: 'normal', color: 'rgba(255,255,255,0.85)', fontSize: '14px', cursor: 'default' }}>{user?.departamento || 'Sin Departamento'}</span>
+              {user?.nombre ?? ''} {user?.apellido ?? ''} | <span title={`Departamento de: ${user?.departamento || 'Sin Departamento'}`} style={{ fontWeight: 'normal', color: 'rgba(255,255,255,0.85)', fontSize: '14px', cursor: 'default' }}>{user?.departamento ? user.departamento.slice(0, 2) : 'Sin'}</span>
             </span>
           </div>
         </div>
@@ -701,8 +755,20 @@ function Dashboard() {
           )}
         </nav>
 
-        {/* Cerrar sesión */}
-        <div className="sidebar-logout">
+        {/* Acciones inferiores */}
+        <div className="sidebar-logout" style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 12px', width: '100%', boxSizing: 'border-box', marginBottom: '16px' }}>
+          <button
+            onClick={() => setActiveTab('perfil')}
+            style={{ background: 'none', border: 'none', color: 'white', fontWeight: 'normal', fontSize: '14px', cursor: 'pointer', textDecoration: activeTab === 'perfil' ? 'underline' : 'none', padding: '4px' }}
+          >
+            Configuración de Perfil
+          </button>
+          <button
+            onClick={() => setActiveTab('soporte')}
+            style={{ background: 'none', border: 'none', color: 'white', fontWeight: 'normal', fontSize: '14px', cursor: 'pointer', textDecoration: activeTab === 'soporte' ? 'underline' : 'none', padding: '4px' }}
+          >
+            Soporte Técnico
+          </button>
           <button className="sidebar-logout-btn" onClick={() => setShowLogoutModal(true)}>
             Cerrar Sesión
           </button>
@@ -1065,54 +1131,98 @@ function Dashboard() {
                 </div>
               </>
             ) : (
-              <div className="filter-panel" style={{ padding: '1.5rem', borderRadius: '8px', width: '100%', maxWidth: '800px', margin: '0 auto', boxSizing: 'border-box' }}>
-                <h3 style={{ marginTop: 0, color: 'var(--text-h)', marginBottom: '1rem', textAlign: 'center' }}>Crear Nueva Reservación</h3>
-                {createResError && <p className="reserv-field-error" style={{ marginBottom: '1rem', color: '#ef4444', textAlign: 'center' }}>{createResError}</p>}
-                <form onSubmit={handleCreateReservationSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div>
-                    <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Usuario</label>
-                    <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={createResForm.usuarioId} onChange={e => setCreateResForm({ ...createResForm, usuarioId: e.target.value })} required>
-                      <option value="me">Para mí (Administrador)</option>
-                      {users.filter(u => u.activo).map(u => (
-                        <option key={u.id} value={u.id}>{u.nombre} {u.apellido}</option>
-                      ))}
-                    </select>
+              <>
+                <h1 style={{ textAlign: 'center', marginTop: '1rem', marginBottom: '1.5rem', fontSize: '2rem', color: 'var(--text-h)' }}>
+                  Crear Nueva Reservación
+                </h1>
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: '3rem', maxWidth: '1300px', margin: '0 auto', flexWrap: 'wrap' }}>
+                  <div className="filter-panel" style={{ padding: '2.5rem', borderRadius: '12px', width: '100%', flex: '1', minWidth: '400px', maxWidth: '900px', boxSizing: 'border-box' }}>
+                    {createResError && <p className="reserv-field-error" style={{ marginBottom: '1rem', color: '#ef4444', textAlign: 'center' }}>{createResError}</p>}
+                    <form onSubmit={handleCreateReservationSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                      <div style={{ marginBottom: '1rem' }}>
+                        <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Usuario</label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <select className="reserv-input" style={{ flex: 1, boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={createResForm.usuarioId} onChange={e => setCreateResForm({ ...createResForm, usuarioId: e.target.value })} required>
+                            <option value="me">Para mí (Administrador)</option>
+                            {users.filter(u => u.activo).map(u => (
+                              <option key={u.id} value={u.id}>{u.nombre} {u.apellido}</option>
+                            ))}
+                          </select>
+                          {(() => {
+                            const selectedUser = createResForm.usuarioId === 'me' ? user : users.find(u => u.id === createResForm.usuarioId);
+                            if (selectedUser?.banderaActual) {
+                              return (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold', color: 'var(--text-p)' }}>
+
+                                  <span style={{ display: 'inline-block', width: '20px', height: '20px', borderRadius: '50%', backgroundColor: selectedUser.banderaActual === 'verde' ? '#22c55e' : selectedUser.banderaActual === 'amarilla' ? '#eab308' : selectedUser.banderaActual === 'naranja' ? '#f97316' : '#ef4444', border: '2px solid #000' }} title={`Bandera ${selectedUser.banderaActual}`} />
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
+                        {(() => {
+                          const selectedUser = createResForm.usuarioId === 'me' ? user : users.find(u => u.id === createResForm.usuarioId);
+                          if (selectedUser?.banderaActual === 'roja') {
+                            return (
+                              <div style={{ marginTop: '0.5rem', color: '#b91c1c', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#fef2f2', padding: '0.5rem', borderRadius: '4px', border: '1px solid #f87171' }}>
+                                ⚠️ Advertencia: Este usuario tiene bandera ROJA. Por favor revise su historial antes de autorizar el vehículo.
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                      <div>
+                        <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Vehículo</label>
+                        <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={createResForm.vehiculoId} onChange={e => setCreateResForm({ ...createResForm, vehiculoId: e.target.value })} required>
+                          <option value="">Seleccione un vehículo</option>
+                          {vehicles.filter(v => v.estado === 'disponible').map(v => (
+                            <option key={v._id} value={v._id}>{v.marca} {v.modelo} - {v.placa}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={{ display: 'flex', gap: '1rem' }}>
+                        <div style={{ flex: 1 }}>
+                          <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Fecha de Inicio</label>
+                          <input type="date" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={createResForm.fechaInicio} onChange={e => setCreateResForm({ ...createResForm, fechaInicio: e.target.value })} required />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Fecha de Fin</label>
+                          <input type="date" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={createResForm.fechaFin} onChange={e => setCreateResForm({ ...createResForm, fechaFin: e.target.value })} required />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Destino</label>
+                        <input type="text" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={createResForm.destino} onChange={e => setCreateResForm({ ...createResForm, destino: e.target.value })} required placeholder="Ej: Santiago Centro" />
+                      </div>
+                      <div>
+                        <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Motivo</label>
+                        <textarea className="reserv-textarea" style={{ width: '100%', boxSizing: 'border-box', minHeight: '60px', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-p)' }} value={createResForm.motivo} onChange={e => setCreateResForm({ ...createResForm, motivo: e.target.value })} required placeholder="Describa el motivo de uso..." />
+                      </div>
+                      <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', justifyContent: 'center' }}>
+                        <button type="submit" className="btn" disabled={isCreatingRes} style={{ background: 'linear-gradient(to right, #3D9FD3, #FFFFFF, #B5B8BE)', color: 'black', border: '2px solid black', borderRadius: '8px', padding: '0.5rem 1rem', margin: 0 }}>
+                          {isCreatingRes ? 'Creando...' : 'Crear Reservación'}
+                        </button>
+                        <button type="button" className="btn" onClick={() => setShowCreateRes(false)} disabled={isCreatingRes} style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black', borderRadius: '8px', padding: '0.5rem 1rem', margin: 0 }}>Cancelar</button>
+                      </div>
+                    </form>
                   </div>
-                  <div>
-                    <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Vehículo</label>
-                    <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={createResForm.vehiculoId} onChange={e => setCreateResForm({ ...createResForm, vehiculoId: e.target.value })} required>
-                      <option value="">Seleccione un vehículo</option>
-                      {vehicles.filter(v => v.estado === 'disponible').map(v => (
-                        <option key={v._id} value={v._id}>{v.marca} {v.modelo} - {v.placa}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div style={{ display: 'flex', gap: '1rem' }}>
-                    <div style={{ flex: 1 }}>
-                      <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Fecha de Inicio</label>
-                      <input type="date" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={createResForm.fechaInicio} onChange={e => setCreateResForm({ ...createResForm, fechaInicio: e.target.value })} required />
+                  {vehicles.find(v => v._id === createResForm.vehiculoId) && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', border: '2px solid #ccc', borderRadius: '8px', padding: '1.5rem', backgroundColor: 'var(--bg-panel)', width: '400px', boxSizing: 'border-box', marginTop: '4.5rem' }}>
+                      <img
+                        src={getVehicleImage(vehicles.find(v => v._id === createResForm.vehiculoId)!)}
+                        alt={`Vehículo seleccionado`}
+                        style={{ width: '100%', height: '260px', objectFit: 'cover', borderRadius: '6px' }}
+                      />
+                      <span style={{ color: '#22c55e', fontWeight: '600', marginTop: '1.5rem', fontSize: '1.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: '#22c55e', display: 'inline-block' }}></span>
+                        Disponible
+                      </span>
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Fecha de Fin</label>
-                      <input type="date" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={createResForm.fechaFin} onChange={e => setCreateResForm({ ...createResForm, fechaFin: e.target.value })} required />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Destino</label>
-                    <input type="text" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={createResForm.destino} onChange={e => setCreateResForm({ ...createResForm, destino: e.target.value })} required placeholder="Ej: Santiago Centro" />
-                  </div>
-                  <div>
-                    <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Motivo</label>
-                    <textarea className="reserv-textarea" style={{ width: '100%', boxSizing: 'border-box', minHeight: '60px', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-p)' }} value={createResForm.motivo} onChange={e => setCreateResForm({ ...createResForm, motivo: e.target.value })} required placeholder="Describa el motivo de uso..." />
-                  </div>
-                  <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', justifyContent: 'center' }}>
-                    <button type="submit" className="btn" disabled={isCreatingRes} style={{ background: 'linear-gradient(to right, #3D9FD3, #FFFFFF, #B5B8BE)', color: 'black', border: '2px solid black', borderRadius: '8px', padding: '0.5rem 1rem', margin: 0 }}>
-                      {isCreatingRes ? 'Creando...' : '➕ Crear Reservación'}
-                    </button>
-                    <button type="button" className="btn" onClick={() => setShowCreateRes(false)} disabled={isCreatingRes} style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black', borderRadius: '8px', padding: '0.5rem 1rem', margin: 0 }}>Cancelar</button>
-                  </div>
-                </form>
-              </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
         )}
@@ -1130,7 +1240,7 @@ function Dashboard() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '700', color: '#000' }}>   Vehículos</h2>
               <button className="btn btn-create" onClick={() => { setVehicleForm(EMPTY_VEHICLE_FORM); setShowCreateVehicle(true); }}>
-                ➕ Agregar Vehículo
+                Agregar Vehículo
               </button>
             </div>
 
@@ -1146,7 +1256,7 @@ function Dashboard() {
                     <div className="vehicle-card-body">
                       <h2 className="vehicle-card-title">{v.marca} {v.modelo}</h2>
                       <div className="vehicle-card-info">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', rowGap: '0.75rem', columnGap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
                           <span><strong>Patente:</strong> {v.placa}</span>
                           <span><strong>Año:</strong> {v.anio}</span>
                           <span><strong>Color:</strong> {v.color}</span>
@@ -1169,17 +1279,21 @@ function Dashboard() {
                           </div>
                         )}
                       </div>
-                      <span className="status-badge" style={{ backgroundColor: ESTADO_VEHICLE_COLORS[v.estado] }}>
-                        {ESTADO_VEHICLE_LABELS[v.estado]}
-                      </span>
-                      <button
-                        id={`ver-vehiculo-admin-${v._id}`}
-                        className="btn btn-sm"
-                        style={{ marginTop: '10px', width: '100%' }}
-                        onClick={() => setSelectedVehicle(v)}
-                      >
-                        Ver Vehículo
-                      </button>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span className="status-badge" style={{ backgroundColor: ESTADO_VEHICLE_COLORS[v.estado] }}>
+                          {ESTADO_VEHICLE_LABELS[v.estado]}
+                        </span>
+                      </div>
+                      <div style={{ textAlign: 'center', marginTop: '15px' }}>
+                        <button
+                          id={`ver-vehiculo-admin-${v._id}`}
+                          className="btn"
+                          style={{ margin: 0, padding: '10px 32px', fontSize: '1rem' }}
+                          onClick={() => setSelectedVehicle(v)}
+                        >
+                          Ver Vehículo
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -1286,6 +1400,20 @@ function Dashboard() {
             </div>
           </div>
         )}
+
+        {activeTab === 'perfil' && (
+          <div style={{ width: '100%', textAlign: 'center', padding: '4rem', backgroundColor: 'var(--bg-card)', borderRadius: '12px' }}>
+            <h2 style={{ color: 'var(--text-h)' }}>Configuración de Perfil</h2>
+            <p style={{ color: 'var(--text-p)', fontSize: '1.1rem' }}>Módulo en desarrollo. Próximamente podrás configurar los detalles de tu cuenta de administrador aquí.</p>
+          </div>
+        )}
+
+        {activeTab === 'soporte' && (
+          <div style={{ width: '100%', textAlign: 'center', padding: '4rem', backgroundColor: 'var(--bg-card)', borderRadius: '12px' }}>
+            <h2 style={{ color: 'var(--text-h)' }}>Soporte Técnico</h2>
+            <p style={{ color: 'var(--text-p)', fontSize: '1.1rem' }}>Módulo en desarrollo. Próximamente dispondrás de opciones para contactar al soporte técnico del sistema.</p>
+          </div>
+        )}
       </main>
 
       {/* ══════════ MODAL: DETALLE VEHÍCULO (Admin) ══════════ */}
@@ -1364,8 +1492,8 @@ function Dashboard() {
               </div>
             ) : (
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', borderTop: '1px solid #e5e7eb', paddingTop: '1.25rem', flexWrap: 'wrap' }}>
-                <button className="btn" style={{ backgroundColor: '#175fbd', color: 'black', padding: '0.6rem 1.8rem' }} onClick={() => openEditVehicle(selectedVehicle)}> Editar Vehículo</button>
-                <button className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', padding: '0.6rem 1.8rem', border: '2px solid black' }} onClick={() => setShowDeleteVehicleConfirm(selectedVehicle._id)}> Eliminar Vehículo</button>
+                <button className="btn" style={{ backgroundColor: '#175fbd', color: 'black', padding: '0.6rem 1.8rem' }} onClick={() => openEditVehicle(selectedVehicle)}> Editar</button>
+                <button className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', padding: '0.6rem 1.8rem', border: '2px solid black' }} onClick={() => setShowDeleteVehicleConfirm(selectedVehicle._id)}> Eliminar</button>
               </div>
             )}
           </div>
@@ -1375,7 +1503,7 @@ function Dashboard() {
       {/* ══════════ MODAL: CREAR VEHÍCULO ══════════ */}
       {showCreateVehicle && (
         <div className="modal-overlay" onClick={() => setShowCreateVehicle(false)}>
-          <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '520px', width: '95%', color: '#000', textAlign: 'left', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+          <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '580px', width: '95%', color: '#000', textAlign: 'left', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowCreateVehicle(false)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}> Agregar Vehículo</h2>
             <form onSubmit={createVehicle}>
@@ -1392,7 +1520,7 @@ function Dashboard() {
       {/* ══════════ MODAL: EDITAR VEHÍCULO ══════════ */}
       {showEditVehicle && (
         <div className="modal-overlay" onClick={() => setShowEditVehicle(null)}>
-          <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '520px', width: '95%', color: '#000', textAlign: 'left', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+          <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '580px', width: '95%', color: '#000', textAlign: 'left', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowEditVehicle(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}> Editar Vehículo</h2>
             {renderVehicleFormFields()}
@@ -1692,7 +1820,7 @@ function Dashboard() {
               backgroundColor: 'white',
               padding: '2rem',
               borderRadius: '8px',
-              maxWidth: '400px',
+              maxWidth: '500px',
               width: '90%',
               color: '#000',
               textAlign: 'center',
