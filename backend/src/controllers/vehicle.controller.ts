@@ -12,7 +12,6 @@ export const getVehicles = async (_req: Request, res: Response): Promise<void> =
 
     const activeReservations = await Reservation.find({ estado: 'en_curso' })
       .populate('usuario', 'nombre apellido departamento')
-      .populate('tramos.conductor', 'nombre apellido departamento')
       .lean();
 
     const hoyInicio = new Date();
@@ -24,47 +23,23 @@ export const getVehicles = async (_req: Request, res: Response): Promise<void> =
       fechaInicio: { $lte: hoyFin },
       fechaFin: { $gte: hoyInicio },
       estado: { $in: ['aprobada', 'en_curso', 'completada'] }
-    })
-      .populate('usuario', 'nombre apellido departamento')
-      .populate('tramos.conductor', 'nombre apellido departamento')
-      .lean();
+    }).populate('usuario', 'nombre apellido departamento').lean();
 
     const vehiclesWithInfo = vehicles.map(v => {
       let extra = {};
       if (v.estado === 'reservado') {
         const activeRes = activeReservations.find(r => r.vehiculo.toString() === v._id.toString());
-        if (activeRes) {
-          const conductores = [activeRes.usuario];
-          if (activeRes.tramos && activeRes.tramos.length > 0) {
-            activeRes.tramos.forEach((tramo: any) => {
-              if (tramo.conductor && tramo.conductor._id.toString() !== conductores[conductores.length - 1]._id.toString()) {
-                conductores.push(tramo.conductor);
-              }
-            });
-          }
-          extra = { conductorActual: activeRes.usuario, conductoresActivos: conductores };
-        }
+        if (activeRes) extra = { conductorActual: activeRes.usuario };
       }
 
       const historialHoy = todayReservations
         .filter(r => r.vehiculo.toString() === v._id.toString())
-        .map(r => {
-          const conductores = [r.usuario];
-          if (r.tramos && r.tramos.length > 0) {
-            r.tramos.forEach((tramo: any) => {
-              if (tramo.conductor && tramo.conductor._id.toString() !== (conductores[conductores.length - 1] as any)._id.toString()) {
-                conductores.push(tramo.conductor);
-              }
-            });
-          }
-          return {
-            usuario: r.usuario,
-            conductores,
-            estado: r.estado,
-            fechaInicio: r.fechaInicio,
-            fechaFin: r.fechaFin,
-          };
-        });
+        .map(r => ({
+          usuario: r.usuario,
+          estado: r.estado,
+          fechaInicio: r.fechaInicio,
+          fechaFin: r.fechaFin,
+        }));
 
       return { ...v, ...extra, historialHoy };
     });
@@ -105,7 +80,7 @@ export const createVehicle = async (req: Request, res: Response): Promise<void> 
     const vehicle = await Vehicle.create(req.body);
     res.status(201).json(vehicle);
   } catch (error) {
-    res.status(500).json({ message: 'Error al crear vehículo', error });
+    res.status(500).json({ message: 'Error al subir imagen', error });
   }
 };
 
@@ -155,16 +130,14 @@ Extrae la siguiente información y devuélvela ÚNICAMENTE como un objeto JSON v
 
     try {
       const data = JSON.parse(text);
-      // Incluir las URLs de Cloudinary en la respuesta
-      data.fotosVehiculo = files.map(file => file.path);
       res.json(data);
     } catch (e) {
       console.error("Gemini returned invalid JSON:", text);
-      res.status(400).json({ message: 'No se pudieron extraer datos de la imagen. Asegúrate de que la foto sea clara y los elementos sean visibles.', raw: text });
+      res.status(500).json({ message: 'La IA no devolvió un formato válido', raw: text });
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error en iaCreateVehicle:', error);
-    res.status(400).json({ message: 'Error procesando las imágenes con IA. Es posible que las fotos no sean claras o sean demasiado oscuras.', detail: error.message });
+    res.status(500).json({ message: 'Error procesando las imágenes con IA' });
   }
 };
 
@@ -237,8 +210,8 @@ export const uploadVehicleImage = async (req: Request, res: Response): Promise<v
       res.status(400).json({ message: 'No se proporcionó imagen' });
       return;
     }
-    const fileUrl = `http://localhost:5000/uploads/${file.filename}`;
-    res.json({ url: fileUrl });
+    // Cloudinary multer storage sets the url in req.file.path
+    res.json({ url: file.path });
   } catch (error) {
     res.status(500).json({ message: 'Error al subir imagen de vehículo', error });
   }
