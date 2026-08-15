@@ -64,7 +64,7 @@ function Vehicles() {
   const navigate = useNavigate();
   const location = useLocation();
   const initialTab = (location.state as { tab?: string })?.tab === 'reservaciones' ? 'reservaciones' : 'catalogo';
-  const [activeTab, setActiveTab] = useState<'catalogo' | 'reservaciones'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'catalogo' | 'reservaciones' | 'perfil'>(initialTab);
   const [modalImg, setModalImg] = useState<string | null>(null);
   const [vehiclesList, setVehiclesList] = useState<IVehicle[]>([]);
   const [loadingVehicles, setLoadingVehicles] = useState(false);
@@ -193,7 +193,7 @@ function Vehicles() {
           />
           <div className="sidebar-profile-info">
             <span className="sidebar-profile-name">
-              {user?.nombre ?? ''} {user?.apellido ?? ''} | <span title={`Departamento de: ${user?.departamento || 'Sin Departamento'}`} style={{ fontWeight: 'normal', color: 'rgba(255,255,255,0.85)', fontSize: '14px', cursor: 'default' }}>{user?.departamento || 'Sin Departamento'}</span>
+              {user?.nombre ?? ''} {user?.apellido ?? ''} | <span title={`Departamento de ${user?.departamento || 'Sin Departamento'}`} style={{ fontWeight: 'normal', color: 'rgba(255,255,255,0.85)', fontSize: '14px', cursor: 'default' }}>{user?.departamento ? user.departamento.slice(0, 2) : 'Sin'}</span>
             </span>
             {user?.rol !== 'admin' && (
               <div style={{ fontSize: '16px', color: 'rgba(255,255,255,0.9)', textAlign: 'left' }}>
@@ -213,10 +213,22 @@ function Vehicles() {
           </button>
         </div>
 
-        {/* Logout bottom */}
-        <div className="sidebar-logout">
+        {/* Acciones inferiores */}
+        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 12px', width: '100%', boxSizing: 'border-box', marginBottom: '16px' }}>
+          <button
+            onClick={() => setActiveTab('perfil')}
+            style={{ background: 'none', border: 'none', color: 'white', fontWeight: 'normal', fontSize: '14px', cursor: 'pointer', textDecoration: activeTab === 'perfil' ? 'underline' : 'none', padding: '4px' }}
+          >
+            Configuración de Perfil
+          </button>
+          <button
+            onClick={() => { }}
+            style={{ background: 'none', border: 'none', color: 'white', fontWeight: 'normal', fontSize: '14px', cursor: 'pointer', padding: '4px' }}
+          >
+            Soporte Técnico
+          </button>
           <button className="sidebar-logout-btn" onClick={() => setShowLogoutModal(true)}>
-            <span className="btn-icon"></span> Cerrar Sesión
+            Cerrar Sesión
           </button>
         </div>
       </aside>
@@ -247,7 +259,7 @@ function Vehicles() {
                   <div className="vehicle-card-body">
                     <h2 className="vehicle-card-title">{v.marca} {v.modelo}</h2>
                     <div className="vehicle-card-info">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', rowGap: '0.75rem', columnGap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
                         <span><strong>Patente:</strong> {v.placa}</span>
                         <span><strong>Año:</strong> {v.anio}</span>
                         <span><strong>Color:</strong> {v.color}</span>
@@ -264,7 +276,7 @@ function Vehicles() {
                         </div>
                       )}
                       {v.ultimoMantenimiento && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#555', marginTop: '4px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-start', gap: '0.5rem', fontSize: '0.85rem', color: '#555', marginTop: '4px' }}>
                           <strong>Último Mantenimiento:</strong>
                           <span>{new Date(v.ultimoMantenimiento).toLocaleString('es-CL')}</span>
                         </div>
@@ -381,6 +393,27 @@ function Vehicles() {
           </div>
         )}
 
+        {/* ── Panel: Perfil ── */}
+        {activeTab === 'perfil' && (
+          <div className="perfil-panel" style={{ padding: '2rem', borderRadius: '12px', boxShadow: 'var(--shadow)', maxWidth: '800px' }}>
+            <h2 style={{ marginTop: 0, color: 'var(--text-h)', marginBottom: '1.5rem', fontSize: '1.8rem' }}>Configuración de Perfil</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', fontSize: '1.1rem' }}>
+              <div>
+                <p><strong>Nombre:</strong> {user?.nombre || '-'}</p>
+                <p><strong>Apellido:</strong> {user?.apellido || '-'}</p>
+                <p><strong>Email:</strong> {user?.email || '-'}</p>
+                <p><strong>Teléfono:</strong> {user?.telefono || '-'}</p>
+              </div>
+              <div>
+                <p><strong>Departamento:</strong> {user?.departamento || '-'}</p>
+                <p><strong>Rol:</strong> {user?.rol === 'admin' ? 'Administrador' : 'Operaciones'}</p>
+                <p><strong>Licencia:</strong> <span style={{ color: user?.licenciaAlDia === false ? '#ef4444' : '#10b981', fontWeight: 'bold' }}>{user?.licenciaAlDia === false ? 'No al día' : 'Al día'}</span></p>
+                <p><strong>Estado:</strong> {user?.activo === false ? 'Inactivo' : 'Activo'}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Modal Reservación ── */}
         {selectedReservation && (
           <div
@@ -444,7 +477,7 @@ function Vehicles() {
                 {selectedReservation.kmRetorno !== undefined && selectedReservation.kmRetorno !== null && (
                   <div className="km-retorno-box">
                     <p className="km-retorno-text">
-                      <strong>🚗 Kilometraje de Retorno (IA):</strong> {selectedReservation.kmRetorno.toLocaleString('es-CL')} km
+                      <strong>Kilometraje de Retorno (IA):</strong> {selectedReservation.kmRetorno.toLocaleString('es-CL')} km
                     </p>
                   </div>
                 )}
@@ -503,7 +536,7 @@ function Vehicles() {
                 backgroundColor: 'white',
                 padding: '2rem',
                 borderRadius: '8px',
-                maxWidth: '400px',
+                maxWidth: '500px',
                 width: '90%',
                 color: '#000',
                 textAlign: 'center',
