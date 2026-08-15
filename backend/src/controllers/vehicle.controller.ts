@@ -80,7 +80,7 @@ export const createVehicle = async (req: Request, res: Response): Promise<void> 
     const vehicle = await Vehicle.create(req.body);
     res.status(201).json(vehicle);
   } catch (error) {
-    res.status(500).json({ message: 'Error al subir imagen', error });
+    res.status(500).json({ message: 'Error al crear vehículo', error });
   }
 };
 
@@ -210,8 +210,8 @@ export const uploadVehicleImage = async (req: Request, res: Response): Promise<v
       res.status(400).json({ message: 'No se proporcionó imagen' });
       return;
     }
-    // Cloudinary multer storage sets the url in req.file.path
-    res.json({ url: file.path });
+    const fileUrl = `http://localhost:5000/uploads/${file.filename}`;
+    res.json({ url: fileUrl });
   } catch (error) {
     res.status(500).json({ message: 'Error al subir imagen de vehículo', error });
   }

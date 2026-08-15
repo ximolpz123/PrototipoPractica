@@ -1,16 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { IUser } from '../types';
-import defaultProfileImg from '../assets/foto-preterminada.png';
+const defaultProfileImg = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
 
 function UserProfileMenu() {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  
+
   const storedUser = localStorage.getItem('user');
   const user: IUser | null = storedUser ? JSON.parse(storedUser) : null;
-  
+
   const profileImgKey = user ? `profile_img_${user.id}` : 'profile_img_default';
   const [profileImg, setProfileImg] = useState<string>(
     localStorage.getItem(profileImgKey) || defaultProfileImg
@@ -41,11 +41,11 @@ function UserProfileMenu() {
         setIsOpen(false);
       }
     };
-    
+
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
@@ -55,8 +55,8 @@ function UserProfileMenu() {
 
   return (
     <div className="profile-menu-container" ref={menuRef}>
-      <button 
-        className="profile-menu-button" 
+      <button
+        className="profile-menu-button"
         onClick={() => setIsOpen(!isOpen)}
         aria-label="Menú de usuario"
       >
@@ -69,15 +69,15 @@ function UserProfileMenu() {
             <img src={profileImg} alt="Perfil grande" className="profile-panel-img" />
             <label className="profile-photo-upload-label">
               Cambiar foto
-              <input 
-                type="file" 
-                accept="image/*" 
-                onChange={handleImageUpload} 
-                style={{ display: 'none' }} 
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                style={{ display: 'none' }}
               />
             </label>
           </div>
-          
+
           <div className="profile-panel-info">
             <p className="profile-panel-name">
               <strong>{user.rol === 'admin' ? 'Administrador' : (user.departamento || 'Sin Departamento')}:</strong> {user.nombre} {user.apellido}
