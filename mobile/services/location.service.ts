@@ -104,9 +104,9 @@ export const locationService = {
     }
 
     await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
-      accuracy: Location.Accuracy.Balanced, // Balanceado: buen equilibrio entre precisión y batería
-      timeInterval: 1 * 60 * 1000,          // Cada 1 minuto (60,000 ms)
-      distanceInterval: 150,                 // O cada 150 metros (lo que ocurra primero)
+      accuracy: Location.Accuracy.High, // High para vehículos (GPS real)
+      timeInterval: 1 * 60 * 1000,      // Cada 1 minuto (60,000 ms)
+      distanceInterval: 0,              // 0 para que actualice por tiempo aunque esté detenido en un semáforo
       showsBackgroundLocationIndicator: true, // Ícono en iOS para avisar al usuario
       foregroundService: {
         // Notificación persistente en Android (obligatoria para background)

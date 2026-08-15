@@ -892,8 +892,12 @@ export const uploadFotoTablero = async (req: AuthRequest, res: Response): Promis
           console.warn("IA no pudo leer el odómetro. Devolvió:", kmText);
           kmDetectado = -1; // Bandera de fallo
         }
-      } catch (aiError) {
-        console.error("Error en Gemini:", aiError);
+      } catch (aiError: any) {
+        if (aiError?.status === 503) {
+          console.warn("⚠️ Servidores de Gemini sobrecargados (503). Activando modo manual de odómetro.");
+        } else {
+          console.error("Error en Gemini al procesar odómetro:", aiError.message || aiError);
+        }
         kmDetectado = -1;
       }
     } else {
