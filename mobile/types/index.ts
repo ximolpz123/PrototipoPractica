@@ -10,6 +10,12 @@ export interface IUser {
   telefono?: string;
   rol: 'usuario' | 'admin';
   activo: boolean;
+  licenciaEstado?: string;
+  licenciaAlDia?: boolean;
+  licenciaVencimiento?: string;
+  fechaVencimientoLicencia?: string;
+  licenciaFotoUrl?: string;
+  banderaActual?: string;
 }
 
 export interface IVehicle {

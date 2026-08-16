@@ -1,7 +1,7 @@
 import { Appearance } from 'react-native';
 
-// export const API_URL = 'http://192.168.1.50:5000/api';
-export const API_URL = 'http://10.109.169.176:5000/api';
+export const API_URL = 'http://10.109.169.176:5000/api'; // IP Wi-Fi
+//export const API_URL = 'http://26.215.108.13:5000/api';   // IP Radmin VPN
 
 const isDarkMode = Appearance.getColorScheme() === 'dark';
 

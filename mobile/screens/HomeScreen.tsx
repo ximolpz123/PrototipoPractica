@@ -14,6 +14,7 @@ import { IUser } from '../types';
 import api from '../services/api';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import { useAuth } from '../context/AuthContext';
 
 export default function HomeScreen({ route, navigation }: any) {
   const { colors, isDark } = useTheme();
@@ -21,7 +22,8 @@ export default function HomeScreen({ route, navigation }: any) {
   
 
   const { showAlert } = useAlert();
-  const { user } = route.params;
+  const { user: authUser } = useAuth();
+  const user = authUser!; // Safe: HomeScreen only renders when user is logged in
 
   const [activeReserva, setActiveReserva] = useState<IReservation | null>(null);
   const [upcomingReserva, setUpcomingReserva] = useState<IReservation | null>(null);
@@ -432,7 +434,7 @@ export default function HomeScreen({ route, navigation }: any) {
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 0.5,
     });
 

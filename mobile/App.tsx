@@ -55,13 +55,13 @@ import AdminBanderasScreen from './screens/AdminBanderasScreen';
 import ScanQRScreen from './screens/ScanQRScreen';
 import { AlertProvider, useAlert } from './context/AlertContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { AuthContext, useAuth } from './context/AuthContext';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 // ── Navegación del CONDUCTOR ────────────────────────────────────────────────
 function MainTabNavigator({ route }: any) {
-  const { user, handleLogout } = route.params;
   const { colors } = useTheme();
 
   return (
@@ -97,19 +97,19 @@ function MainTabNavigator({ route }: any) {
         ),
       })}
     >
-      <Tab.Screen name="Inicio" component={HomeScreen} initialParams={{ user }} />
+      <Tab.Screen name="Inicio" component={HomeScreen} />
       <Tab.Screen name="Reservas" component={MisReservasScreen} />
       <Tab.Screen name="Flota" component={FlotaScreen} />
-      <Tab.Screen name="Perfil" component={PerfilScreen} initialParams={{ user, handleLogout }} />
+      <Tab.Screen name="Perfil" component={PerfilScreen} />
     </Tab.Navigator>
   );
 }
 
 // ── Navegación del ADMINISTRADOR ─────────────────────────────────────────────
-function AdminTabNavigator({ route }: any) {
-  const { user, handleLogout } = route.params;
+function AdminTabNavigator() {
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const { themePreference, setThemePreference, colors } = useTheme();
+  const { handleLogout } = useAuth();
 
   return (
     <>
@@ -389,14 +389,14 @@ function MainApp() {
   if (user) {
     const isAdmin = user.rol === 'admin';
     return (
-      <NavigationContainer>
-        <Stack.Navigator>
-          <Stack.Screen
-            name="MainTabs"
-            component={isAdmin ? AdminTabNavigator : MainTabNavigator}
-            initialParams={{ user, handleLogout }}
-            options={{ headerShown: false }}
-          />
+      <AuthContext.Provider value={{ user, handleLogout }}>
+        <NavigationContainer>
+          <Stack.Navigator>
+            <Stack.Screen
+              name="MainTabs"
+              component={isAdmin ? AdminTabNavigator : MainTabNavigator}
+              options={{ headerShown: false }}
+            />
           {/* Pantallas de stack solo para conductores */}
           {!isAdmin && (
             <>
@@ -436,8 +436,9 @@ function MainApp() {
               />
             </>
           )}
-        </Stack.Navigator>
-      </NavigationContainer>
+          </Stack.Navigator>
+        </NavigationContainer>
+      </AuthContext.Provider>
     );
   }
 

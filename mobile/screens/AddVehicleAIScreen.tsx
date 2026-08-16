@@ -49,7 +49,7 @@ export default function AddVehicleAIScreen({ navigation }: any) {
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 0.5,
     });
 
