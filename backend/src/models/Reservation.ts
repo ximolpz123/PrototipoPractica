@@ -35,6 +35,7 @@ export interface IReservation extends Document {
   kmRetorno?: number;
   // ── Fotos v2 (objeto con posiciones) ──
   fotosSalida?: IFotosEvidencia;
+  fotosSalidaAt?: Date;
   fotosRetorno?: IFotosEvidencia;
   // ── Fotos legacy (array — se mantiene por compatibilidad) ──
   fotosSalidaLegacy?: string[];
@@ -57,6 +58,7 @@ export interface IReservation extends Document {
   firmaInicio?: string;           // URL de la firma digital al inicio del viaje
   firmaFin?: string;              // URL de la firma digital al finalizar el viaje
   // ── Notificaciones de retraso ──
+  notificadoRetrasoInicio?: boolean;
   notificadoRetraso?: boolean;
   notificadoAdmin?: boolean;
   demoraAceptadaSiguiente?: boolean;
@@ -145,6 +147,7 @@ const reservationSchema = new Schema<IReservation>(
     kmRetorno: { type: Number, min: 0 },
     // ── Fotos v2 ──
     fotosSalida:   { type: fotosEvidenciaSchema },
+    fotosSalidaAt: { type: Date },
     fotosRetorno:  { type: fotosEvidenciaSchema },
     // ── Fotos legacy ──
     fotosSalidaLegacy:  [{ type: String }],
@@ -173,6 +176,10 @@ const reservationSchema = new Schema<IReservation>(
     firmaInicio: { type: String },   // base64 PNG de la firma al iniciar
     firmaFin:    { type: String },   // base64 PNG de la firma al finalizar
     // ── Notificaciones de retraso ──
+    notificadoRetrasoInicio: {
+      type: Boolean,
+      default: false,
+    },
     notificadoRetraso: {
       type: Boolean,
       default: false,

@@ -1185,11 +1185,11 @@ function Dashboard() {
                       <div style={{ display: 'flex', gap: '1rem' }}>
                         <div style={{ flex: 1 }}>
                           <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Fecha de Inicio</label>
-                          <input type="date" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={createResForm.fechaInicio} onChange={e => setCreateResForm({ ...createResForm, fechaInicio: e.target.value })} required />
+                          <input type="datetime-local" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={createResForm.fechaInicio} onChange={e => setCreateResForm({ ...createResForm, fechaInicio: e.target.value })} required />
                         </div>
                         <div style={{ flex: 1 }}>
                           <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Fecha de Fin</label>
-                          <input type="date" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={createResForm.fechaFin} onChange={e => setCreateResForm({ ...createResForm, fechaFin: e.target.value })} required />
+                          <input type="datetime-local" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={createResForm.fechaFin} onChange={e => setCreateResForm({ ...createResForm, fechaFin: e.target.value })} required />
                         </div>
                       </div>
                       <div>
@@ -1250,6 +1250,12 @@ function Dashboard() {
             <div className="vehicles-grid" style={{ maxWidth: '100%' }}>
               {vehicles.map(v => {
                 const imgUrl = getVehicleImage(v);
+                const activeRes = reservations.find(r => 
+                  (typeof r.vehiculo === 'string' ? r.vehiculo === v._id : r.vehiculo?._id === v._id) && 
+                  r.estado === 'en_curso'
+                );
+                const userObj = activeRes && typeof activeRes.usuario !== 'string' ? activeRes.usuario as any : null;
+                
                 return (
                   <div key={v._id} className="vehicle-card">
                     <img src={imgUrl} alt={`${v.marca} ${v.modelo}`} className="vehicle-card-img" />
@@ -1279,10 +1285,15 @@ function Dashboard() {
                           </div>
                         )}
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span className="status-badge" style={{ backgroundColor: ESTADO_VEHICLE_COLORS[v.estado] }}>
-                          {ESTADO_VEHICLE_LABELS[v.estado]}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        <span className="status-badge" style={{ backgroundColor: activeRes ? '#3b82f6' : ESTADO_VEHICLE_COLORS[v.estado] }}>
+                          {activeRes ? 'En Curso' : ESTADO_VEHICLE_LABELS[v.estado]}
                         </span>
+                        {userObj && (
+                          <span style={{ fontSize: '0.85rem', color: '#444', fontWeight: 600, textAlign: 'right' }}>
+                            {userObj.nombre} {userObj.apellido} | {userObj.departamento}
+                          </span>
+                        )}
                       </div>
                       <div style={{ textAlign: 'center', marginTop: '15px' }}>
                         <button
@@ -1776,30 +1787,52 @@ function Dashboard() {
       {/* ══════════ MODAL: CREAR USUARIO ══════════ */}
       {showCreateUser && (
         <div className="modal-overlay" onClick={() => setShowCreateUser(false)}>
-          <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '480px', width: '90%', color: '#000', textAlign: 'left', position: 'relative' }} onClick={e => e.stopPropagation()}>
-            <button onClick={() => setShowCreateUser(false)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
-            <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}>Agregar Usuario</h2>
-            <form onSubmit={createUser} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ position: 'relative', width: '90%', maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+            <form className="login-form" onSubmit={createUser} style={{ margin: '0 auto' }}>
+              <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center', color: '#000' }}>Agregar Usuario</h2>
               {([['nombre', 'Nombre'], ['apellido', 'Apellido'], ['email', 'Email'], ['password', 'Contraseña'], ['departamento', 'Departamento'], ['telefono', 'Teléfono']] as [keyof typeof createForm, string][]).map(([field, label]) => (
-                <div key={field}>
-                  <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>{label}:</label>
-                  <input className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} type={field === 'password' ? 'password' : 'text'} value={createForm[field]} onChange={e => setCreateForm(f => ({ ...f, [field]: e.target.value }))} required={field !== 'departamento' && field !== 'telefono'} />
+                <div key={field} className="form-group">
+                  <label>{label}</label>
+                  {field === 'telefono' ? (
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                      <span style={{ padding: '7.4px 12px', background: '#7c7c7cff', borderRight: 'none', borderRadius: '6px 0 0 6px', color: '#333', fontWeight: 'bold' }}>+569</span>
+                      <input
+                        type="text"
+                        maxLength={8}
+                        placeholder="12345678"
+                        value={createForm[field]}
+                        onChange={e => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          setCreateForm(f => ({ ...f, [field]: val }));
+                        }}
+                        style={{ flex: 1, borderRadius: '0 6px 6px 0' }}
+                      />
+                    </div>
+                  ) : (
+                    <input 
+                      type={field === 'password' ? 'password' : 'text'} 
+                      value={createForm[field]} 
+                      onChange={e => setCreateForm(f => ({ ...f, [field]: e.target.value }))} 
+                      placeholder={field === 'email' ? 'persona@empresa.com' : undefined}
+                      required={field !== 'departamento'} 
+                    />
+                  )}
                 </div>
               ))}
-              <div>
-                <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Rol:</label>
-                <select className="reserv-select" value={createForm.rol} onChange={e => setCreateForm(f => ({ ...f, rol: e.target.value as 'usuario' | 'admin' }))}>
+              <div className="form-group">
+                <label>Rol</label>
+                <select value={createForm.rol} onChange={e => setCreateForm(f => ({ ...f, rol: e.target.value as 'usuario' | 'admin' }))}>
                   <option value="usuario">Usuario</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
-              <div>
-                <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Foto de la Licencia:</label>
-                <input className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} type="file" accept="image/*" onChange={e => setCreateUserLicenciaFile(e.target.files?.[0] || null)} required />
+              <div className="form-group">
+                <label>Foto de la Licencia</label>
+                <input type="file" accept="image/*" onChange={e => setCreateUserLicenciaFile(e.target.files?.[0] || null)} required />
               </div>
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', justifyContent: 'center' }}>
-                <button type="submit" className="btn" style={{ backgroundColor: '#175fbd', color: 'black' }}>➕ Crear</button>
-                <button type="button" className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black' }} onClick={() => setShowCreateUser(false)}>Cancelar</button>
+                <button type="submit" className="btn" style={{ background: 'linear-gradient(to right, #3D9FD3, #FFFFFF, #B5B8BE)', color: 'black', border: '2px solid black', borderRadius: '8px', padding: '0.5rem 1.5rem', fontWeight: 'bold' }}>Crear Cuenta</button>
+                <button type="button" className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black', borderRadius: '8px', padding: '0.5rem 1.5rem', fontWeight: 'bold' }} onClick={() => setShowCreateUser(false)}>Cancelar</button>
               </div>
             </form>
           </div>
