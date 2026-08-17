@@ -594,7 +594,7 @@ export const cambioConductorTramo = async (req: AuthRequest, res: Response): Pro
 // Completar una reserva y registrar kilometraje de retorno
 export const completeReservation = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { kmRetorno, observaciones, nivelBencinaRetorno } = req.body;
+    const { kmRetorno, observaciones, nivelBencinaRetorno, justificacionKm } = req.body;
 
     // Validar que kmRetorno es un número positivo
     if (typeof kmRetorno !== 'number' || kmRetorno < 0) {
@@ -648,6 +648,7 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
     }
     reservation.estado = 'completada';
     if (observaciones) reservation.observaciones = observaciones;
+    if (justificacionKm) reservation.justificacionKm = justificacionKm;
     await reservation.save();
 
     const vehiculoActualizado = await Vehicle.findByIdAndUpdate(

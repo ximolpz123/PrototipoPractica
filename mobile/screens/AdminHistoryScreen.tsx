@@ -297,7 +297,8 @@ export default function AdminHistoryScreen() {
             value={filtroFecha || new Date()}
             mode="date"
             display="default"
-            onChange={handleDateChange}
+            onValueChange={handleDateChange}
+            onDismiss={() => setShowDatePicker(false)}
           />
         )}
 

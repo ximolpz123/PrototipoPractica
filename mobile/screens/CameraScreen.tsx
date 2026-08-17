@@ -198,7 +198,8 @@ export default function CameraScreen({ route, navigation }: any) {
       } else if (tipo === 'retorno') {
         await axios.patch(`${API_URL}/reservations/${reservaId}/complete`, {
           kmRetorno: finalKmTablero,
-          nivelBencinaRetorno: bencinaLevel
+          nivelBencinaRetorno: bencinaLevel,
+          justificacionKm: observacionKm.trim() || undefined
         }, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -271,8 +272,9 @@ export default function CameraScreen({ route, navigation }: any) {
   return (
     <View style={styles.container}>
       {currentStep < 6 ? (
-        <CameraView style={styles.camera} ref={cameraRef}>
-          <View style={styles.overlay}>
+        <View style={styles.camera}>
+          <CameraView style={StyleSheet.absoluteFillObject} ref={cameraRef} />
+          <View style={[styles.overlay, StyleSheet.absoluteFillObject]}>
             <View style={styles.header}>
               <Text style={styles.stepText}>Paso {currentStep + 1} de 6</Text>
               <Text style={styles.instruction}>
@@ -291,7 +293,7 @@ export default function CameraScreen({ route, navigation }: any) {
               </TouchableOpacity>
             )}
           </View>
-        </CameraView>
+        </View>
       ) : (
         <View style={styles.finalView}>
           <Text style={styles.finalTitle}>Resumen de Evidencia</Text>
@@ -335,9 +337,21 @@ export default function CameraScreen({ route, navigation }: any) {
                 <Text style={styles.modalText}>
                   El odómetro marca <Text style={styles.boldKm}>{kmDetectado} km</Text>.
                 </Text>
+                
+                {tipo === 'salida' && kmDetectado > kilometrajeActual && (
+                  <TextInput
+                    style={[styles.kmInput, { minHeight: 60, textAlignVertical: 'top', fontSize: 16, marginBottom: 15 }]}
+                    placeholder={`El sistema indica ${kilometrajeActual} km. Justifica la diferencia:`}
+                    placeholderTextColor={colors.textMuted}
+                    multiline
+                    value={observacionKm}
+                    onChangeText={setObservacionKm}
+                  />
+                )}
+
                 <Text style={styles.modalQuestion}>¿Es esto correcto?</Text>
                 <View style={styles.modalBtns}>
-                  <TouchableOpacity style={[styles.modalBtn, styles.btnNo]} onPress={() => setIsEditingKm(true)}>
+                  <TouchableOpacity style={[styles.modalBtn, styles.btnNo, { backgroundColor: 'transparent' }]} onPress={() => setIsEditingKm(true)}>
                     <Text style={styles.btnNoText}>No, editar</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.modalBtn, styles.btnYes]} onPress={confirmarOdometro}>
@@ -368,9 +382,9 @@ export default function CameraScreen({ route, navigation }: any) {
                   />
                 )}
                 
-                                <TouchableOpacity style={[styles.modalBtn, styles.btnYes, { width: '100%', marginTop: 15, paddingVertical: 20 }]} onPress={confirmarOdometro}>
-                    <Text style={[styles.btnYesText, { fontSize: 18, fontWeight: 'bold' }]}>Confirmar</Text>
-                  </TouchableOpacity>
+                <TouchableOpacity style={[styles.modalBtn, styles.btnYes, { width: '100%', marginTop: 15, paddingVertical: 20 }]} onPress={confirmarOdometro}>
+                  <Text style={[styles.btnYesText, { fontSize: 18, fontWeight: 'bold' }]}>Confirmar</Text>
+                </TouchableOpacity>
               </>
             )}
           </View>
@@ -590,7 +604,7 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     justifyContent: 'center',
   },
   btnNo: {
-    backgroundColor: '#fff',
+    backgroundColor: 'transparent',
     borderWidth: 2,
     borderColor: colors.border,
   },

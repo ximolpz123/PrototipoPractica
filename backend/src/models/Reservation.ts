@@ -33,6 +33,7 @@ export interface IReservation extends Document {
   kmSalida?: number;
   observacionKmSalida?: string;
   kmRetorno?: number;
+  justificacionKm?: string;
   // ── Fotos v2 (objeto con posiciones) ──
   fotosSalida?: IFotosEvidencia;
   fotosRetorno?: IFotosEvidencia;

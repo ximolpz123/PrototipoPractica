@@ -234,6 +234,16 @@ export default function HomeScreen({ route, navigation }: any) {
       return;
     }
 
+    const maxTiempoAntes = new Date(new Date(reserva.fechaInicio).getTime() - 10 * 60000); // 10 mins antes
+    if (new Date() < maxTiempoAntes) {
+      const horaFormateada = maxTiempoAntes.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      showAlert(
+        'Aún es muy pronto',
+        `Puedes iniciar el viaje a partir de las ${horaFormateada}.`
+      );
+      return;
+    }
+
     // Verificar GPS antes de continuar
     const servicesEnabled = await Location.hasServicesEnabledAsync();
     if (!servicesEnabled) {
@@ -552,7 +562,7 @@ export default function HomeScreen({ route, navigation }: any) {
             <TouchableOpacity style={[styles.btnDangerHalf, { flex: 1, marginRight: 8 }]} onPress={() => setShowHandoverRejectModal(true)}>
               <Text style={styles.btnText}>Rechazar</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.btnPrimary, { flex: 1 }]} onPress={() => setShowHandoverAcceptModal(true)}>
+            <TouchableOpacity style={[styles.btnSuccessHalf, { flex: 1 }]} onPress={() => setShowHandoverAcceptModal(true)}>
               <Text style={styles.btnText}>Aceptar</Text>
             </TouchableOpacity>
           </View>
@@ -1192,6 +1202,18 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
   btnDangerHalf: {
     flex: 1,
     backgroundColor: colors.danger,
+    paddingVertical: 14,
+    borderRadius: BORDER_RADIUS.md,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  btnSuccessHalf: {
+    flex: 1,
+    backgroundColor: colors.success,
     paddingVertical: 14,
     borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
