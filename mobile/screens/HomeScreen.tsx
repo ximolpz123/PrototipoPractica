@@ -200,7 +200,16 @@ export default function HomeScreen({ route, navigation }: any) {
 
       // Sincronizar estado del GPS
       const tracking = await locationService.isTracking();
-      setIsTracking(tracking);
+      
+      // AUTO-CORRECCIÓN: Si el GPS está activo pero el usuario ya no es el conductor activo
+      // (ej. pasó el mando y el otro aceptó, o se canceló), se fuerza el apagado.
+      if (tracking && !enCurso) {
+        console.log('Detectado tracking activo sin reserva en curso. Deteniendo GPS...');
+        await locationService.stopTracking();
+        setIsTracking(false);
+      } else {
+        setIsTracking(tracking);
+      }
 
       // Sincronizar inspecciones aleatorias
       const pendingInspections = await inspectionService.getPendingInspections();
@@ -350,8 +359,6 @@ export default function HomeScreen({ route, navigation }: any) {
               setLoading(true);
               setShowDriverModal(false);
               await reservationService.requestCambioConductorTramo(activeReserva._id, (nuevoConductor as any)._id);
-              await locationService.stopTracking(); // Stop MY tracking while handing over
-              setIsTracking(false);
               showAlert('Solicitud enviada', `Se ha notificado a ${nuevoConductor.nombre}. Cuando acepte, el vehículo será transferido.`);
               loadReservas(); // Reload to update state
             } catch (err: any) {
@@ -383,18 +390,21 @@ export default function HomeScreen({ route, navigation }: any) {
     }
   };
 
-  const handleAcceptHandover = async (tipo: 'continuar' | 'regreso') => {
+  const handleAcceptHandover = async () => {
     setRespondingHandover(true);
     try {
-      await reservationService.responderTraspaso(pendingHandover!._id, 'aceptar', tipo);
+      await reservationService.responderTraspaso(pendingHandover!._id, 'aceptar');
       setShowHandoverAcceptModal(false);
       loadReservas();
-      if (tipo === 'continuar') {
-         await locationService.startTracking(pendingHandover!._id);
-         showAlert('Traspaso Aceptado', 'GPS activado. Continuas el trayecto.');
-      } else {
-         showAlert('Traspaso Aceptado', 'Inicias el viaje de regreso. Debes tomar las fotos para arrancar el GPS.');
-      }
+      
+      // Ir directamente a la cámara para fotos de relevo
+      navigation.navigate('Camera', { 
+        reservaId: pendingHandover!._id, 
+        tipo: 'relevo', 
+        tipoIndicador: pendingHandover!.vehiculo?.tipoIndicador,
+        kilometrajeActual: pendingHandover!.vehiculo?.kilometraje || 0 
+      });
+      
     } catch (err: any) {
       showAlert('Error', err.response?.data?.message || 'Error al aceptar');
     } finally {
@@ -595,32 +605,32 @@ export default function HomeScreen({ route, navigation }: any) {
               onPress={() => {
                 navigation.navigate('Camera', { 
                   reservaId: activeReserva._id, 
-                  tipo: 'tramo', 
+                  tipo: 'relevo', 
                   tipoIndicador: activeReserva.vehiculo?.tipoIndicador,
-                  kilometrajeActual: activeReserva.vehiculo?.kilometraje || 0,
-                  isTramoStart: true 
+                  kilometrajeActual: activeReserva.vehiculo?.kilometraje || 0
                 });
               }}
             >
-              <Text style={styles.btnText}>📷 Iniciar Tramo de Regreso</Text>
+              <Text style={styles.btnText}>📸 Tomar Fotos de Relevo</Text>
             </TouchableOpacity>
           ) : (
-            !isTracking && (
-              <TouchableOpacity style={styles.btnPrimary} onPress={handleResumeGps}>
-                <Text style={styles.btnText}>Reanudar GPS</Text>
-              </TouchableOpacity>
-            )
+            <>
+              {!isTracking && (
+                <TouchableOpacity style={styles.btnPrimary} onPress={handleResumeGps}>
+                  <Text style={styles.btnText}>Reanudar GPS</Text>
+                </TouchableOpacity>
+              )}
+              <View style={styles.activeActionsRow}>
+                <TouchableOpacity style={styles.btnNav} onPress={handleNavigate}>
+                  <Text style={styles.btnText}>Navegar</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.btnDangerHalf} onPress={handleEndTrip}>
+                  <Text style={styles.btnText}>Finalizar</Text>
+                </TouchableOpacity>
+              </View>
+            </>
           )}
-
-          <View style={styles.activeActionsRow}>
-            <TouchableOpacity style={styles.btnNav} onPress={handleNavigate}>
-              <Text style={styles.btnText}>Navegar</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.btnDangerHalf} onPress={handleEndTrip}>
-              <Text style={styles.btnText}>Finalizar</Text>
-            </TouchableOpacity>
-          </View>
 
           <TouchableOpacity 
             style={[styles.btnPrimary, { marginTop: 10, backgroundColor: colors.warning }]} 
@@ -826,22 +836,18 @@ export default function HomeScreen({ route, navigation }: any) {
           cardStyle={{ backgroundColor: colors.white }}
         >
             <Text style={styles.modalTitle}>Aceptar Vehículo</Text>
-            <Text style={styles.modalSubtitle}>Has aceptado recibir el vehículo. ¿Cómo continuarás el trayecto?</Text>
+            <Text style={styles.modalSubtitle}>Para aceptar el vehículo debes tomar las fotos de relevo. Esto activará tu GPS y apagará el del conductor anterior.</Text>
             
             <TouchableOpacity 
               style={[styles.btnPrimary, { marginTop: 20 }]} 
-              onPress={() => handleAcceptHandover('continuar')}
+              onPress={handleAcceptHandover}
               disabled={respondingHandover}
             >
-              <Text style={styles.btnText}>Continuar Mismo Trayecto</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.btnPrimary, { marginTop: 15, backgroundColor: colors.secondary }]} 
-              onPress={() => handleAcceptHandover('regreso')}
-              disabled={respondingHandover}
-            >
-              <Text style={styles.btnText}>Viaje de Regreso (Fotos IA)</Text>
+              {respondingHandover ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.btnText}>Tomar Fotos y Aceptar</Text>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity 

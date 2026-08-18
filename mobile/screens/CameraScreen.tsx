@@ -46,9 +46,11 @@ export default function CameraScreen({ route, navigation }: any) {
       if (canGoBack) return;
       e.preventDefault();
 
-      const title = tipo === 'salida' ? 'Volver al Inicio' : 'Atención';
+      const title = tipo === 'salida' ? 'Volver al Inicio' : tipo === 'relevo' ? 'Cancelar Relevo' : 'Atención';
       const msg = tipo === 'salida'
         ? 'Aún no has iniciado tu viaje. Si retrocedes, podrás iniciarlo más tarde.'
+        : tipo === 'relevo'
+        ? 'Aún no has tomado las fotos de relevo. Si retrocedes, deberás tomarlas para activar tu GPS.'
         : 'Aún no has completado tu viaje. Si retrocedes, tu viaje seguirá "En Curso" y deberás finalizarlo más tarde.';
 
       showAlert(title, msg, [
@@ -196,6 +198,12 @@ export default function CameraScreen({ route, navigation }: any) {
         if (!started) {
           showAlert('Aviso de GPS', 'El viaje inició pero no se pudo activar el GPS.');
         }
+      } else if (tipo === 'relevo') {
+        // Fotos de relevo subidas — activar GPS del conductor de relevo
+        const started = await locationService.startTracking(reservaId);
+        if (!started) {
+          showAlert('Aviso de GPS', 'Las fotos se subieron pero no se pudo activar el GPS automáticamente.');
+        }
       } else if (tipo === 'retorno') {
         await axios.patch(`${API_URL}/reservations/${reservaId}/complete`, {
           kmRetorno: finalKmTablero,
@@ -207,7 +215,12 @@ export default function CameraScreen({ route, navigation }: any) {
         await locationService.stopTracking();
       }
 
-      showAlert('Éxito', (tipo === 'salida' || tipo === 'tramo') ? 'Viaje iniciado exitosamente.' : 'Viaje finalizado exitosamente.');
+      const successMsg =
+        tipo === 'salida' || tipo === 'tramo' ? 'Viaje iniciado exitosamente.' :
+        tipo === 'relevo' ? 'Fotos de relevo subidas. ¡GPS activado!' :
+        'Viaje finalizado exitosamente.';
+
+      showAlert('Exito', successMsg);
       setCanGoBack(true);
       navigation.navigate('MainTabs');
     } catch (error: any) {
@@ -279,7 +292,7 @@ export default function CameraScreen({ route, navigation }: any) {
             <View style={styles.header}>
               <Text style={styles.stepText}>Paso {currentStep + 1} de 6</Text>
               <Text style={styles.instruction}>
-                Toma foto: {LABELS[currentStep]}
+                {tipo === 'relevo' ? '🔁 Fotos de Relevo — ' : ''}{LABELS[currentStep]}
               </Text>
             </View>
             
@@ -319,7 +332,9 @@ export default function CameraScreen({ route, navigation }: any) {
               <ActivityIndicator color={colors.white} />
             ) : (
               <Text style={styles.uploadBtnText}>
-                {tipo === 'salida' ? 'Subir e Iniciar Viaje' : 'Subir y Finalizar Viaje'}
+                {tipo === 'salida' || tipo === 'tramo' ? 'Subir e Iniciar Viaje' :
+                 tipo === 'relevo' ? '📸 Subir Fotos de Relevo y Activar GPS' :
+                 'Subir y Finalizar Viaje'}
               </Text>
             )}
           </TouchableOpacity>

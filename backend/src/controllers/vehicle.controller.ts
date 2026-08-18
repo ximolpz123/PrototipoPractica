@@ -12,6 +12,7 @@ export const getVehicles = async (_req: Request, res: Response): Promise<void> =
 
     const activeReservations = await Reservation.find({ estado: 'en_curso' })
       .populate('usuario', 'nombre apellido departamento')
+      .populate('tramos.conductor', 'nombre apellido departamento')
       .lean();
 
     const hoyInicio = new Date();
@@ -23,23 +24,47 @@ export const getVehicles = async (_req: Request, res: Response): Promise<void> =
       fechaInicio: { $lte: hoyFin },
       fechaFin: { $gte: hoyInicio },
       estado: { $in: ['aprobada', 'en_curso', 'completada'] }
-    }).populate('usuario', 'nombre apellido departamento').lean();
+    })
+      .populate('usuario', 'nombre apellido departamento')
+      .populate('tramos.conductor', 'nombre apellido departamento')
+      .lean();
 
     const vehiclesWithInfo = vehicles.map(v => {
       let extra = {};
       if (v.estado === 'reservado') {
         const activeRes = activeReservations.find(r => r.vehiculo.toString() === v._id.toString());
-        if (activeRes) extra = { conductorActual: activeRes.usuario };
+        if (activeRes) {
+          const conductores = [activeRes.usuario];
+          if (activeRes.tramos && activeRes.tramos.length > 0) {
+            activeRes.tramos.forEach((tramo: any) => {
+              if (tramo.conductor && tramo.conductor._id.toString() !== (conductores[conductores.length - 1] as any)._id.toString()) {
+                conductores.push(tramo.conductor);
+              }
+            });
+          }
+          extra = { conductorActual: activeRes.usuario, conductoresActivos: conductores };
+        }
       }
 
       const historialHoy = todayReservations
         .filter(r => r.vehiculo.toString() === v._id.toString())
-        .map(r => ({
-          usuario: r.usuario,
-          estado: r.estado,
-          fechaInicio: r.fechaInicio,
-          fechaFin: r.fechaFin,
-        }));
+        .map(r => {
+          const conductores = [r.usuario];
+          if (r.tramos && r.tramos.length > 0) {
+            r.tramos.forEach((tramo: any) => {
+              if (tramo.conductor && tramo.conductor._id.toString() !== (conductores[conductores.length - 1] as any)._id.toString()) {
+                conductores.push(tramo.conductor);
+              }
+            });
+          }
+          return {
+            usuario: r.usuario,
+            conductores,
+            estado: r.estado,
+            fechaInicio: r.fechaInicio,
+            fechaFin: r.fechaFin,
+          };
+        });
 
       return { ...v, ...extra, historialHoy };
     });

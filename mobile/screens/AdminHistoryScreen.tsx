@@ -422,15 +422,40 @@ export default function AdminHistoryScreen() {
                 {renderFotos(selectedReserva.fotosSalida, 'salida')}
               </View>
 
+              {/* Renderizar nuevos carruseles de fotos de relevo (Array) */}
+              {selectedReserva.fotosRelevo && selectedReserva.fotosRelevo.length > 0 && selectedReserva.fotosRelevo.map((fotosObj: any, index: number) => {
+                const numFotos = getFotosArray(fotosObj).length;
+                if (numFotos === 0) return null;
+                
+                // Intentar encontrar el conductor correspondiente (tramos[1] corresponde a fotosRelevo[0])
+                const tramoRelacionado = selectedReserva.tramos && selectedReserva.tramos[index + 1];
+                const conductorName = tramoRelacionado?.conductor 
+                  ? `${tramoRelacionado.conductor.nombre} ${tramoRelacionado.conductor.apellido}`
+                  : `Conductor de Relevo ${index + 1}`;
+
+                return (
+                  <View key={`relevo-new-${index}`} style={styles.section}>
+                    <View style={styles.sectionTitleRow}>
+                      <Ionicons name="camera" size={16} color={colors.primary} />
+                      <Text style={[styles.sectionTitle, { marginLeft: 6 }]}>
+                        📸 Fotos de Relevo {index + 1} — {conductorName} ({numFotos})
+                      </Text>
+                    </View>
+                    {renderFotos(fotosObj, `relevo ${index + 1}`)}
+                  </View>
+                );
+              })}
+
+              {/* Renderizar legacy tramo.fotosInicio por compatibilidad hacia atrás */}
               {selectedReserva.tramos && selectedReserva.tramos.length > 0 && selectedReserva.tramos.map((tramo: any, index: number) => {
                 const numFotos = getFotosArray(tramo.fotosInicio).length;
                 if (numFotos === 0) return null;
                 return (
-                  <View key={index} style={styles.section}>
+                  <View key={`relevo-legacy-${index}`} style={styles.section}>
                     <View style={styles.sectionTitleRow}>
                       <Ionicons name="camera" size={16} color={colors.primary} />
                       <Text style={[styles.sectionTitle, { marginLeft: 6 }]}>
-                        📸 Fotos de Relevo {index + 1} — {tramo.conductor?.nombre} {tramo.conductor?.apellido} ({numFotos})
+                        📸 Fotos de Relevo {index + 1} (Legacy) — {tramo.conductor?.nombre} {tramo.conductor?.apellido} ({numFotos})
                       </Text>
                     </View>
                     {renderFotos(tramo.fotosInicio, `relevo ${index + 1}`)}

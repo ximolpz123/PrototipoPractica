@@ -355,13 +355,12 @@ Estas tareas surgen del testing del Happy Path realizado el 7 de agosto. Se orga
 
 #### Joaquín (Backend + Móvil)
 - [ ] 🔵 **Backend & Móvil (Obs. 1):** Al **crear un vehículo**, agregar paso de **5 fotos de presentación** (Frontal, Trasero, Lateral Izq., Lateral Der., Interior). Se muestran en la galería del detalle del vehículo.
-- [ ] 🔵 **Backend & Móvil (Obs. 4 — Flujo completo de Aceptación del Mando):**
+- [x] 🔵 **Backend & Móvil (Obs. 4 — Flujo completo de Aceptación del Mando con Fotos Relevo):**
   1. Conductor A pulsa "Pasar el Mando" y selecciona Conductor B → **push notification** al B.
-  2. En el Inicio del B aparece **banner de solicitud**: *"Juan Pérez quiere pasarte el mando del [PLACA]. ¿Aceptas?"*
-  3. Si B **rechaza**: escribe motivo, se notifica a A, y A **reanuda su viaje automáticamente sin nuevas fotos**.
-  4. Si B **acepta**, se le pregunta: *¿Continúas el trayecto o harás el viaje de vuelta?*
-     - **Continúa:** GPS se transfiere a B. A cierra su tramo sin fotos. B sigue normalmente.
-     - **Vuelta:** Se activa flujo de **6 fotos de salida** para B con IA de odómetro para registrar `kmSalida` del nuevo tramo.
+  2. En el Inicio del B aparece **banner de solicitud**.
+  3. Si B **rechaza**: escribe motivo, se notifica a A, y A **reanuda su viaje**.
+  4. Si B **acepta**: Es OBLIGATORIO tomar 6 fotos de relevo y validar tablero. El backend cierra el tramo de A, abre el tramo de B, el GPS de B se activa y el de A se apaga. (Ya implementado)
+- [x] 🟢 **Backend & Móvil (Próximo):** Actualizar `AdminHistoryScreen` (historial de flota) para soportar N carruseles de fotos (Salida, N fotos de relevo, y Retorno) cuando hubo traspaso de mando.
 
 #### Gustavo (Web)
 - [ ] 🟢 **Web (Obs. 9):** Panel de **"Gestión de Banderas"** con filtros por usuario, color y fecha. Cada bandera es cliqueable con modal de detalle (fotos, motivo, reserva vinculada). Inspecciones aleatorias también clicables con opción de aprobar/rechazar la respuesta del conductor.

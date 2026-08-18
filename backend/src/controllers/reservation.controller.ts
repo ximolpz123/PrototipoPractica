@@ -425,12 +425,13 @@ export const responderTraspaso = async (req: AuthRequest, res: Response): Promis
         reservation.tramos = [];
       }
       
+      // Cerramos el tramo del conductor de origen
       if (reservation.tramos.length === 0) {
         reservation.tramos.push({
           conductor: reservation.usuario,
           fechaInicio: reservation.fechaInicio,
           fechaFin: now,
-          gpsActivo: true,
+          gpsActivo: false,
           kmInicio: reservation.kmSalida,
           kmFin: currentKm
         });
@@ -438,15 +439,16 @@ export const responderTraspaso = async (req: AuthRequest, res: Response): Promis
         const lastTramo = reservation.tramos[reservation.tramos.length - 1];
         lastTramo.fechaFin = now;
         lastTramo.kmFin = currentKm;
+        lastTramo.gpsActivo = false;
       }
 
-      // Nuevo tramo
+      // Nuevo tramo para el conductor destino — siempre requiere fotos de relevo
       reservation.tramos.push({
         conductor: reservation.solicitudTraspaso.conductorDestino,
         fechaInicio: now,
-        gpsActivo: true,
+        gpsActivo: false,              // Se activa cuando sube las fotos
         kmInicio: currentKm,
-        requiereFotosInicio: tipo === 'regreso'
+        requiereFotosInicio: true      // Siempre debe tomar fotos al relevar
       });
 
       await reservation.save();
@@ -456,7 +458,7 @@ export const responderTraspaso = async (req: AuthRequest, res: Response): Promis
         await vehiculo.save();
       }
 
-      // Notificar al origen que se aceptó
+      // Notificar al origen que se aceptó y que su GPS fue apagado
       await sendPushNotification(
         reservation.solicitudTraspaso.conductorOrigen.toString(),
         'Traspaso Aceptado',
@@ -464,9 +466,7 @@ export const responderTraspaso = async (req: AuthRequest, res: Response): Promis
         { type: 'HANDOVER_ACCEPTED', reservaId: reservation._id }
       );
 
-      // Desactivamos el gps del conductor origen mandando push para que la app sepa (opcional, la app de origen puede hacer polling o manejar la push)
-      
-      res.json({ message: 'Traspaso aceptado exitosamente', requiereFotos: tipo === 'regreso' });
+      res.json({ message: 'Traspaso aceptado. Procede a tomar las fotos de relevo.', requiereFotos: true });
       return;
     }
 
@@ -796,6 +796,11 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
       if (!reservation.fotosSalida) reservation.fotosSalida = {};
     } else if (tipo === 'retorno') {
       if (!reservation.fotosRetorno) reservation.fotosRetorno = {};
+    } else if (tipo === 'relevo') {
+      // Initialize fotosRelevo as an array if needed
+      if (!reservation.fotosRelevo) reservation.fotosRelevo = [];
+      if (!reservation.fotosRelevoAt) reservation.fotosRelevoAt = [];
+      reservation.fotosRelevo.push({});
     } else if (tipo === 'tramo') {
       if (reservation.tramos && reservation.tramos.length > 0) {
         const lastTramo = reservation.tramos[reservation.tramos.length - 1];
@@ -811,6 +816,10 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
           (reservation.fotosSalida as any)[pos] = file.path;
         } else if (tipo === 'retorno') {
           (reservation.fotosRetorno as any)[pos] = file.path;
+        } else if (tipo === 'relevo') {
+          // Write to the last entry in the relevo array
+          const lastRelevo = reservation.fotosRelevo![reservation.fotosRelevo!.length - 1];
+          (lastRelevo as any)[pos] = file.path;
         } else if (tipo === 'tramo') {
           const lastTramo = reservation.tramos?.[reservation.tramos.length - 1];
           if (lastTramo && lastTramo.fotosInicio) {
@@ -829,6 +838,27 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
 
     if (tipo === 'salida') {
       reservation.fotosSalidaAt = new Date();
+    } else if (tipo === 'relevo') {
+      // Record relay timestamp and activate GPS for the new driver's tramo
+      reservation.fotosRelevoAt!.push(new Date());
+
+      // Mark the last tramo as GPS active (the relay driver's tramo)
+      if (reservation.tramos && reservation.tramos.length > 0) {
+        const lastTramo = reservation.tramos[reservation.tramos.length - 1];
+        lastTramo.gpsActivo = true;
+        lastTramo.requiereFotosInicio = false;
+      }
+
+      // Notify origin conductor that relay is complete and GPS was deactivated
+      const conductorOrigenId = reservation.solicitudTraspaso?.conductorOrigen?.toString();
+      if (conductorOrigenId) {
+        await sendPushNotification(
+          conductorOrigenId,
+          'Relevo Completado',
+          'El conductor de relevo tomó sus fotos. Tu tramo ha finalizado definitivamente.',
+          { type: 'RELAY_COMPLETE', reservaId: reservation._id }
+        );
+      }
     }
 
     await reservation.save();

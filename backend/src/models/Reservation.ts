@@ -37,6 +37,8 @@ export interface IReservation extends Document {
   // ── Fotos v2 (objeto con posiciones) ──
   fotosSalida?: IFotosEvidencia;
   fotosSalidaAt?: Date;
+  fotosRelevo?: IFotosEvidencia[];  // Un array: una entrada por cada relevo
+  fotosRelevoAt?: Date[];           // Timestamps de cada relevo
   fotosRetorno?: IFotosEvidencia;
   // ── Fotos legacy (array — se mantiene por compatibilidad) ──
   fotosSalidaLegacy?: string[];
@@ -149,6 +151,8 @@ const reservationSchema = new Schema<IReservation>(
     // ── Fotos v2 ──
     fotosSalida:   { type: fotosEvidenciaSchema },
     fotosSalidaAt: { type: Date },
+    fotosRelevo:   [{ type: fotosEvidenciaSchema }],  // Array: un objeto por cada relevo
+    fotosRelevoAt: [{ type: Date }],                  // Array: timestamp de cada relevo
     fotosRetorno:  { type: fotosEvidenciaSchema },
     // ── Fotos legacy ──
     fotosSalidaLegacy:  [{ type: String }],
