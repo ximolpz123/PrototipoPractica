@@ -8,6 +8,7 @@ import axios from 'axios';
 import { authService } from '../services/auth.service';
 import { reservationService } from '../services/reservation.service';
 import { locationService } from '../services/location.service';
+import SwipeableBottomSheet from '../components/SwipeableBottomSheet';
 
 const POSITIONS = ['frontal', 'lateralDer', 'lateralIzq', 'trasero', 'tablero', 'interior'];
 const LABELS = ['Frontal', 'Lateral Derecho', 'Lateral Izquierdo', 'Trasero', 'Tablero', 'Interior'];
@@ -327,10 +328,12 @@ export default function CameraScreen({ route, navigation }: any) {
 
         {/* IA Modal */}
         <Modal visible={showOdometerModal} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.bottomSheetIndicator} />
-              <Text style={styles.modalTitle}>🤖 IA Odómetro</Text>
+          <SwipeableBottomSheet
+            onDismiss={() => setShowOdometerModal(false)}
+            cardStyle={{ backgroundColor: colors.white }}
+            disableSwipe={uploading}
+          >
+            <Text style={styles.modalTitle}>🤖 IA Odómetro</Text>
             
             {!isEditingKm ? (
               <>
@@ -387,9 +390,8 @@ export default function CameraScreen({ route, navigation }: any) {
                 </TouchableOpacity>
               </>
             )}
-          </View>
-        </View>
-      </Modal>
+          </SwipeableBottomSheet>
+        </Modal>
     </View>
   );
 }

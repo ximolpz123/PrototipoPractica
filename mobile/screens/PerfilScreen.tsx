@@ -9,6 +9,7 @@ import { userService } from '../services/user.service';
 import { authService } from '../services/auth.service';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import SwipeableBottomSheet from '../components/SwipeableBottomSheet';
 
 const FLAG_COLORS: Record<string, string> = {
   verde: '#10B981',
@@ -376,30 +377,30 @@ export default function PerfilScreen({ navigation }: any) {
 
       {/* Modal de Cierre de Sesión (Bottom Sheet) */}
       <Modal visible={showLogoutModal} transparent animationType="slide">
-        <View style={styles.logoutModalOverlay}>
-          <View style={styles.logoutModalCard}>
-            <View style={styles.bottomSheetIndicator} />
-            <Text style={styles.logoutModalTitle}>Cerrar Sesión</Text>
-            <Text style={styles.logoutModalSubtitle}>¿Estás seguro de que deseas cerrar sesión?</Text>
-            <View style={styles.modalBtns}>
-              <TouchableOpacity 
-                style={[styles.modalBtnCancel, { flex: 1, marginRight: 8 }]} 
-                onPress={() => setShowLogoutModal(false)}
-              >
-                <Text style={styles.modalBtnCancelText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalBtnConfirm, { flex: 1, backgroundColor: colors.danger }]} 
-                onPress={() => {
-                  setShowLogoutModal(false);
-                  handleLogout();
-                }}
-              >
-                <Text style={styles.modalBtnConfirmText}>Sí, Cerrar Sesión</Text>
-              </TouchableOpacity>
-            </View>
+        <SwipeableBottomSheet
+          onDismiss={() => setShowLogoutModal(false)}
+          cardStyle={{ backgroundColor: colors.white }}
+        >
+          <Text style={styles.logoutModalTitle}>Cerrar Sesión</Text>
+          <Text style={styles.logoutModalSubtitle}>¿Estás seguro de que deseas cerrar sesión?</Text>
+          <View style={styles.modalBtns}>
+            <TouchableOpacity 
+              style={[styles.modalBtnCancel, { flex: 1, marginRight: 8 }]} 
+              onPress={() => setShowLogoutModal(false)}
+            >
+              <Text style={styles.modalBtnCancelText}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.modalBtnConfirm, { flex: 1, backgroundColor: colors.danger }]} 
+              onPress={() => {
+                setShowLogoutModal(false);
+                handleLogout();
+              }}
+            >
+              <Text style={styles.modalBtnConfirmText}>Sí, Cerrar Sesión</Text>
+            </TouchableOpacity>
           </View>
-        </View>
+        </SwipeableBottomSheet>
       </Modal>
     </View>
   );

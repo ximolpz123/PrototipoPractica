@@ -7,6 +7,7 @@ import { authService } from '../services/auth.service';
 import { COLORS, AppColors, BORDER_RADIUS, SHADOWS } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { vehicleService, IVehicle } from '../services/vehicle.service';
+import SwipeableBottomSheet from '../components/SwipeableBottomSheet';
 
 const TIPO_ICON: Record<string, string> = {
   pickup: '🛻',
@@ -170,14 +171,15 @@ export default function FlotaScreen() {
 
       {/* Modal Detalles Vehículo */}
       <Modal visible={!!selectedVehicleDetails} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.bottomSheetIndicator} />
-            {selectedVehicleDetails && (
-              <>
-                <Text style={styles.modalTitle}>
-                  {selectedVehicleDetails.marca} {selectedVehicleDetails.modelo}
-                </Text>
+        <SwipeableBottomSheet
+          onDismiss={() => setSelectedVehicleDetails(null)}
+          cardStyle={{ backgroundColor: colors.white }}
+        >
+          {selectedVehicleDetails && (
+            <>
+              <Text style={styles.modalTitle}>
+                {selectedVehicleDetails.marca} {selectedVehicleDetails.modelo}
+              </Text>
                 
                 {selectedVehicleDetails.historialHoy && selectedVehicleDetails.historialHoy.length > 0 && (
                   <View style={styles.historyContainer}>
@@ -227,9 +229,8 @@ export default function FlotaScreen() {
                 </TouchableOpacity>
               </>
             )}
-          </View>
-        </View>
-      </Modal>
+          </SwipeableBottomSheet>
+        </Modal>
 
       {/* Modal QR */}
       <Modal visible={!!selectedQR} transparent animationType="fade">
