@@ -49,14 +49,76 @@ export const initCronJobs = () => {
     }
   });
 
+  // Cron Job 1.5: Alertar si no se ha iniciado el viaje o no se han subido fotos tras 30 mins
+  cron.schedule('* * * * *', async () => {
+    try {
+      const now = new Date();
+      // Buscar reservas que deberían haber comenzado hace más de 30 minutos y no están completadas
+      const reservasAtrasadasInicio = await Reservation.find({
+        estado: { $in: ['aprobada', 'en_curso'] },
+        notificadoRetrasoInicio: { $ne: true }
+      }).populate('usuario');
+
+      for (const reserva of reservasAtrasadasInicio) {
+        const diffMs = now.getTime() - new Date(reserva.fechaInicio).getTime();
+        const diffMinutes = Math.floor(diffMs / 60000);
+
+        // Si ya pasaron 30 minutos
+        if (diffMinutes >= 30) {
+          let faltaIniciar = false;
+
+          if (reserva.estado === 'aprobada') {
+            // Aún no presiona "Iniciar Viaje"
+            faltaIniciar = true;
+          } else if (reserva.estado === 'en_curso') {
+            // Ya presionó iniciar viaje, revisar fotos
+            const reqFotos = ['frontal', 'lateralDer', 'lateralIzq', 'trasero', 'tablero', 'interior'];
+            const fSalida = (reserva.fotosSalida as any) || {};
+            const faltan = reqFotos.some(pos => !fSalida[pos]);
+            if (faltan) {
+              faltaIniciar = true;
+            }
+          }
+
+          if (faltaIniciar) {
+            const usuario = reserva.usuario as any;
+            await sendPushNotification(
+              usuario._id.toString(),
+              '¡Retraso en el inicio!',
+              'Han pasado más de 30 minutos desde la hora programada y aún no has completado el inicio de tu viaje ni subido las fotos requeridas.',
+              { reservaId: reserva._id }
+            );
+            reserva.notificadoRetrasoInicio = true;
+            await reserva.save();
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error en cron de retraso de inicio:', err);
+    }
+  });
+
   // Cron Job 2: Inspección Aleatoria (cada 1 minuto para pruebas)
   cron.schedule('* * * * *', async () => {
     try {
-      const activas = await Reservation.find({ estado: 'en_curso' }).populate('usuario');
+      const now = new Date();
+      // Filtrar reservas en curso que ya tienen fotos de salida registradas
+      const activas = await Reservation.find({ 
+        estado: 'en_curso',
+        fotosSalidaAt: { $exists: true }
+      }).populate('usuario');
       
       // Filtrar reservas que ya tienen inspección para no molestar dos veces al mismo conductor
       const inspeccionesExistentes = await InspeccionAleatoria.find({ reserva: { $in: activas.map(r => r._id) } });
-      const reservasSinInspeccion = activas.filter(r => !inspeccionesExistentes.some(i => i.reserva.toString() === r._id.toString()));
+      let reservasSinInspeccion = activas.filter(r => !inspeccionesExistentes.some(i => i.reserva.toString() === r._id.toString()));
+
+      // Filtrar solo aquellas donde fotosSalidaAt fue hace más de 10 minutos
+      reservasSinInspeccion = reservasSinInspeccion.filter(r => {
+        if (!r.fotosSalidaAt) return false;
+        const diffMs = now.getTime() - new Date(r.fotosSalidaAt).getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        return diffMins >= 10;
+      });
 
       if (reservasSinInspeccion.length > 0) {
           // Seleccionar un conductor al azar

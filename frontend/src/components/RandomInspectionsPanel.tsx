@@ -30,43 +30,8 @@ export function RandomInspectionsPanel({ users = [], vehicles = [] }: RandomInsp
 
   // Cargar datos iniciales
   useEffect(() => {
-    const mockInspections: IRandomInspection[] = [
-      {
-        _id: 'insp_1',
-        conductorId: 'cond_1',
-        conductorNombre: 'Juan Pérez',
-        vehiculoId: 'veh_1',
-        vehiculoPlaca: 'SKJS-32',
-        tarea: 'Revisar neumáticos',
-        estado: 'pendiente',
-        fechaActivacion: new Date().toISOString()
-      },
-      {
-        _id: 'insp_2',
-        conductorId: 'cond_2',
-        conductorNombre: 'Maria Gómez',
-        vehiculoId: 'veh_2',
-        vehiculoPlaca: 'NSNV-24',
-        tarea: 'Foto interior',
-        estado: 'respondida',
-        fechaActivacion: new Date(Date.now() - 3600000).toISOString(),
-        respuesta: {
-          texto: 'Todo limpio y en orden.',
-          fechaRespuesta: new Date(Date.now() - 3000000).toISOString()
-        }
-      },
-      {
-        _id: 'insp_3',
-        conductorId: 'cond_3',
-        conductorNombre: 'Pedro Soto',
-        vehiculoId: 'veh_3',
-        vehiculoPlaca: 'HLXZ-25',
-        tarea: 'Nivel bencina',
-        estado: 'vencida',
-        fechaActivacion: new Date(Date.now() - 86400000).toISOString()
-      }
-    ];
-    setInspections(mockInspections);
+    // Se han eliminado las inspecciones de prueba (mock)
+    setInspections([]);
   }, []);
 
   /* 
@@ -135,7 +100,7 @@ export function RandomInspectionsPanel({ users = [], vehicles = [] }: RandomInsp
     <div style={{ width: '100%', overflowX: 'auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '700', color: 'var(--text-h)' }}>Inspecciones Aleatorias</h2>
-        <button className="btn btn-create" onClick={() => setShowCreateModal(true)}>Crear Inspección</button>
+        {/* <button className="btn btn-create" onClick={() => setShowCreateModal(true)}>Crear Inspección</button> */}
       </div>
 
       {loading && <p className="res-status">Cargando inspecciones…</p>}

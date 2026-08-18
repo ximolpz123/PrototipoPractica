@@ -165,7 +165,7 @@ function Vehicles() {
 
         {/* Logo */}
         <div style={{ textAlign: 'center', margin: '1rem 0' }}>
-          <img src={logo} alt="Bitnets" style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', border: '2px solid black' }} />
+          <img src={logo} alt="Bitnets" style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', border: '3px solid black' }} />
         </div>
 
         {/* Bandera del usuario actual (esquina superior derecha del menú) */}
