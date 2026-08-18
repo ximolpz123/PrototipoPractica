@@ -827,6 +827,10 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
       }
     });
 
+    if (tipo === 'salida') {
+      reservation.fotosSalidaAt = new Date();
+    }
+
     await reservation.save();
 
     res.json({

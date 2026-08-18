@@ -67,14 +67,12 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
   const [activeVehicles, setActiveVehicles] = useState<ActiveVehicle[]>([]);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [loadingVehicles, setLoadingVehicles] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(60);
 
   // Fetch active vehicles
   const fetchActiveVehicles = useCallback(async () => {
     if (!isAdmin) return;
-    setLoadingVehicles(true);
     try {
       const res = await fetch('http://localhost:5000/api/tracking/active', {
         headers: { Authorization: `Bearer ${token}` },
@@ -86,8 +84,6 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
       }
     } catch {
       console.error('Error al obtener vehículos activos');
-    } finally {
-      setLoadingVehicles(false);
     }
   }, [isAdmin, token]);
 
@@ -208,11 +204,6 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
     const m = Math.floor(secs / 60);
     const s = secs % 60;
     return `${m}:${s.toString().padStart(2, '0')}`;
-  };
-
-  const handleManualRefresh = () => {
-    fetchActiveVehicles();
-    setCountdown(60);
   };
 
   const centerOnUser = () => {
