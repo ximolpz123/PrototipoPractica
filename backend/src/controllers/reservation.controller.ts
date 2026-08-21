@@ -765,8 +765,8 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
-    if (!['salida', 'retorno', 'tramo'].includes(tipo)) {
-      res.status(400).json({ message: 'El tipo debe ser "salida", "retorno" o "tramo"' });
+    if (!['salida', 'retorno', 'tramo', 'relevo'].includes(tipo)) {
+      res.status(400).json({ message: 'El tipo debe ser "salida", "retorno", "tramo" o "relevo"' });
       return;
     }
 
