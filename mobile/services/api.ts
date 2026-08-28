@@ -1,6 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../constants';
+import { eventEmitter } from '../utils/eventEmitter';
 
 // Instancia de axios con la URL base del backend
 const api = axios.create({
@@ -19,14 +20,16 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-// Interceptor: si el token expira (401), borra la sesión
+// Interceptor: si el token expira (401), limpia la sesión y emite evento de logout
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
+      // Limpiar storage
       await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('user');
-      // Aquí se puede redirigir al login cuando tengamos navegación
+      // Notificar a App.tsx para resetear el estado de React y navegar al login
+      eventEmitter.emit('UNAUTHORIZED');
     }
     return Promise.reject(error);
   }

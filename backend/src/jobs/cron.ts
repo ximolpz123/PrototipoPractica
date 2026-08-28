@@ -134,7 +134,6 @@ export const initCronJobs = () => {
             'revisarCarroceria': 'Revisa la carrocería en busca de abolladuras o rayones.'
           };
           
-          const now = new Date();
           const limite = new Date(now.getTime() + 20 * 60000); // +20 min
 
           const nuevaInspeccion = await InspeccionAleatoria.create({

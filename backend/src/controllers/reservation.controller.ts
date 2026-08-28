@@ -256,9 +256,9 @@ export const startReservation = async (req: AuthRequest, res: Response): Promise
       await Flag.create({
         usuario: req.userId,
         reserva: reservation._id,
-        color: 'amarilla',
+        tipo: 'amarilla',
         motivo: `Inicio de reserva atrasado por ${Math.floor(tiempoRetrasoMinutos)} minutos.`,
-        tipo: 'automatica'
+        asignadoPor: 'sistema'
       });
     }
 
@@ -641,6 +641,16 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
     // Calcular kilómetros recorridos en este viaje
     const kmRecorridos = reservation.kmSalida ? kmRetorno - reservation.kmSalida : 0;
 
+    // ── BUG FIX: Cerrar el último tramo activo (si hubo relevo) ──────────────
+    if (reservation.tramos && reservation.tramos.length > 0) {
+      const lastTramo = reservation.tramos[reservation.tramos.length - 1];
+      if (!lastTramo.fechaFin) {
+        lastTramo.fechaFin = new Date();
+        lastTramo.gpsActivo = false;
+        if (!lastTramo.kmFin) lastTramo.kmFin = kmRetorno;
+      }
+    }
+
     // Actualizar la reserva
     reservation.kmRetorno = kmRetorno;
     if (nivelBencinaRetorno !== undefined) {
@@ -1022,11 +1032,15 @@ export const handleDelayResponse = async (req: AuthRequest, res: Response): Prom
       res.json({ message: 'Reserva atrasada 15 minutos exitosamente.', reservation });
     } else {
       reservation.estado = 'cancelada';
-      reservation.motivo = motivoCancelacion || 'Cancelada por retraso del conductor anterior.';
+      // BUG FIX: usar motivoCancelacion (no motivo, que es el propósito del viaje)
+      reservation.motivoCancelacion = motivoCancelacion || 'Cancelada por retraso del conductor anterior.';
       await reservation.save();
-      
+
+      // BUG FIX: marcar el vehículo como disponible al cancelar
+      await Vehicle.findByIdAndUpdate(reservation.vehiculo, { estado: 'disponible' });
+
       await notifyAdmins('Reserva Cancelada', `El usuario ha cancelado su reserva porque no podía esperar el retraso de 15 mins.`);
-      
+
       res.json({ message: 'Reserva cancelada exitosamente.', reservation });
     }
   } catch (error) {

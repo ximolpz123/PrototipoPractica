@@ -21,6 +21,7 @@ import { authService } from './services/auth.service';
 import { userService } from './services/user.service';
 import { reservationService } from './services/reservation.service';
 import { locationService } from './services/location.service'; // Import location service for global TaskManager registration
+import { eventEmitter } from './utils/eventEmitter';
 import type { IUser } from './types';
 import { COLORS } from './constants';
 import * as Notifications from 'expo-notifications';
@@ -290,6 +291,19 @@ function MainApp() {
       }
     };
     checkSession();
+  }, []);
+
+  // Interceptor global: si el JWT expira, hacer logout automático
+  useEffect(() => {
+    const handleUnauthorized = async () => {
+      await locationService.stopTracking(); // Detener GPS si estaba activo
+      await authService.logout();
+      setUser(null);
+      setEmail('');
+      setPassword('');
+    };
+    eventEmitter.on('UNAUTHORIZED', handleUnauthorized);
+    return () => eventEmitter.off('UNAUTHORIZED', handleUnauthorized);
   }, []);
 
   // Listeners de Notificaciones
