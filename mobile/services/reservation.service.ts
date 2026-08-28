@@ -1,5 +1,15 @@
 import api from './api';
 
+export interface IFotosEvidencia {
+  frontal?: string;
+  lateralDer?: string;
+  lateralIzq?: string;
+  trasero?: string;
+  tablero?: string;
+  interior?: string;
+  [key: string]: string | undefined;
+}
+
 export interface IReservation {
   _id: string;
   vehiculo: {
@@ -24,9 +34,16 @@ export interface IReservation {
   motivo: string;
   estado: 'pendiente' | 'aprobada' | 'en_curso' | 'en_transicion' | 'completada' | 'cancelada' | 'rechazada';
   kmSalida?: number;
+  observacionKmSalida?: string;
   kmRetorno?: number;
-  fotosSalida?: string[];
-  fotosRetorno?: string[];
+  justificacionKm?: string;
+  fotosSalida?: IFotosEvidencia | Record<string, string> | string[];
+  fotosSalidaAt?: string;
+  fotosRelevo?: (IFotosEvidencia | Record<string, string> | any)[];
+  fotosRelevoAt?: string[];
+  fotosRetorno?: IFotosEvidencia | Record<string, string> | string[];
+  nivelBencinaRetorno?: number;
+  kmTableroUrl?: string;
   observaciones?: string;
   motivoRechazo?: string;
   motivoCancelacion?: string;
@@ -35,7 +52,7 @@ export interface IReservation {
   solicitudTraspaso?: {
     conductorDestino: string;
     conductorOrigen: string;
-    estado: 'pendiente' | 'aceptada' | 'rechazada';
+    estado: 'pendiente' | 'aceptada' | 'rechazada' | 'cancelada';
     motivoRechazo?: string;
   };
   tramos?: any[];

@@ -3,19 +3,23 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, 
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, AppColors } from '../constants';
+import { AppColors } from '../constants';
 import { useTheme } from '../context/ThemeContext';
 import { useAlert } from '../context/AlertContext';
 import { reservationService, IReservation } from '../services/reservation.service';
 import { vehicleService, IVehicle } from '../services/vehicle.service';
 
-const ESTADO_COLOR: Record<string, string> = {
-  pendiente: COLORS.warning,
-  aprobada: COLORS.primary,
-  en_curso: COLORS.success,
-  completada: COLORS.textMuted,
-  cancelada: COLORS.danger,
-  rechazada: COLORS.danger,
+const getEstadoColor = (estado: string, colors: AppColors) => {
+  const map: Record<string, string> = {
+    pendiente: colors.warning,
+    aprobada: colors.primary,
+    en_curso: colors.success,
+    en_transicion: colors.info || colors.warning,
+    completada: colors.textMuted,
+    cancelada: colors.danger,
+    rechazada: colors.danger,
+  };
+  return map[estado] ?? colors.textMuted;
 };
 
 function formatFecha(dateStr: string) {
@@ -31,50 +35,71 @@ function isSameDay(date1: Date, date2: Date) {
     && date1.getDate() === date2.getDate();
 }
 
-
 // ─── Componente de Picker personalizado (Combobox) ────────────────────────────
 function Picker({
   label,
   value,
   options,
   onChange,
+  colors,
+  styles,
 }: {
   label: string;
   value: string;
   options: { label: string; value: string }[];
   onChange: (val: string) => void;
+  colors: AppColors;
+  styles: any;
 }) {
   const [open, setOpen] = useState(false);
   const selected = options.find(o => o.value === value)?.label ?? label;
 
   return (
-    <View style={pickerStyles.wrapper}>
-      <TouchableOpacity style={pickerStyles.trigger} onPress={() => setOpen(true)}>
-        <Text style={[pickerStyles.triggerText, value !== '' && pickerStyles.triggerTextActive]} numberOfLines={1}>
+    <View style={{ flex: 1 }}>
+      <TouchableOpacity 
+        style={styles.pickerTrigger} 
+        onPress={() => setOpen(true)}
+      >
+        <Text 
+          style={[
+            styles.pickerTriggerText, 
+            value !== '' && { color: colors.text, fontWeight: '600' }
+          ]} 
+          numberOfLines={1}
+        >
           {selected}
         </Text>
-        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={14} color={COLORS.textMuted} />
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={14} color={colors.textMuted} />
       </TouchableOpacity>
 
       <Modal visible={open} transparent animationType="fade">
-        <TouchableOpacity style={pickerStyles.overlay} onPress={() => setOpen(false)} activeOpacity={1}>
-          <View style={pickerStyles.dropdown}>
-            <Text style={pickerStyles.dropdownTitle}>{label}</Text>
-            {options.map(opt => (
-              <TouchableOpacity
-                key={opt.value}
-                style={[
-                  pickerStyles.option,
-                  value === opt.value && pickerStyles.optionActive,
-                ]}
-                onPress={() => { onChange(opt.value); setOpen(false); }}
-              >
-                {value === opt.value && <Ionicons name="checkmark" size={16} color={COLORS.primary} style={{ marginRight: 8 }} />}
-                <Text style={[pickerStyles.optionText, value === opt.value && pickerStyles.optionTextActive]}>
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+        <TouchableOpacity 
+          style={styles.dropdownOverlay} 
+          onPress={() => setOpen(false)} 
+          activeOpacity={1}
+        >
+          <View style={styles.dropdownContainer}>
+            <Text style={styles.dropdownTitle}>{label}</Text>
+            <ScrollView style={{ maxHeight: 300 }}>
+              {options.map(opt => (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[
+                    styles.dropdownOption,
+                    value === opt.value && { backgroundColor: colors.primary + '20' },
+                  ]}
+                  onPress={() => { onChange(opt.value); setOpen(false); }}
+                >
+                  {value === opt.value && <Ionicons name="checkmark" size={16} color={colors.primary} style={{ marginRight: 8 }} />}
+                  <Text style={[
+                    styles.dropdownOptionText,
+                    value === opt.value && { color: colors.primary, fontWeight: '600' }
+                  ]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -82,40 +107,10 @@ function Picker({
   );
 }
 
-const pickerStyles = StyleSheet.create({
-  wrapper: { flex: 1 },
-  trigger: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: COLORS.white, borderRadius: 8, paddingHorizontal: 12,
-    paddingVertical: 10, borderWidth: 1, borderColor: COLORS.border,
-  },
-  triggerText: { fontSize: 13, color: COLORS.textMuted, flex: 1 },
-  triggerTextActive: { color: COLORS.text, fontWeight: '600' },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 30 },
-  dropdown: {
-    backgroundColor: COLORS.white, borderRadius: 14,
-    padding: 10, shadowColor: '#000', shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, elevation: 8,
-  },
-  dropdownTitle: {
-    fontSize: 12, fontWeight: 'bold', color: COLORS.textMuted,
-    textTransform: 'uppercase', paddingHorizontal: 8, paddingVertical: 6,
-    borderBottomWidth: 1, borderColor: COLORS.border, marginBottom: 6,
-  },
-  option: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 12, paddingVertical: 12, borderRadius: 8,
-  },
-  optionActive: { backgroundColor: COLORS.primary + '15' },
-  optionText: { fontSize: 15, color: COLORS.text },
-  optionTextActive: { color: COLORS.primary, fontWeight: '600' },
-});
-
 // ─── Pantalla principal ────────────────────────────────────────────────────────
 export default function AdminHistoryScreen() {
   const { colors, isDark } = useTheme();
   const styles = React.useMemo(() => getStyles(colors), [colors]);
-  
 
   const { showAlert } = useAlert();
   const [reservas, setReservas] = useState<IReservation[]>([]);
@@ -163,7 +158,6 @@ export default function AdminHistoryScreen() {
     return opts;
   }, [vehiculos]);
 
-
   // ─── Aplicar filtros ──────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     return reservas.filter(r => {
@@ -188,7 +182,7 @@ export default function AdminHistoryScreen() {
   };
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
+    if (Platform.OS === 'android') setShowDatePicker(false);
     if (selectedDate) {
       setFiltroFecha(selectedDate);
     }
@@ -202,27 +196,43 @@ export default function AdminHistoryScreen() {
 
   // ─── Render de tarjeta ────────────────────────────────────────────────────────
   const renderReserva = ({ item }: { item: IReservation }) => {
-    const color = ESTADO_COLOR[item.estado] ?? colors.textMuted;
+    const color = getEstadoColor(item.estado, colors);
     const vehiculo = item.vehiculo
       ? `${item.vehiculo.marca} ${item.vehiculo.modelo} · ${item.vehiculo.placa}`
       : 'Vehículo desconocido';
     let conductor = item.usuario
-      ? `${item.usuario.nombre} ${item.usuario.apellido}`
+      ? `${item.usuario.nombre || ''} ${item.usuario.apellido || ''}`.trim()
       : 'Usuario desconocido';
       
     if (item.tramos && item.tramos.length > 0) {
       const conductoresList = [conductor];
       item.tramos.forEach((t: any) => {
-        if (t.conductor) {
-          const nombreCompleto = `${t.conductor.nombre} ${t.conductor.apellido}`;
-          if (nombreCompleto !== conductoresList[conductoresList.length - 1]) {
+        if (t.conductor && typeof t.conductor === 'object' && t.conductor.nombre) {
+          const nombreCompleto = `${t.conductor.nombre} ${t.conductor.apellido || ''}`.trim();
+          if (nombreCompleto && nombreCompleto !== conductoresList[conductoresList.length - 1]) {
             conductoresList.push(nombreCompleto);
           }
         }
       });
       conductor = conductoresList.join(' + ');
     }
-    const totalFotos = getFotosArray(item.fotosSalida).length + getFotosArray(item.fotosRetorno).length;
+    let totalFotos = getFotosArray(item.fotosSalida).length + getFotosArray(item.fotosRetorno).length;
+    
+    // Sumar fotos de los nuevos carruseles de relevo
+    if (item.fotosRelevo && Array.isArray(item.fotosRelevo)) {
+      item.fotosRelevo.forEach((f: any) => {
+        totalFotos += getFotosArray(f).length;
+      });
+    }
+
+    // Sumar fotos de relevos legacy
+    if (item.tramos && Array.isArray(item.tramos)) {
+      item.tramos.forEach((t: any) => {
+        if (t.fotosInicio) {
+          totalFotos += getFotosArray(t.fotosInicio).length;
+        }
+      });
+    }
 
     return (
       <TouchableOpacity style={styles.card} onPress={() => setSelectedReserva(item)}>
@@ -278,14 +288,22 @@ export default function AdminHistoryScreen() {
             value={filtroVehiculo}
             options={vehiculoOptions}
             onChange={setFiltroVehiculo}
+            colors={colors}
+            styles={styles}
           />
         </View>
         <View style={styles.filterRow}>
           <TouchableOpacity
-            style={[pickerStyles.trigger, { flex: 1 }]}
+            style={[styles.pickerTrigger, { flex: 1 }]}
             onPress={() => setShowDatePicker(true)}
           >
-            <Text style={[pickerStyles.triggerText, filtroFecha && pickerStyles.triggerTextActive]} numberOfLines={1}>
+            <Text 
+              style={[
+                styles.pickerTriggerText, 
+                filtroFecha ? { color: colors.text, fontWeight: '600' } : { color: colors.textMuted }
+              ]} 
+              numberOfLines={1}
+            >
               {filtroFecha ? filtroFecha.toLocaleDateString('es-CL') : 'Cualquier fecha'}
             </Text>
             <Ionicons name="calendar-outline" size={14} color={colors.textMuted} />
@@ -297,6 +315,7 @@ export default function AdminHistoryScreen() {
             value={filtroFecha || new Date()}
             mode="date"
             display="default"
+            onChange={handleDateChange}
             onValueChange={handleDateChange}
             onDismiss={() => setShowDatePicker(false)}
           />
@@ -355,13 +374,15 @@ export default function AdminHistoryScreen() {
                 <Text style={styles.sectionTitle}>Conductor(es)</Text>
                 <Text style={styles.sectionText}>
                   {(() => {
-                    let conductorPrincipal = selectedReserva.usuario ? `${selectedReserva.usuario.nombre} ${selectedReserva.usuario.apellido}` : 'N/A';
+                    let conductorPrincipal = selectedReserva.usuario 
+                      ? `${selectedReserva.usuario.nombre || ''} ${selectedReserva.usuario.apellido || ''}`.trim() 
+                      : 'N/A';
                     if (selectedReserva.tramos && selectedReserva.tramos.length > 0) {
                       const conductoresList = [conductorPrincipal];
                       selectedReserva.tramos.forEach((t: any) => {
-                        if (t.conductor) {
-                          const nombreCompleto = `${t.conductor.nombre} ${t.conductor.apellido}`;
-                          if (nombreCompleto !== conductoresList[conductoresList.length - 1]) {
+                        if (t.conductor && typeof t.conductor === 'object' && t.conductor.nombre) {
+                          const nombreCompleto = `${t.conductor.nombre} ${t.conductor.apellido || ''}`.trim();
+                          if (nombreCompleto && nombreCompleto !== conductoresList[conductoresList.length - 1]) {
                             conductoresList.push(nombreCompleto);
                           }
                         }
@@ -429,8 +450,8 @@ export default function AdminHistoryScreen() {
                 
                 // Intentar encontrar el conductor correspondiente (tramos[1] corresponde a fotosRelevo[0])
                 const tramoRelacionado = selectedReserva.tramos && selectedReserva.tramos[index + 1];
-                const conductorName = tramoRelacionado?.conductor 
-                  ? `${tramoRelacionado.conductor.nombre} ${tramoRelacionado.conductor.apellido}`
+                const conductorName = (tramoRelacionado?.conductor && typeof tramoRelacionado.conductor === 'object' && tramoRelacionado.conductor.nombre)
+                  ? `${tramoRelacionado.conductor.nombre} ${tramoRelacionado.conductor.apellido || ''}`.trim()
                   : `Conductor de Relevo ${index + 1}`;
 
                 return (
@@ -450,12 +471,15 @@ export default function AdminHistoryScreen() {
               {selectedReserva.tramos && selectedReserva.tramos.length > 0 && selectedReserva.tramos.map((tramo: any, index: number) => {
                 const numFotos = getFotosArray(tramo.fotosInicio).length;
                 if (numFotos === 0) return null;
+                const conductorName = (tramo.conductor && typeof tramo.conductor === 'object' && tramo.conductor.nombre)
+                  ? `${tramo.conductor.nombre} ${tramo.conductor.apellido || ''}`.trim()
+                  : `Conductor ${index + 1}`;
                 return (
                   <View key={`relevo-legacy-${index}`} style={styles.section}>
                     <View style={styles.sectionTitleRow}>
                       <Ionicons name="camera" size={16} color={colors.primary} />
                       <Text style={[styles.sectionTitle, { marginLeft: 6 }]}>
-                        📸 Fotos de Relevo {index + 1} (Legacy) — {tramo.conductor?.nombre} {tramo.conductor?.apellido} ({numFotos})
+                        📸 Fotos de Relevo {index + 1} (Legacy) — {conductorName} ({numFotos})
                       </Text>
                     </View>
                     {renderFotos(tramo.fotosInicio, `relevo ${index + 1}`)}
@@ -468,9 +492,9 @@ export default function AdminHistoryScreen() {
                   <Ionicons name="camera" size={16} color={colors.success} />
                   <Text style={[styles.sectionTitle, { marginLeft: 6 }]}>
                     📸 Fotos de Retorno — {
-                      selectedReserva.tramos && selectedReserva.tramos.length > 0 
-                      ? `${selectedReserva.tramos[selectedReserva.tramos.length - 1].conductor?.nombre} ${selectedReserva.tramos[selectedReserva.tramos.length - 1].conductor?.apellido}` 
-                      : `${selectedReserva.usuario?.nombre} ${selectedReserva.usuario?.apellido}`
+                      selectedReserva.tramos && selectedReserva.tramos.length > 0 && selectedReserva.tramos[selectedReserva.tramos.length - 1].conductor?.nombre
+                      ? `${selectedReserva.tramos[selectedReserva.tramos.length - 1].conductor?.nombre} ${selectedReserva.tramos[selectedReserva.tramos.length - 1].conductor?.apellido || ''}`.trim()
+                      : `${selectedReserva.usuario?.nombre || ''} ${selectedReserva.usuario?.apellido || ''}`.trim()
                     } ({getFotosArray(selectedReserva.fotosRetorno).length})
                   </Text>
                 </View>
@@ -514,6 +538,31 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
   },
   clearBtnLargeText: { color: colors.danger, fontWeight: 'bold', fontSize: 14 },
 
+  pickerTrigger: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.white, borderRadius: 8, paddingHorizontal: 12,
+    paddingVertical: 10, borderWidth: 1, borderColor: colors.border,
+  },
+  pickerTriggerText: { fontSize: 13, color: colors.textMuted, flex: 1 },
+
+  dropdownOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 30 },
+  dropdownContainer: {
+    backgroundColor: colors.white, borderRadius: 14,
+    padding: 10, shadowColor: '#000', shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, elevation: 8,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  dropdownTitle: {
+    fontSize: 12, fontWeight: 'bold', color: colors.textMuted,
+    textTransform: 'uppercase', paddingHorizontal: 8, paddingVertical: 6,
+    borderBottomWidth: 1, borderColor: colors.border, marginBottom: 6,
+  },
+  dropdownOption: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 12, paddingVertical: 12, borderRadius: 8,
+  },
+  dropdownOptionText: { fontSize: 15, color: colors.text },
+
   resultCount: { fontSize: 12, color: colors.textMuted, paddingHorizontal: 16, paddingVertical: 8 },
 
   // List
@@ -546,7 +595,7 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
   sectionTitleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   sectionTitle: { fontSize: 11, fontWeight: 'bold', color: colors.textMuted, textTransform: 'uppercase', marginBottom: 4 },
   sectionText: { fontSize: 16, color: colors.text },
-  photo: { width: 150, height: 200, borderRadius: 10, marginRight: 10, backgroundColor: '#eee' },
+  photo: { width: 150, height: 200, borderRadius: 10, marginRight: 10, backgroundColor: colors.border },
   noPhotos: { fontSize: 14, color: colors.textMuted, fontStyle: 'italic', marginTop: 5 },
 
   // Fullscreen Image
@@ -568,3 +617,4 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     height: '100%',
   },
 });
+
