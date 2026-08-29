@@ -12,7 +12,10 @@
         "NSLocationWhenInUseUsageDescription": "Necesitamos tu ubicación para rastrear el vehículo durante el viaje.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Necesitamos tu ubicación en segundo plano para actualizar la posición del vehículo cada minuto durante el viaje.",
         "NSLocationAlwaysUsageDescription": "Necesitamos tu ubicación en segundo plano para actualizar la posición del vehículo cada minuto durante el viaje.",
-        "UIBackgroundModes": ["location", "fetch"]
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ]
       }
     },
     "android": {
@@ -45,6 +48,12 @@
           "isAndroidForegroundServiceEnabled": true
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "68eca184-8307-42bc-9fbf-f6f332d7f744"
+      }
+    },
+    "owner": "ximolm"
   }
 }
