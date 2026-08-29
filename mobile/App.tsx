@@ -54,6 +54,7 @@ import AddVehicleAIScreen from './screens/AddVehicleAIScreen';
 import AdminCreateReservationScreen from './screens/AdminCreateReservationScreen';
 import AdminBanderasScreen from './screens/AdminBanderasScreen';
 import ScanQRScreen from './screens/ScanQRScreen';
+import RouteMapScreen from './screens/RouteMapScreen';
 import { AlertProvider, useAlert } from './context/AlertContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { AuthContext, useAuth } from './context/AuthContext';
@@ -442,6 +443,11 @@ function MainApp() {
                 name="AdminCreateReservation"
                 component={AdminCreateReservationScreen}
                 options={{ title: 'Asignar Vehículo' }}
+              />
+              <Stack.Screen
+                name="RouteMap"
+                component={RouteMapScreen}
+                options={{ headerShown: false }}
               />
               <Stack.Screen
                 name="ScanQR"

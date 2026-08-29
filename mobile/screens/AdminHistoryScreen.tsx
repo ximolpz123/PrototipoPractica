@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Modal, Image, ScrollView, RefreshControl, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppColors } from '../constants';
 import { useTheme } from '../context/ThemeContext';
@@ -111,6 +111,7 @@ function Picker({
 export default function AdminHistoryScreen() {
   const { colors, isDark } = useTheme();
   const styles = React.useMemo(() => getStyles(colors), [colors]);
+  const navigation = useNavigation<any>();
 
   const { showAlert } = useAlert();
   const [reservas, setReservas] = useState<IReservation[]>([]);
@@ -249,13 +250,23 @@ export default function AdminHistoryScreen() {
         </View>
 
         <View style={styles.cardFooter}>
-          <Text style={styles.cardDate}>📅 {formatFecha(item.fechaInicio)}</Text>
-          <View style={styles.photoChip}>
-            <Ionicons name="camera-outline" size={12} color={totalFotos > 0 ? colors.success : colors.textMuted} />
-            <Text style={[styles.photoChipText, totalFotos > 0 && { color: colors.success }]}>
-              {totalFotos} foto{totalFotos !== 1 ? 's' : ''}
-            </Text>
+          <View>
+            <Text style={styles.cardDate}>📅 {formatFecha(item.fechaInicio)}</Text>
+            <View style={styles.photoChip}>
+              <Ionicons name="camera-outline" size={12} color={totalFotos > 0 ? colors.success : colors.textMuted} />
+              <Text style={[styles.photoChipText, totalFotos > 0 && { color: colors.success }]}>
+                {totalFotos} foto{totalFotos !== 1 ? 's' : ''}
+              </Text>
+            </View>
           </View>
+          
+          <TouchableOpacity 
+            style={[styles.estadoBadge, { backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center' }]}
+            onPress={() => navigation.navigate('RouteMap', { reservaId: item._id })}
+          >
+            <Ionicons name="map" size={12} color="white" style={{marginRight: 4}} />
+            <Text style={[styles.estadoText, { color: 'white' }]}>VER RUTA</Text>
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     );

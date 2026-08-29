@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Animated } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,21 +31,50 @@ export default function AdminMapScreen() {
   const styles = React.useMemo(() => getStyles(colors), [colors]);
   
   const { showAlert } = useAlert();
+  
+  const [activeTab, setActiveTab] = useState<'en_vivo' | 'historico'>('en_vivo');
+  
+  // Estado para "En Vivo"
   const [vehicles, setVehicles] = useState<IVehicleLocation[]>([]);
+  const [selectedVehicle, setSelectedVehicle] = useState<IVehicleLocation | null>(null);
+  
+  // Estado para "Histórico"
+  const [todayRoutes, setTodayRoutes] = useState<any[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedVehicle, setSelectedVehicle] = useState<IVehicleLocation | null>(null);
 
-  const fetchLocations = async () => {
+  const fetchLiveLocations = async () => {
     try {
       setRefreshing(true);
       const response = await api.get('/tracking/active');
       setVehicles(response.data);
     } catch (err) {
-      showAlert('Error', 'No se pudieron cargar las ubicaciones.');
+      showAlert('Error', 'No se pudieron cargar las ubicaciones en vivo.');
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const fetchTodayRoutes = async () => {
+    try {
+      setRefreshing(true);
+      const response = await api.get('/tracking/routes/today');
+      setTodayRoutes(response.data);
+    } catch (err) {
+      showAlert('Error', 'No se pudieron cargar las rutas de hoy.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const loadData = () => {
+    if (activeTab === 'en_vivo') {
+      fetchLiveLocations();
+    } else {
+      fetchTodayRoutes();
     }
   };
 
@@ -59,13 +88,19 @@ export default function AdminMapScreen() {
         }
       })();
 
-      fetchLocations();
-      const interval = setInterval(fetchLocations, 30000);
-      return () => clearInterval(interval);
-    }, [])
+      loadData();
+      
+      let interval: any;
+      if (activeTab === 'en_vivo') {
+        interval = setInterval(fetchLiveLocations, 30000);
+      }
+      return () => {
+        if (interval) clearInterval(interval);
+      };
+    }, [activeTab])
   );
 
-  if (loading) {
+  if (loading && !refreshing) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -76,22 +111,60 @@ export default function AdminMapScreen() {
 
   const santiago = { latitude: -33.4489, longitude: -70.6693, latitudeDelta: 0.1, longitudeDelta: 0.1 };
   const activeVehicles = vehicles.filter(v => v.ubicacionActual);
-  const initialRegion = activeVehicles.length > 0
-    ? {
-        latitude: activeVehicles[0].ubicacionActual!.latitud,
-        longitude: activeVehicles[0].ubicacionActual!.longitud,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      }
-    : santiago;
+  
+  let initialRegion = santiago;
+  if (activeTab === 'en_vivo' && activeVehicles.length > 0) {
+    initialRegion = {
+      latitude: activeVehicles[0].ubicacionActual!.latitud,
+      longitude: activeVehicles[0].ubicacionActual!.longitud,
+      latitudeDelta: 0.05,
+      longitudeDelta: 0.05,
+    };
+  } else if (activeTab === 'historico' && todayRoutes.length > 0 && todayRoutes[0].ruta.length > 0) {
+    initialRegion = {
+      latitude: todayRoutes[0].ruta[0].latitud,
+      longitude: todayRoutes[0].ruta[0].longitud,
+      latitudeDelta: 0.1,
+      longitudeDelta: 0.1,
+    };
+  }
 
   const formatTimestamp = (ts: string) => {
     const d = new Date(ts);
     return d.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   };
 
+  // Colores para trazar diferentes vehículos en el mapa histórico
+  const routeColors = ['#3498DB', '#E74C3C', '#9B59B6', '#F39C12', '#1ABC9C', '#34495E'];
+
   return (
     <View style={styles.container}>
+      {/* ─── Pestañas Selectoras ─── */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'en_vivo' && styles.activeTab]}
+          onPress={() => {
+            setActiveTab('en_vivo');
+            setSelectedVehicle(null);
+            setLoading(true);
+          }}
+        >
+          <Ionicons name="radio" size={16} color={activeTab === 'en_vivo' ? '#fff' : colors.textMuted} style={{marginRight: 6}} />
+          <Text style={[styles.tabText, activeTab === 'en_vivo' && styles.activeTabText]}>En Vivo</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'historico' && styles.activeTab]}
+          onPress={() => {
+            setActiveTab('historico');
+            setSelectedVehicle(null);
+            setLoading(true);
+          }}
+        >
+          <Ionicons name="map" size={16} color={activeTab === 'historico' ? '#fff' : colors.textMuted} style={{marginRight: 6}} />
+          <Text style={[styles.tabText, activeTab === 'historico' && styles.activeTabText]}>Histórico Hoy</Text>
+        </TouchableOpacity>
+      </View>
+
       <MapView
         style={styles.map}
         initialRegion={initialRegion}
@@ -99,7 +172,8 @@ export default function AdminMapScreen() {
         showsMyLocationButton={true}
         onPress={() => setSelectedVehicle(null)}
       >
-        {activeVehicles.map(v => (
+        {/* ─── Render: En Vivo ─── */}
+        {activeTab === 'en_vivo' && activeVehicles.map(v => (
           <Marker
             key={v._id}
             coordinate={{
@@ -113,10 +187,43 @@ export default function AdminMapScreen() {
             </View>
           </Marker>
         ))}
+
+        {/* ─── Render: Histórico Hoy (Líneas) ─── */}
+        {activeTab === 'historico' && todayRoutes.map((routeObj, index) => {
+          const color = routeColors[index % routeColors.length];
+          const coordinates = routeObj.ruta.map((p: any) => ({
+            latitude: p.latitud,
+            longitude: p.longitud,
+          }));
+
+          if (coordinates.length === 0) return null;
+
+          return (
+            <React.Fragment key={routeObj.vehiculo._id}>
+              <Polyline
+                coordinates={coordinates}
+                strokeColor={color}
+                strokeWidth={4}
+              />
+              <Marker
+                coordinate={coordinates[0]}
+                title={`${routeObj.vehiculo.marca} - Inicio`}
+              >
+                <Ionicons name="location" size={25} color={color} />
+              </Marker>
+              <Marker
+                coordinate={coordinates[coordinates.length - 1]}
+                title={`${routeObj.vehiculo.marca} - Actual`}
+              >
+                <Ionicons name="flag" size={25} color={color} />
+              </Marker>
+            </React.Fragment>
+          );
+        })}
       </MapView>
 
       {/* Botón de refresco */}
-      <TouchableOpacity style={styles.refreshBtn} onPress={fetchLocations} disabled={refreshing}>
+      <TouchableOpacity style={styles.refreshBtn} onPress={loadData} disabled={refreshing}>
         {refreshing ? (
           <ActivityIndicator size="small" color={colors.white} />
         ) : (
@@ -124,16 +231,19 @@ export default function AdminMapScreen() {
         )}
       </TouchableOpacity>
 
-      {/* Contador de vehículos activos */}
+      {/* Indicador de items activos/mostrados */}
       <View style={styles.legend}>
-        <Ionicons name="car-sport" size={14} color={colors.primary} />
-        <Text style={styles.legendText}>  {activeVehicles.length} vehículo(s) en ruta</Text>
+        <Ionicons name="analytics" size={14} color={colors.primary} />
+        <Text style={styles.legendText}>
+          {activeTab === 'en_vivo' 
+            ? `  ${activeVehicles.length} vehículo(s) en ruta` 
+            : `  ${todayRoutes.length} ruta(s) trazada(s) hoy`}
+        </Text>
       </View>
 
-      {/* Panel de detalles del vehículo seleccionado */}
-      {selectedVehicle && (
+      {/* Panel de detalles del vehículo seleccionado (Solo En Vivo) */}
+      {activeTab === 'en_vivo' && selectedVehicle && (
         <View style={styles.detailPanel}>
-          {/* Header */}
           <View style={styles.detailHeader}>
             <View style={styles.detailIconBox}>
               <Ionicons name="car-sport" size={26} color={colors.white} />
@@ -150,7 +260,6 @@ export default function AdminMapScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Filas de info */}
           <View style={styles.detailRow}>
             <Ionicons name="card-outline" size={16} color={colors.primary} />
             <Text style={styles.detailLabel}>Placa</Text>
@@ -194,6 +303,44 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
   loadingText: { marginTop: 10, color: colors.textMuted },
   map: { flex: 1 },
 
+  // Tabs
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: colors.white,
+    padding: 10,
+    paddingTop: 50, // SafeArea approximation
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 4,
+    zIndex: 10,
+  },
+  tab: {
+    flexDirection: 'row',
+    flex: 1,
+    paddingVertical: 10,
+    marginHorizontal: 5,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F1F5F9',
+  },
+  activeTab: {
+    backgroundColor: colors.primary,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  activeTabText: {
+    color: colors.white,
+  },
+
   markerContainer: {
     backgroundColor: colors.primary,
     padding: 8,
@@ -214,7 +361,7 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
 
   refreshBtn: {
     position: 'absolute',
-    top: 16,
+    top: 130, // debajo de las pestañas
     left: 16,
     backgroundColor: colors.primary,
     width: 44,
@@ -231,7 +378,7 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
 
   legend: {
     position: 'absolute',
-    top: 16,
+    top: 130,
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
