@@ -1,6 +1,8 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import InspeccionAleatoria from '../models/InspeccionAleatoria.js';
+import Flag from '../models/Flag.js';
+import User from '../models/User.js';
 
 export const getInspections = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -94,6 +96,22 @@ export const respondToInspection = async (req: AuthRequest, res: Response): Prom
     }
 
     await inspeccion.save();
+
+    // ── Bandera Verde por responder a tiempo ──────────────────────────────────
+    // Se asigna una bandera verde al conductor que respondió la inspección
+    // dentro del tiempo límite establecido (aún en estado 'pendiente').
+    await Flag.create({
+      usuario: req.userId,
+      reserva: inspeccion.reserva,
+      tipo: 'verde',
+      motivo: 'Respondió a la inspección aleatoria correctamente y dentro del plazo.',
+      asignadoPor: 'sistema'
+    });
+
+    // Actualizar la bandera actual del conductor en su perfil
+    await User.findByIdAndUpdate(req.userId, { banderaActual: 'verde' });
+    // ─────────────────────────────────────────────────────────────────────────
+
     res.json({ message: 'Inspección respondida exitosamente', inspeccion });
   } catch (error) {
     res.status(500).json({ message: 'Error al responder la inspección', error });

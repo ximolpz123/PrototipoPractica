@@ -671,6 +671,10 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
     );
 
     // ── Lógica de Asignación Automática de Banderas ──
+    // IMPORTANTE: La bandera se asigna al conductor que FINALIZÓ el viaje (req.userId),
+    // no necesariamente al que lo inició (reservation.usuario). Esto es correcto porque
+    // en casos de relevo, el responsable de la entrega es el último conductor.
+    const conductorQueEntrego = req.userId!;
     let assignedColor: 'verde' | 'amarilla' | 'naranja' | 'roja' | null = null;
     let assignedMotivo = '';
     
@@ -700,7 +704,15 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
       assignedMotivo = 'Faltó 1–2 fotos, o nivel de bencina bajo al devolver.';
     } else {
       // Revisar si califica para Verde (2 entregas perfectas seguidas)
-      const last2 = await Reservation.find({ usuario: reservation.usuario, estado: 'completada' }).sort({ updatedAt: -1 }).limit(2);
+      // Busca reservas donde el conductor que entregó fue el creador O participó en un tramo
+      const last2 = await Reservation.find({
+        $or: [
+          { usuario: conductorQueEntrego },
+          { 'tramos.conductor': conductorQueEntrego }
+        ],
+        estado: 'completada'
+      }).sort({ updatedAt: -1 }).limit(2);
+
       if (last2.length === 2) {
         let perfect = true;
         for (const r of last2) {
@@ -718,8 +730,9 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
     }
 
     if (assignedColor) {
+      // ✅ FIX: Se asigna al conductor que entregó (finalizó), no al que inició
       await Flag.create({
-        usuario: reservation.usuario,
+        usuario: conductorQueEntrego,
         reserva: reservation._id,
         tipo: assignedColor,
         motivo: assignedMotivo,
@@ -729,11 +742,11 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
       // Si es naranja, validar regla: 3 naranjas = 1 roja
       let finalColorToAssign = assignedColor;
       if (assignedColor === 'naranja') {
-        const naranjasCount = await Flag.countDocuments({ usuario: reservation.usuario, tipo: 'naranja' });
+        const naranjasCount = await Flag.countDocuments({ usuario: conductorQueEntrego, tipo: 'naranja' });
         if (naranjasCount >= 3) {
           finalColorToAssign = 'roja';
           await Flag.create({
-            usuario: reservation.usuario,
+            usuario: conductorQueEntrego,
             tipo: 'roja',
             motivo: 'Acumulación de 3 banderas naranjas.',
             asignadoPor: 'sistema'
@@ -741,7 +754,7 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
         }
       }
 
-      await User.findByIdAndUpdate(reservation.usuario, { banderaActual: finalColorToAssign });
+      await User.findByIdAndUpdate(conductorQueEntrego, { banderaActual: finalColorToAssign });
     }
     // ──────────────────────────────────────────────────
 
