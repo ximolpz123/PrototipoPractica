@@ -225,7 +225,7 @@ function Vehicles() {
           </button>
           <button
             onClick={() => { }}
-            style={{ background: 'none', border: 'none', color: 'gray', fontWeight: 'normal', fontSize: '14px', cursor: 'not-allowed', padding: '4px' }}
+            style={{ background: 'none', border: 'none', color: 'white', fontWeight: 'normal', fontSize: '14px', cursor: 'not-allowed', padding: '4px' }}
           >
             Soporte Técnico
           </button>
@@ -317,7 +317,7 @@ function Vehicles() {
                 onClick={() => navigate('/reservations')}
                 style={{ margin: 0, height: '44px', display: 'flex', alignItems: 'center' }}
               >
-                ➕ Crear Reservación
+                Crear Reservación
               </button>
 
               <div className="filter-panel" style={{ flex: 'none', width: '240px', boxSizing: 'border-box' }}>

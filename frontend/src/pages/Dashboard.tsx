@@ -164,6 +164,8 @@ function Dashboard() {
   const [vehicleImageFile, setVehicleImageFile] = useState<File | null>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
+  const [loadingAI, setLoadingAI] = useState(false);
+  const [aiDataLoaded, setAiDataLoaded] = useState(false);
 
   // ── Cargar datos al cambiar tab ──
   useEffect(() => {
@@ -189,7 +191,6 @@ function Dashboard() {
       // Normaliza _id → id por si la API devuelve _id
       const normalized = Array.isArray(data) ? data.map(u => {
         const n = normalizeUser(u);
-        n.banderaActual = n.rol === 'admin' ? 'verde' : 'amarilla';
         return n;
       }) : [];
       setUsers(normalized);
@@ -281,7 +282,7 @@ function Dashboard() {
     try {
       const payload = { ...editForm };
       if (payload.telefono) payload.telefono = `+569${payload.telefono}`;
-      
+
       await fetch(`http://localhost:5000/api/users/${editUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -361,6 +362,7 @@ function Dashboard() {
       setShowCreateVehicle(false);
       setVehicleForm(EMPTY_VEHICLE_FORM);
       setVehicleImageFile(null);
+      setAiDataLoaded(false);
       fetchVehicles();
     } catch (error: any) { alert(`Error al crear vehículo:\n${error.message || error}`); }
   };
@@ -475,6 +477,56 @@ function Dashboard() {
   // ────────── Helper: form vehículo compartido ──────────
   const renderVehicleFormFields = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {/* showCreateVehicle && !aiDataLoaded && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', padding: '1.25rem', background: 'linear-gradient(135deg, #0ea5e9, #0369a1)', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', color: '#ffffff', border: 'none' }}>
+          <label style={{ fontWeight: '700', color: '#ffffff', margin: 0, fontSize: '1.1rem' }}>✨ Autocompletar con IA (Opcional)</label>
+          <span style={{ fontSize: '0.9rem', color: '#e0f2fe', textAlign: 'center' }}>Sube fotos del vehículo para que la IA extraiga Patente, Marca y Kilometraje.</span>
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            className="reserv-input"
+            style={{ width: '100%', boxSizing: 'border-box', margin: 0 }}
+            disabled={loadingAI}
+            onChange={async (e) => {
+              if (e.target.files && e.target.files.length > 0) {
+                setLoadingAI(true);
+                try {
+                  const formData = new FormData();
+                  Array.from(e.target.files).forEach(file => formData.append('fotos', file));
+                  
+                  const res = await fetch('http://localhost:5000/api/vehicles/ia-create', {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}` },
+                    body: formData,
+                  });
+                  if (!res.ok) throw new Error('Error al procesar con IA');
+                  const data = await res.json();
+                  
+                  setVehicleForm(prev => ({
+                    ...prev,
+                    placa: data.patente || prev.placa,
+                    marca: data.marca || prev.marca,
+                    kilometraje: data.kilometraje !== undefined && data.kilometraje !== null ? data.kilometraje : prev.kilometraje,
+                  }));
+                  setAiDataLoaded(true);
+                  alert('¡Datos extraídos con éxito! Revisa los campos.');
+                } catch (err: any) {
+                  alert(err.message || 'Ocurrió un error al usar la IA.');
+                } finally {
+                  setLoadingAI(false);
+                }
+              }
+            }}
+          />
+          {loadingAI && <span style={{ color: '#ffffff', fontWeight: 'bold', marginTop: '0.5rem' }}>Analizando con IA... ⏳</span>}
+        </div>
+      ) */}
+      {/* showCreateVehicle && aiDataLoaded && (
+        <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-panel)', color: '#22c55e', borderRadius: '8px', textAlign: 'center', marginBottom: '0.5rem', fontWeight: 'bold', border: '1px solid #22c55e' }}>
+          ✨ ¡Datos extraídos por IA! Por favor, verifica y completa los campos.
+        </div>
+      ) */}
       <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '220px' }}>
           <label style={{ fontWeight: '600', width: '70px', margin: 0, textAlign: 'right' }}>Placa:</label>
@@ -1262,7 +1314,7 @@ function Dashboard() {
           <div style={{ width: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '700', color: '#000' }}>   Vehículos</h2>
-              <button className="btn btn-create" onClick={() => { setVehicleForm(EMPTY_VEHICLE_FORM); setShowCreateVehicle(true); }}>
+              <button className="btn btn-create" onClick={() => { setVehicleForm(EMPTY_VEHICLE_FORM); setAiDataLoaded(false); setShowCreateVehicle(true); }}>
                 Agregar Vehículo
               </button>
             </div>
@@ -1549,7 +1601,7 @@ function Dashboard() {
               {renderVehicleFormFields()}
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'center' }}>
                 <button type="submit" className="btn" style={{ backgroundColor: '#175fbd', color: 'black' }}> Crear</button>
-                <button type="button" className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black' }} onClick={() => setShowCreateVehicle(false)}>Cancelar</button>
+                <button type="button" className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black' }} onClick={() => { setShowCreateVehicle(false); setAiDataLoaded(false); }}>Cancelar</button>
               </div>
             </form>
           </div>
