@@ -1,6 +1,6 @@
 import { Appearance } from 'react-native';
 
-export const API_URL = 'https://prototipopractica-production.up.railway.app/api'; // Railway producción
+export const API_URL = 'https://prototipopractica-production-68f6.up.railway.app/api'; // Railway producción
 //export const API_URL = 'http://172.20.48.176:5000/api'; // IP Wi-Fi local
 //export const API_URL = 'http://26.215.108.13:5000/api';   // IP Radmin VPN
 
