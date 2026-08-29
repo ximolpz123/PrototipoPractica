@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { IRandomInspection, IUser, IVehicle } from '../types';
+import { inspectionService } from '../services/inspection.service';
 
 interface RandomInspectionsPanelProps {
   token: string | null;
@@ -13,10 +14,10 @@ const getLocalDatetimeString = () => {
   return now.toISOString().slice(0, 16);
 };
 
-export function RandomInspectionsPanel({ users = [], vehicles = [] }: RandomInspectionsPanelProps) {
+export function RandomInspectionsPanel({ token, users = [], vehicles = [] }: RandomInspectionsPanelProps) {
   const [inspections, setInspections] = useState<IRandomInspection[]>([]);
-  const [loading] = useState(false);
-  const [error] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [selectedInspection, setSelectedInspection] = useState<IRandomInspection | null>(null);
 
   // Modal de Creación
@@ -28,11 +29,41 @@ export function RandomInspectionsPanel({ users = [], vehicles = [] }: RandomInsp
     fechaActivacion: getLocalDatetimeString()
   });
 
+  const fetchInspections = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    try {
+      const data = await inspectionService.getAll(token);
+      
+      // Adaptar la respuesta del backend al formato que espera la tabla (IRandomInspection)
+      const mappedData: IRandomInspection[] = data.map((item: any) => ({
+        _id: item._id,
+        conductorId: item.usuario?._id || '',
+        conductorNombre: item.usuario ? `${item.usuario.nombre} ${item.usuario.apellido}` : 'Desconocido',
+        vehiculoId: item.reserva?.vehiculo || '',
+        vehiculoPlaca: item.reserva?.vehiculo || 'Desconocida', // En una implementación real se haría un populate del vehículo
+        tarea: item.tipo || item.tarea || 'N/A',
+        estado: item.estado,
+        fechaActivacion: item.fechaActivacion,
+        respuesta: item.respuestaTexto || item.respuestaFotosUrls?.length ? {
+          texto: item.respuestaTexto,
+          fotoUrl: item.respuestaFotosUrls?.[0],
+          fechaRespuesta: item.updatedAt
+        } : undefined
+      }));
+      
+      setInspections(mappedData);
+    } catch (err: any) {
+      setError(err.message || 'Error al cargar inspecciones');
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
   // Cargar datos iniciales
   useEffect(() => {
-    // Se han eliminado las inspecciones de prueba (mock)
-    setInspections([]);
-  }, []);
+    fetchInspections();
+  }, [fetchInspections]);
 
   /* 
   // Timer para caducar inspecciones pendientes tras 2 minutos

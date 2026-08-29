@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { IUser, IReservation, IVehicle } from '../types';
+import { ProfilePanel } from '../components/ProfilePanel';
 
 import camionetaBlancaImg from '../assets/camioneta-blanca.png'; // Fallback
 import autoCafeImg from '../assets/auto-cafe.png';
@@ -78,6 +79,7 @@ function Vehicles() {
   // Leer usuario del localStorage
   const storedUser = localStorage.getItem('user');
   const user: IUser | null = storedUser ? JSON.parse(storedUser) : null;
+  const token = localStorage.getItem('token');
 
   const defaultProfileImg = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
   const profileImgKey = user ? `profile_img_${user.id}` : 'profile_img_default';
@@ -223,7 +225,7 @@ function Vehicles() {
           </button>
           <button
             onClick={() => { }}
-            style={{ background: 'none', border: 'none', color: 'white', fontWeight: 'normal', fontSize: '14px', cursor: 'pointer', padding: '4px' }}
+            style={{ background: 'none', border: 'none', color: 'gray', fontWeight: 'normal', fontSize: '14px', cursor: 'not-allowed', padding: '4px' }}
           >
             Soporte Técnico
           </button>
@@ -395,23 +397,14 @@ function Vehicles() {
 
         {/* ── Panel: Perfil ── */}
         {activeTab === 'perfil' && (
-          <div className="perfil-panel" style={{ padding: '2rem', borderRadius: '12px', boxShadow: 'var(--shadow)', maxWidth: '800px' }}>
-            <h2 style={{ marginTop: 0, color: 'var(--text-h)', marginBottom: '1.5rem', fontSize: '1.8rem' }}>Configuración de Perfil</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', fontSize: '1.1rem' }}>
-              <div>
-                <p><strong>Nombre:</strong> {user?.nombre || '-'}</p>
-                <p><strong>Apellido:</strong> {user?.apellido || '-'}</p>
-                <p><strong>Email:</strong> {user?.email || '-'}</p>
-                <p><strong>Teléfono:</strong> {user?.telefono || '-'}</p>
-              </div>
-              <div>
-                <p><strong>Departamento:</strong> {user?.departamento || '-'}</p>
-                <p><strong>Rol:</strong> {user?.rol === 'admin' ? 'Administrador' : 'Operaciones'}</p>
-                <p><strong>Licencia:</strong> <span style={{ color: user?.licenciaAlDia === false ? '#ef4444' : '#10b981', fontWeight: 'bold' }}>{user?.licenciaAlDia === false ? 'No al día' : 'Al día'}</span></p>
-                <p><strong>Estado:</strong> {user?.activo === false ? 'Inactivo' : 'Activo'}</p>
-              </div>
-            </div>
-          </div>
+          <ProfilePanel
+            user={user}
+            token={token}
+            onUpdateUser={(updatedUser) => {
+              localStorage.setItem('user', JSON.stringify(updatedUser));
+              window.location.reload();
+            }}
+          />
         )}
 
         {/* ── Modal Reservación ── */}

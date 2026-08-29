@@ -10,6 +10,8 @@ export interface IUser {
   rol: 'usuario' | 'admin';
   activo: boolean;
   licenciaAlDia?: boolean;
+  licenciaVencimiento?: string;
+  licenciaFotoUrl?: string;
   banderaActual?: 'verde' | 'amarilla' | 'naranja' | 'roja';
   historialBanderas?: IFlag[];
   createdAt: string;
@@ -41,6 +43,15 @@ export interface IVehicle {
   updatedAt: string;
 }
 
+export interface ITramo {
+  conductor: IUser | string;
+  fechaInicio: string;
+  fechaFin?: string;
+  gpsActivo?: boolean;
+  kmInicio?: number;
+  kmFin?: number;
+}
+
 export interface IReservation {
   _id: string;
   usuario: IUser | string;
@@ -54,6 +65,7 @@ export interface IReservation {
   kmRetorno?: number;
   fotosSalida?: string[];
   fotosRetorno?: string[];
+  tramos?: ITramo[];
   observaciones?: string;
   motivoRechazo?: string;
   createdAt: string;

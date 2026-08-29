@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ActiveVehiclesMap } from '../components/ActiveVehiclesMap';
 import { RandomInspectionsPanel } from '../components/RandomInspectionsPanel';
+import { FlagsPanel } from '../components/FlagsPanel';
+import { ProfilePanel } from '../components/ProfilePanel';
+import { ViewUserModal } from '../components/ViewUserModal';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LabelList } from 'recharts';
 import type { IUser, IReservation, IVehicle } from '../types';
 import camionetaBlancaImg from '../assets/camioneta-blanca.png';
@@ -37,7 +40,7 @@ const ESTADO_RES_COLORS: Record<string, string> = {
   cancelada: '#ef4444',
 };
 
-type DashTab = 'dashboard' | 'usuarios' | 'reservaciones' | 'vehiculos-activos' | 'vehiculos' | 'reportes' | 'inspecciones' | 'perfil' | 'soporte';
+type DashTab = 'dashboard' | 'usuarios' | 'reservaciones' | 'vehiculos-activos' | 'vehiculos' | 'reportes' | 'inspecciones' | 'banderas' | 'perfil' | 'soporte';
 
 const MOCK_REPORTES_DATA = [
   { name: 'Ventas', res: 12, costo: 120000, km: 800, horas: 45 },
@@ -164,6 +167,11 @@ function Dashboard() {
 
   // ── Cargar datos al cambiar tab ──
   useEffect(() => {
+    if (activeTab === 'dashboard') {
+      fetchUsers();
+      fetchReservations();
+      fetchVehicles();
+    }
     if (activeTab === 'usuarios') fetchUsers();
     if (activeTab === 'reservaciones') {
       fetchReservations();
@@ -264,16 +272,20 @@ function Dashboard() {
   // ────────── CRUD USUARIOS ──────────
   const openEdit = (u: IUser) => {
     setEditUser(u);
-    setEditForm({ nombre: u.nombre, apellido: u.apellido, email: u.email, departamento: u.departamento || '', telefono: u.telefono || '', rol: u.rol, activo: u.activo });
+    let tel = (u.telefono || '').replace(/^\+569/, '').replace(/\s+/g, '');
+    setEditForm({ nombre: u.nombre, apellido: u.apellido, email: u.email, departamento: u.departamento || '', telefono: tel, rol: u.rol, activo: u.activo });
   };
 
   const saveEdit = async () => {
     if (!editUser) return;
     try {
+      const payload = { ...editForm };
+      if (payload.telefono) payload.telefono = `+569${payload.telefono}`;
+      
       await fetch(`http://localhost:5000/api/users/${editUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify(payload),
       });
       setEditUser(null);
       fetchUsers();
@@ -292,7 +304,9 @@ function Dashboard() {
     e.preventDefault();
     try {
       const formData = new FormData();
-      Object.entries(createForm).forEach(([key, value]) => formData.append(key, value));
+      const payload = { ...createForm };
+      if (payload.telefono) payload.telefono = `+569${payload.telefono}`;
+      Object.entries(payload).forEach(([key, value]) => formData.append(key, value));
       if (!createUserLicenciaFile) {
         alert('La foto de la licencia es obligatoria');
         return;
@@ -724,18 +738,18 @@ function Dashboard() {
             <span className="btn-icon"></span> Reservaciones
           </button>
           <button
-            id="sidebar-btn-vehiculos-activos"
-            className={`sidebar-btn${activeTab === 'vehiculos-activos' ? ' active' : ''}`}
-            onClick={() => setActiveTab('vehiculos-activos')}
-          >
-            <span className="btn-icon"></span> Vehículos Activos
-          </button>
-          <button
             id="sidebar-btn-vehiculos"
             className={`sidebar-btn${activeTab === 'vehiculos' ? ' active' : ''}`}
             onClick={() => setActiveTab('vehiculos')}
           >
             <span className="btn-icon"></span> Configuración Flota
+          </button>
+          <button
+            id="sidebar-btn-vehiculos-activos"
+            className={`sidebar-btn${activeTab === 'vehiculos-activos' ? ' active' : ''}`}
+            onClick={() => setActiveTab('vehiculos-activos')}
+          >
+            <span className="btn-icon"></span> Vehículos Activos
           </button>
           <button
             id="sidebar-btn-inspecciones"
@@ -744,6 +758,15 @@ function Dashboard() {
           >
             <span className="btn-icon"></span> Insp. Aleatorias
           </button>
+          {user?.rol === 'admin' && (
+            <button
+              id="sidebar-btn-banderas"
+              className={`sidebar-btn${activeTab === 'banderas' ? ' active' : ''}`}
+              onClick={() => setActiveTab('banderas')}
+            >
+              <span className="btn-icon"></span> Banderas
+            </button>
+          )}
           {user?.rol === 'admin' && (
             <button
               id="sidebar-btn-reportes"
@@ -1006,7 +1029,7 @@ function Dashboard() {
           <div style={{ width: '100%', overflowX: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '700', color: '#000' }}> Usuarios</h2>
-              <button className="btn btn-create" onClick={() => setShowCreateUser(true)}>➕ Agregar Usuario</button>
+              <button className="btn btn-create" onClick={() => setShowCreateUser(true)}>Agregar Usuario</button>
             </div>
             {loadingUsers && <p className="res-status">Cargando usuarios…</p>}
             {errorUsers && <p className="res-status res-error">{errorUsers}</p>}
@@ -1250,12 +1273,12 @@ function Dashboard() {
             <div className="vehicles-grid" style={{ maxWidth: '100%' }}>
               {vehicles.map(v => {
                 const imgUrl = getVehicleImage(v);
-                const activeRes = reservations.find(r => 
-                  (typeof r.vehiculo === 'string' ? r.vehiculo === v._id : r.vehiculo?._id === v._id) && 
+                const activeRes = reservations.find(r =>
+                  (typeof r.vehiculo === 'string' ? r.vehiculo === v._id : r.vehiculo?._id === v._id) &&
                   r.estado === 'en_curso'
                 );
                 const userObj = activeRes && typeof activeRes.usuario !== 'string' ? activeRes.usuario as any : null;
-                
+
                 return (
                   <div key={v._id} className="vehicle-card">
                     <img src={imgUrl} alt={`${v.marca} ${v.modelo}`} className="vehicle-card-img" />
@@ -1318,6 +1341,23 @@ function Dashboard() {
           <RandomInspectionsPanel token={token} users={users} vehicles={vehicles} />
         )}
 
+        {/* ══════════ TAB: BANDERAS ══════════ */}
+        {activeTab === 'banderas' && user?.rol === 'admin' && (
+          <FlagsPanel token={token} />
+        )}
+
+        {/* ══════════ TAB: PERFIL ══════════ */}
+        {activeTab === 'perfil' && (
+          <ProfilePanel
+            user={user}
+            token={token}
+            onUpdateUser={(updatedUser) => {
+              localStorage.setItem('user', JSON.stringify(updatedUser));
+              window.location.reload();
+            }}
+          />
+        )}
+
         {/* ══════════ TAB: REPORTES DE GASTOS (MOCK) ══════════ */}
         {activeTab === 'reportes' && (
           <div className="reportes-panel" style={{ width: '100%' }}>
@@ -1374,9 +1414,9 @@ function Dashboard() {
                     <BarChart data={MOCK_REPORTES_DATA} margin={{ top: 20 }}>
                       <XAxis dataKey="name" tick={{ fill: 'var(--text-p)' }} stroke="var(--border)" />
                       <YAxis hide />
-                      <Tooltip contentStyle={{ backgroundColor: 'var(--bg-input)', borderColor: 'var(--border)' }} itemStyle={{ color: 'var(--text-p)', textAlign: 'center' }} labelStyle={{ color: 'var(--text-h)', textAlign: 'center' }} formatter={(val: number) => `$${val.toLocaleString('es-CL')}`} />
+                      <Tooltip contentStyle={{ backgroundColor: 'var(--bg-input)', borderColor: 'var(--border)' }} itemStyle={{ color: 'var(--text-p)', textAlign: 'center' }} labelStyle={{ color: 'var(--text-h)', textAlign: 'center' }} formatter={(val: any) => `$${Number(val).toLocaleString('es-CL')}`} />
                       <Bar dataKey="costo" fill="#3D9FD3" radius={[4, 4, 0, 0]}>
-                        <LabelList dataKey="costo" position="insideTop" fill="#fff" formatter={(val: number) => `$${val.toLocaleString('es-CL')}`} offset={15} style={{ fontWeight: 'bold', fontSize: '0.9rem' }} />
+                        <LabelList dataKey="costo" position="insideTop" fill="#fff" formatter={(val: any) => `$${Number(val).toLocaleString('es-CL')}`} offset={15} style={{ fontWeight: 'bold', fontSize: '0.9rem' }} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -1412,19 +1452,7 @@ function Dashboard() {
           </div>
         )}
 
-        {activeTab === 'perfil' && (
-          <div style={{ width: '100%', textAlign: 'center', padding: '4rem', backgroundColor: 'var(--bg-card)', borderRadius: '12px' }}>
-            <h2 style={{ color: 'var(--text-h)' }}>Configuración de Perfil</h2>
-            <p style={{ color: 'var(--text-p)', fontSize: '1.1rem' }}>Módulo en desarrollo. Próximamente podrás configurar los detalles de tu cuenta de administrador aquí.</p>
-          </div>
-        )}
 
-        {activeTab === 'soporte' && (
-          <div style={{ width: '100%', textAlign: 'center', padding: '4rem', backgroundColor: 'var(--bg-card)', borderRadius: '12px' }}>
-            <h2 style={{ color: 'var(--text-h)' }}>Soporte Técnico</h2>
-            <p style={{ color: 'var(--text-p)', fontSize: '1.1rem' }}>Módulo en desarrollo. Próximamente dispondrás de opciones para contactar al soporte técnico del sistema.</p>
-          </div>
-        )}
       </main>
 
       {/* ══════════ MODAL: DETALLE VEHÍCULO (Admin) ══════════ */}
@@ -1573,6 +1601,21 @@ function Dashboard() {
                 </p>
               )}
 
+              {selectedReservation.tramos && selectedReservation.tramos.length > 1 && (
+                <div style={{ marginTop: '1rem', borderTop: '1px solid #e5e7eb', paddingTop: '1rem' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0' }}>Historial de Conductores (Cambios de Mando)</h4>
+                  <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.95rem' }}>
+                    {selectedReservation.tramos.map((tramo, idx) => (
+                      <li key={idx} style={{ marginBottom: '0.5rem' }}>
+                        <strong>Conductor:</strong> {typeof tramo.conductor === 'object' && tramo.conductor !== null ? `${(tramo.conductor as any).nombre} ${(tramo.conductor as any).apellido}` : 'Desconocido'} <br />
+                        <strong>Inicio:</strong> {new Date(tramo.fechaInicio).toLocaleString('es-CL')} <br />
+                        {tramo.fechaFin && <><strong>Fin:</strong> {new Date(tramo.fechaFin).toLocaleString('es-CL')}</>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {selectedReservation.kmRetorno !== undefined && selectedReservation.kmRetorno !== null && (
                 <div className="km-retorno-box">
                   <p className="km-retorno-text">
@@ -1681,90 +1724,70 @@ function Dashboard() {
 
       {/* ══════════ MODAL: VER USUARIO ══════════ */}
       {viewUser && (
-        <div className="modal-overlay" onClick={() => setViewUser(null)}>
-          <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '480px', width: '90%', color: '#000', textAlign: 'left', position: 'relative' }} onClick={e => e.stopPropagation()}>
-            <button onClick={() => setViewUser(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
-            <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}>Detalles del Usuario</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem', fontSize: '1.05rem' }}>
-              <p style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
-                <strong>Nombre:</strong> <span style={{ marginLeft: '4px' }}>{viewUser.nombre} {viewUser.apellido}</span>
-                {viewUser.banderaActual && (
-                  <span style={{
-                    display: 'inline-block', width: '14px', height: '14px', borderRadius: '50%',
-                    backgroundColor: viewUser.banderaActual === 'verde' ? '#22c55e' : viewUser.banderaActual === 'amarilla' ? '#eab308' : viewUser.banderaActual === 'naranja' ? '#f97316' : '#ef4444',
-                    border: '1px solid #fff', boxShadow: '0 0 0 1px #ccc', marginLeft: '8px'
-                  }} title={`Bandera ${viewUser.banderaActual}`} />
-                )}
-              </p>
-              <p style={{ margin: 0 }}><strong>Email:</strong> {viewUser.email}</p>
-              <p style={{ margin: 0 }}><strong>Departamento:</strong> {viewUser.departamento}</p>
-              <p style={{ margin: 0 }}><strong>Teléfono:</strong> {viewUser.telefono || 'N/A'}</p>
-              <p style={{ margin: 0 }}><strong>Rol:</strong> {viewUser.rol === 'admin' ? 'Administrador' : 'Usuario'}</p>
-              <p style={{ margin: 0 }}><strong>Licencia:</strong> {viewUser.licenciaAlDia ? 'Al Día' : 'No Al Día'}</p>
-
-              {viewUser.historialBanderas && viewUser.historialBanderas.length > 0 && (
-                <div style={{ marginTop: '0.5rem', borderTop: '1px solid #e5e7eb', paddingTop: '1rem' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', color: '#374151' }}>Historial de Banderas</h4>
-                  <ul style={{ paddingLeft: '0', listStyleType: 'none', margin: 0, fontSize: '0.95rem' }}>
-                    {viewUser.historialBanderas.map((bandera, i) => (
-                      <li key={i} style={{ marginBottom: '8px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                        <span style={{
-                          display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', flexShrink: 0, marginTop: '4px',
-                          backgroundColor: bandera.tipo === 'verde' ? '#22c55e' : bandera.tipo === 'amarilla' ? '#eab308' : bandera.tipo === 'naranja' ? '#f97316' : '#ef4444'
-                        }} />
-                        <div>
-                          <strong>{new Date(bandera.fecha).toLocaleDateString('es-CL')}</strong>: {bandera.motivo}
-                          {bandera.asignadoPor && <span style={{ color: '#6b7280', fontSize: '0.85rem' }}> (por {bandera.asignadoPor})</span>}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-              {viewUser.rol !== 'admin' ? (
-                <>
-                  <button className="btn" style={{ backgroundColor: '#175fbd', color: 'black' }} onClick={() => { setViewUser(null); openEdit(viewUser); }}>Editar</button>
-                  <button className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black' }} onClick={() => { setViewUser(null); setShowDeleteUserConfirm(viewUser.id); }}>Eliminar</button>
-                </>
-              ) : (
-                <span style={{ fontSize: '0.9rem', color: '#888', fontStyle: 'italic', padding: '0.5rem' }}>Usuario protegido (no se puede editar ni eliminar)</span>
-              )}
-            </div>
-          </div>
-        </div>
+        <ViewUserModal
+          user={viewUser}
+          token={token}
+          currentUserRole={user?.rol || 'usuario'}
+          onClose={() => setViewUser(null)}
+          onEdit={(u) => { setViewUser(null); openEdit(u); }}
+          onDelete={(id) => { setViewUser(null); setShowDeleteUserConfirm(id); }}
+          onUpdateSuccess={(updatedUser) => {
+            setUsers(prev => prev.map(u => u.id === updatedUser.id || (u as any)._id === (updatedUser as any)._id ? updatedUser : u));
+            setViewUser(updatedUser);
+          }}
+        />
       )}
 
       {/* ══════════ MODAL: EDITAR USUARIO ══════════ */}
       {editUser && (
         <div className="modal-overlay" onClick={() => setEditUser(null)}>
-          <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '480px', width: '90%', color: '#000', textAlign: 'left', position: 'relative' }} onClick={e => e.stopPropagation()}>
-            <button onClick={() => setEditUser(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
-            <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}>Editar Usuario</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {(['nombre', 'apellido', 'email', 'departamento', 'telefono'] as const).map(field => (
-                <div key={field}>
-                  <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem', textTransform: 'capitalize' }}>{field}:</label>
-                  <input className="reserv-input" style={{ width: '100%', boxSizing: 'border-box' }} value={editForm[field]} onChange={e => setEditForm(f => ({ ...f, [field]: e.target.value }))} />
+          <div style={{ position: 'relative', width: '90%', maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+            <form className="login-form" onSubmit={(e) => { e.preventDefault(); saveEdit(); }} style={{ margin: '0 auto' }}>
+              <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center', color: '#000' }}>Editar Usuario</h2>
+              {([['nombre', 'Nombre'], ['apellido', 'Apellido'], ['email', 'Email'], ['departamento', 'Departamento'], ['telefono', 'Teléfono']] as [keyof typeof editForm, string][]).map(([field, label]) => (
+                <div key={field} className="form-group">
+                  <label>{label}</label>
+                  {field === 'telefono' ? (
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                      <span style={{ padding: '7.4px 12px', background: '#7c7c7cff', borderRight: 'none', borderRadius: '6px 0 0 6px', color: '#333', fontWeight: 'bold' }}>+569</span>
+                      <input
+                        type="text"
+                        maxLength={8}
+                        placeholder="12345678"
+                        value={editForm[field] as string}
+                        onChange={e => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          setEditForm(f => ({ ...f, [field]: val }));
+                        }}
+                        style={{ flex: 1, borderRadius: '0 6px 6px 0' }}
+                      />
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={editForm[field] as string}
+                      onChange={e => setEditForm(f => ({ ...f, [field]: e.target.value }))}
+                      required={field !== 'departamento'}
+                    />
+                  )}
                 </div>
               ))}
-              <div>
-                <label style={{ fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Rol:</label>
-                <select className="reserv-select" value={editForm.rol} onChange={e => setEditForm(f => ({ ...f, rol: e.target.value as 'usuario' | 'admin' }))}>
+              <div className="form-group">
+                <label>Rol</label>
+                <select value={editForm.rol} onChange={e => setEditForm(f => ({ ...f, rol: e.target.value as 'usuario' | 'admin' }))}>
                   <option value="usuario">Usuario</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <label style={{ fontWeight: '600', color: editForm.activo ? '#22c55e' : '#ef4444', minWidth: '70px' }}>{editForm.activo ? 'Activo' : 'Inactivo'}:</label>
-                <input type="checkbox" checked={editForm.activo} onChange={e => setEditForm(f => ({ ...f, activo: e.target.checked }))} style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: editForm.activo ? '#22c55e' : '#ef4444' }} />
+              <div className="form-group" style={{ alignItems: 'center' }}>
+                <label style={{ color: editForm.activo ? '#22c55e' : '#ef4444', fontWeight: 'bold' }}>{editForm.activo ? 'Activo' : 'Inactivo'}</label>
+                <input type="checkbox" checked={editForm.activo} onChange={e => setEditForm(f => ({ ...f, activo: e.target.checked }))} style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: editForm.activo ? '#22c55e' : '#ef4444', marginLeft: 'auto' }} />
               </div>
-            </div>
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'center' }}>
-              <button className="btn" style={{ backgroundColor: '#175fbd', color: 'black' }} onClick={saveEdit}> Guardar</button>
-              <button className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black' }} onClick={() => setEditUser(null)}>Cancelar</button>
-            </div>
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', justifyContent: 'center' }}>
+                <button type="submit" className="btn" style={{ background: 'linear-gradient(to right, #3D9FD3, #FFFFFF, #B5B8BE)', color: 'black', border: '2px solid black', borderRadius: '8px', padding: '0.5rem 1.5rem', fontWeight: 'bold' }}>Guardar Cambios</button>
+                <button type="button" className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black', borderRadius: '8px', padding: '0.5rem 1.5rem', fontWeight: 'bold' }} onClick={() => setEditUser(null)}>Cancelar</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -1809,12 +1832,12 @@ function Dashboard() {
                       />
                     </div>
                   ) : (
-                    <input 
-                      type={field === 'password' ? 'password' : 'text'} 
-                      value={createForm[field]} 
-                      onChange={e => setCreateForm(f => ({ ...f, [field]: e.target.value }))} 
+                    <input
+                      type={field === 'password' ? 'password' : 'text'}
+                      value={createForm[field]}
+                      onChange={e => setCreateForm(f => ({ ...f, [field]: e.target.value }))}
                       placeholder={field === 'email' ? 'persona@empresa.com' : undefined}
-                      required={field !== 'departamento'} 
+                      required={field !== 'departamento'}
                     />
                   )}
                 </div>
