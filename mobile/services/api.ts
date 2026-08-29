@@ -8,6 +8,9 @@ const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
+    'Bypass-Tunnel-Reminder': 'true', // Omitir página de advertencia de localtunnel
+    'ngrok-skip-browser-warning': 'true', // Por si usas ngrok
+    'X-Pinggy-No-Screen': 'true' // Omitir página de advertencia de Pinggy
   },
 });
 

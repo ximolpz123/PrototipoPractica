@@ -30,7 +30,6 @@ export default function AdminMapScreen() {
   const { colors, isDark } = useTheme();
   const styles = React.useMemo(() => getStyles(colors), [colors]);
   
-
   const { showAlert } = useAlert();
   const [vehicles, setVehicles] = useState<IVehicleLocation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +51,14 @@ export default function AdminMapScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      // Solicitar permisos para poder mostrar la ubicación del Admin
+      (async () => {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          console.log('Permiso de ubicación denegado para el Admin');
+        }
+      })();
+
       fetchLocations();
       const interval = setInterval(fetchLocations, 30000);
       return () => clearInterval(interval);
@@ -89,6 +96,7 @@ export default function AdminMapScreen() {
         style={styles.map}
         initialRegion={initialRegion}
         showsUserLocation={true}
+        showsMyLocationButton={true}
         onPress={() => setSelectedVehicle(null)}
       >
         {activeVehicles.map(v => (

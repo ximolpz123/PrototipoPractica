@@ -32,7 +32,8 @@
         "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_LOCATION"
-      ]
+      ],
+      "package": "com.bitnets.flota"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -46,6 +47,13 @@
           "locationWhenInUsePermission": "Necesitamos tu ubicación para rastrear el vehículo durante el viaje.",
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#3D9FD3"
         }
       ]
     ],

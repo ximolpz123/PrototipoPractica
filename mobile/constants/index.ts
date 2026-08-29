@@ -1,8 +1,9 @@
 import { Appearance } from 'react-native';
 
-export const API_URL = 'https://prototipopractica-production-68f6.up.railway.app/api'; // Railway producción
-//export const API_URL = 'http://172.20.48.176:5000/api'; // IP Wi-Fi local
-//export const API_URL = 'http://26.215.108.13:5000/api';   // IP Radmin VPN
+export const API_URL = 'https://euool-181-42-193-235.run.pinggy-free.link/api'; // Pinggy URL (127.0.0.1)
+//export const API_URL = 'https://bfalx-181-42-196-231.run.pinggy-free.link/api'; // Pinggy URL
+//export const API_URL = 'https://cold-trams-punch.loca.lt/api'; // Localtunnel URL
+//export const API_URL = 'https://prototipopractica-production-68f6.up.railway.app/api'; // Railway producción
 
 const isDarkMode = Appearance.getColorScheme() === 'dark';
 
