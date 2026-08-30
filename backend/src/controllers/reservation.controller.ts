@@ -624,11 +624,13 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
       return;
     }
 
-    // Validar fotos faltantes (pero NO bloquear, se evaluará para banderas)
+    // Validar fotos faltantes para Banderas
+    // (Ahora las fotos de retorno son opcionales excepto el tablero, por lo que solo penalizamos por las de salida)
     const requiredFotos = ['frontal', 'lateralDer', 'lateralIzq', 'trasero', 'tablero', 'interior'];
     const faltanSalidaCount = requiredFotos.filter(pos => !(reservation.fotosSalida as any)?.[pos]).length;
-    const faltanRetornoCount = requiredFotos.filter(pos => !(reservation.fotosRetorno as any)?.[pos]).length;
-    const missingPhotosCount = faltanSalidaCount + faltanRetornoCount;
+    // La foto del tablero en el retorno sigue siendo obligatoria conceptualmente,
+    // pero para las banderas, evaluaremos principalmente la salida y la puntualidad.
+    const missingPhotosCount = faltanSalidaCount;
 
     // Validar que kmRetorno > kmSalida (si se registró kmSalida)
     if (reservation.kmSalida && kmRetorno < reservation.kmSalida) {
@@ -695,13 +697,12 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
     if (isVeryLate || noGas || hasDamage) {
       assignedColor = 'roja';
       assignedMotivo = 'Llegó muy tarde, vehículo chocado, sin gasolina, o rueda pinchada.';
-    } else if (faltanRetornoCount >= 5 || (isLate && missingPhotosCount > 0)) {
-      // faltanRetornoCount >= 5 significa "Solo 1 foto tomada" (de las 6 del retorno)
+    } else if (faltanSalidaCount >= 5 || (isLate && missingPhotosCount > 0)) {
       assignedColor = 'naranja';
-      assignedMotivo = 'Solo 1 foto tomada o vehículo entregado tarde sin avisar.';
+      assignedMotivo = 'Faltan casi todas las fotos obligatorias de inicio, o entregado tarde sin avisar.';
     } else if ((missingPhotosCount >= 1 && missingPhotosCount <= 4) || lowGas) {
       assignedColor = 'amarilla';
-      assignedMotivo = 'Faltó 1–2 fotos, o nivel de bencina bajo al devolver.';
+      assignedMotivo = 'Faltaron fotos al iniciar el viaje, o nivel de bencina bajo al devolver.';
     } else {
       // Revisar si califica para Verde (2 entregas perfectas seguidas)
       // Busca reservas donde el conductor que entregó fue el creador O participó en un tramo
@@ -716,8 +717,7 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
       if (last2.length === 2) {
         let perfect = true;
         for (const r of last2) {
-          const mCount = requiredFotos.filter(pos => !(r.fotosSalida as any)?.[pos]).length + 
-                         requiredFotos.filter(pos => !(r.fotosRetorno as any)?.[pos]).length;
+          const mCount = requiredFotos.filter(pos => !(r.fotosSalida as any)?.[pos]).length;
           const lGas = (r.nivelBencinaRetorno !== undefined && r.nivelBencinaRetorno < 100);
           const rLate = r.fechaFin && (new Date(r.updatedAt).getTime() - new Date(r.fechaFin).getTime() > 0);
           if (mCount > 0 || lGas || rLate) perfect = false;

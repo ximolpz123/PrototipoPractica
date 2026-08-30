@@ -145,6 +145,13 @@ export default function CameraScreen({ route, navigation }: any) {
     setCurrentStep(stepIndex);
   };
 
+  const skipPhoto = () => {
+    const pos = POSITIONS[currentStep];
+    const newPhotos = { ...photos, [pos]: 'skipped' };
+    setPhotos(newPhotos);
+    setCurrentStep(currentStep + 1);
+  };
+
   const confirmarOdometro = () => {
     const kmNum = parseInt(manualKm, 10);
     if (isNaN(kmNum) || kmNum < 0) {
@@ -172,9 +179,11 @@ export default function CameraScreen({ route, navigation }: any) {
     try {
       const formData = new FormData();
       formData.append('tipo', tipo);
-      formData.append('posiciones', JSON.stringify(POSITIONS));
 
-      POSITIONS.forEach((pos) => {
+      const validPositions = POSITIONS.filter(pos => photos[pos] && photos[pos] !== 'skipped');
+      formData.append('posiciones', JSON.stringify(validPositions));
+
+      validPositions.forEach((pos) => {
         formData.append('fotos', {
           uri: photos[pos],
           name: `${pos}.jpg`,
@@ -302,9 +311,16 @@ export default function CameraScreen({ route, navigation }: any) {
                   <Text style={styles.aiLoadingText}>Analizando kilometraje del tablero...</Text>
                 </View>
             ) : (
-              <TouchableOpacity style={styles.captureBtn} onPress={takePicture}>
-                <View style={styles.captureInner} />
-              </TouchableOpacity>
+              <View style={styles.captureControls}>
+                <TouchableOpacity style={styles.captureBtn} onPress={takePicture}>
+                  <View style={styles.captureInner} />
+                </TouchableOpacity>
+                {(tipo === 'relevo' || tipo === 'retorno') && POSITIONS[currentStep] !== 'tablero' && (
+                  <TouchableOpacity style={styles.skipBtn} onPress={skipPhoto}>
+                    <Text style={styles.skipBtnText}>Saltar (Opcional) ⏭️</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             )}
           </View>
         </View>
@@ -314,7 +330,13 @@ export default function CameraScreen({ route, navigation }: any) {
           <View style={styles.gallery}>
             {POSITIONS.map((pos, index) => (
               <TouchableOpacity key={pos} style={styles.galleryItem} onPress={() => retakePhoto(index)}>
-                <Image source={{ uri: photos[pos] }} style={styles.thumbnail} />
+                <Image 
+                  source={photos[pos] === 'skipped' ? undefined : { uri: photos[pos] }} 
+                  style={[styles.thumbnail, photos[pos] === 'skipped' && styles.thumbnailSkipped]} 
+                />
+                {photos[pos] === 'skipped' && (
+                  <View style={StyleSheet.absoluteFillObject}><Text style={styles.skippedTextLabel}>Omitida</Text></View>
+                )}
                 <Text style={styles.thumbnailLabel}>{LABELS[index]}</Text>
                 <View style={styles.retakeBadge}><Text style={styles.retakeText}>↺</Text></View>
               </TouchableOpacity>
@@ -449,6 +471,23 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  captureControls: {
+    alignItems: 'center',
+    gap: 15,
+  },
+  skipBtn: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  skipBtnText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
   captureInner: {
     width: 60,
     height: 60,
@@ -496,6 +535,20 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     borderRadius: 8,
     borderWidth: 2,
     borderColor: colors.border,
+  },
+  thumbnailSkipped: {
+    backgroundColor: colors.grayLight,
+    borderStyle: 'dashed',
+    opacity: 0.5,
+  },
+  skippedTextLabel: {
+    position: 'absolute',
+    top: '40%',
+    width: '100%',
+    textAlign: 'center',
+    color: colors.textMuted,
+    fontWeight: 'bold',
+    fontSize: 12,
   },
   thumbnailLabel: {
     color: colors.text,
