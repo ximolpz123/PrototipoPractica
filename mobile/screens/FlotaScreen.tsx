@@ -221,6 +221,26 @@ export default function FlotaScreen() {
                   </View>
                 )}
 
+                {/* Botón Documentos */}
+                <TouchableOpacity
+                  style={styles.docsBtn}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    setSelectedVehicleDetails(null);
+                    setTimeout(() => {
+                      navigation.navigate('VehicleDocuments', {
+                        vehicleId: selectedVehicleDetails._id,
+                        vehicleName: `${selectedVehicleDetails.marca} ${selectedVehicleDetails.modelo}`,
+                        isAdmin,
+                        documentosIniciales: (selectedVehicleDetails as any).documentos || {},
+                      });
+                    }, 250); // pequeño delay para que el bottom sheet cierre primero
+                  }}
+                >
+                  <Ionicons name="document-text-outline" size={20} color="#fff" />
+                  <Text style={styles.docsBtnText}>Ver Documentos del Vehículo</Text>
+                </TouchableOpacity>
+
                 <TouchableOpacity 
                   style={styles.closeBtn} 
                   onPress={() => setSelectedVehicleDetails(null)}
@@ -508,6 +528,22 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  docsBtn: {
+    backgroundColor: '#1E3A5F',
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    ...SHADOWS?.elegant,
+  },
+  docsBtnText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
   },
   modalOverlayCenter: {
     flex: 1,

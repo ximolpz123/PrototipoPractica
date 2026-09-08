@@ -241,3 +241,53 @@ export const uploadVehicleImage = async (req: Request, res: Response): Promise<v
     res.status(500).json({ message: 'Error al subir imagen de vehículo', error });
   }
 };
+
+// ── v3: Subir / actualizar documento legal de vehículo (admin) ──────────────
+const TIPOS_DOCUMENTO_VALIDOS = ['permisoCirculacion', 'soap', 'revisionTecnica', 'seguro'];
+
+export const updateVehicleDocumento = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const file = req.file;
+    const { tipo, vencimiento } = req.body;
+
+    if (!file) {
+      res.status(400).json({ message: 'Se requiere una imagen del documento' });
+      return;
+    }
+
+    if (!TIPOS_DOCUMENTO_VALIDOS.includes(tipo)) {
+      res.status(400).json({ message: `Tipo de documento inválido. Debe ser uno de: ${TIPOS_DOCUMENTO_VALIDOS.join(', ')}` });
+      return;
+    }
+
+    const vehicle = await Vehicle.findById(req.params.id);
+    if (!vehicle) {
+      res.status(404).json({ message: 'Vehículo no encontrado' });
+      return;
+    }
+
+    // Inicializar documentos si no existe
+    if (!vehicle.documentos) {
+      (vehicle as any).documentos = {};
+    }
+
+    // Actualizar el documento específico
+    (vehicle as any).documentos[tipo] = {
+      url: file.path, // Cloudinary URL
+      vencimiento: vencimiento ? new Date(vencimiento) : undefined,
+    };
+
+    // Marcar el subdocumento como modificado para Mongoose
+    vehicle.markModified('documentos');
+    await vehicle.save();
+
+    res.json({
+      message: `Documento "${tipo}" actualizado correctamente`,
+      documento: (vehicle as any).documentos[tipo],
+    });
+  } catch (error) {
+    console.error('Error al actualizar documento:', error);
+    res.status(500).json({ message: 'Error al actualizar el documento del vehículo', error });
+  }
+};
+

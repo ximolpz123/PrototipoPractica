@@ -9,6 +9,7 @@ import {
   setVehicleMaintenance,
   uploadVehicleImage,
   iaCreateVehicle,
+  updateVehicleDocumento,
 } from '../controllers/vehicle.controller.js';
 import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
 import { upload } from '../config/cloudinary.js';
@@ -40,5 +41,8 @@ router.post('/upload-image', authMiddleware, adminMiddleware, upload.single('ima
 
 // POST /api/vehicles/ia-create (solo admin)
 router.post('/ia-create', authMiddleware, adminMiddleware, upload.array('fotos', 5), iaCreateVehicle);
+
+// PATCH /api/vehicles/:id/documento (solo admin) — Sube/actualiza un documento legal
+router.patch('/:id/documento', authMiddleware, adminMiddleware, upload.single('imagen'), updateVehicleDocumento);
 
 export default router;
