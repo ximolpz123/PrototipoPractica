@@ -2,7 +2,9 @@ import cron from 'node-cron';
 import Reservation from '../models/Reservation.js';
 import InspeccionAleatoria, { TipoInspeccion } from '../models/InspeccionAleatoria.js';
 import Flag from '../models/Flag.js';
+import User from '../models/User.js';
 import { sendPushNotification, notifyAdmins } from '../services/notification.service.js';
+import { updateUserPoints } from '../services/points.service.js';
 
 export const initCronJobs = () => {
   // Se ejecuta cada minuto
@@ -183,6 +185,8 @@ export const initCronJobs = () => {
           
           insp.flagAsignada = flag._id;
           await insp.save();
+
+          await updateUserPoints(insp.usuario.toString(), tipoFlag);
 
           await notifyAdmins(
             'Inspección Vencida', 

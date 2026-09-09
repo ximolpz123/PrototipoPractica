@@ -9,8 +9,9 @@ export type TipoInspeccion =
 
 export interface IInspeccionAleatoria extends Document {
   usuario: Types.ObjectId;
-  reserva: Types.ObjectId;
-  tipo: TipoInspeccion;
+  reserva?: Types.ObjectId;
+  vehiculo?: Types.ObjectId;       // Para inspecciones manuales sin reserva
+  tipo: TipoInspeccion | string;   // string para tareas manuales
   descripcion: string;             // Mensaje que verá el conductor
   estado: 'pendiente' | 'respondida' | 'vencida';
   respuestaFotosUrls?: string[];
@@ -33,11 +34,15 @@ const inspeccionSchema = new Schema<IInspeccionAleatoria>(
     reserva: {
       type: Schema.Types.ObjectId,
       ref: 'Reservation',
-      required: true,
+      required: false,
+    },
+    vehiculo: {
+      type: Schema.Types.ObjectId,
+      ref: 'Vehicle',
+      required: false,
     },
     tipo: {
       type: String,
-      enum: ['revisarNeumaticos', 'tomarFotoInterior', 'verificarBencina', 'revisarCarroceria', 'tomarFotoTablero'],
       required: true,
     },
     descripcion: {

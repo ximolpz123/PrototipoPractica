@@ -20,13 +20,14 @@ interface ActiveVehicle {
     longitud: number;
     timestamp: string;
   };
-  conductor?: string;
+  conductor?: any;
   departamento?: string;
 }
 
 interface ActiveVehiclesMapProps {
   token: string | null;
   isAdmin: boolean;
+  reservations?: any[];
 }
 
 const USER_ICON = L.divIcon({
@@ -57,7 +58,19 @@ const VEHICLE_ICON = L.divIcon({
   iconAnchor: [20, 20],
 });
 
-export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
+const formatConductor = (c: any) => {
+  if (!c) return 'No asignado';
+  if (typeof c === 'object') return `${c.nombre || ''} ${c.apellido || ''}`.trim() || 'No asignado';
+  return c;
+};
+
+const formatDepto = (veh: any) => {
+  if (veh.departamento) return veh.departamento;
+  if (veh.conductor && typeof veh.conductor === 'object' && veh.conductor.departamento) return veh.conductor.departamento;
+  return 'No asignado';
+};
+
+export function ActiveVehiclesMap({ token, isAdmin, reservations }: ActiveVehiclesMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
@@ -69,6 +82,22 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(60);
+
+  const displayVehicles = activeVehicles.length > 0 ? activeVehicles : (reservations || [])
+    .filter(r => r.estado === 'completada' || r.estado === 'completado')
+    .map(r => {
+      const veh = r.vehiculo && typeof r.vehiculo === 'object' ? r.vehiculo : {};
+      const usr = r.usuario && typeof r.usuario === 'object' ? r.usuario : {};
+      return {
+        _id: r._id,
+        marca: veh.marca || 'Vehículo',
+        modelo: veh.modelo || 'Desconocido',
+        placa: veh.placa || 'N/A',
+        conductor: usr,
+        departamento: usr.departamento || 'No asignado',
+        ubicacionActual: null,
+      } as unknown as ActiveVehicle;
+    });
 
   // Fetch active vehicles
   const fetchActiveVehicles = useCallback(async () => {
@@ -154,28 +183,26 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
         ? new Date(timestamp).toLocaleString('es-CL')
         : 'Desconocido';
 
+      const cName = formatConductor(v.conductor);
+      const cDepto = formatDepto(v);
+
+      const popupHtml = `
+        <div style="font-family:system-ui;min-width:160px">
+          <div style="font-weight:700;font-size:1rem;margin-bottom:4px;color:#000;">🚗 ${v.marca} ${v.modelo}</div>
+          <div style="color:#444;font-size:.85rem;margin-bottom:2px"><b>Conductor:</b> ${cName}</div>
+          <div style="color:#444;font-size:.85rem;margin-bottom:4px"><b>Depto:</b> ${cDepto}</div>
+          <div style="color:#666;font-size:.85rem"><b>Patente:</b> ${v.placa}</div>
+          <div style="color:#666;font-size:.85rem"><b>Última señal:</b><br>${lastSeen}</div>
+        </div>`;
+
       const existing = vehicleMarkersRef.current.get(v._id);
       if (existing) {
         existing.setLatLng(latlng);
-        existing.setPopupContent(`
-          <div style="font-family:system-ui;min-width:160px">
-            <div style="font-weight:700;font-size:1rem;margin-bottom:4px;color:#000;">🚗 ${v.marca} ${v.modelo}</div>
-            <div style="color:#444;font-size:.85rem;margin-bottom:2px"><b>Conductor:</b> ${v.conductor || 'No asignado'}</div>
-            <div style="color:#444;font-size:.85rem;margin-bottom:4px"><b>Depto:</b> ${v.departamento || 'No asignado'}</div>
-            <div style="color:#666;font-size:.85rem"><b>Patente:</b> ${v.placa}</div>
-            <div style="color:#666;font-size:.85rem"><b>Última señal:</b><br>${lastSeen}</div>
-          </div>`);
+        existing.setPopupContent(popupHtml);
       } else {
         const marker = L.marker(latlng, { icon: VEHICLE_ICON })
           .addTo(map)
-          .bindPopup(`
-            <div style="font-family:system-ui;min-width:160px">
-              <div style="font-weight:700;font-size:1rem;margin-bottom:4px;color:#000;">🚗 ${v.marca} ${v.modelo}</div>
-              <div style="color:#444;font-size:.85rem;margin-bottom:2px"><b>Conductor:</b> ${v.conductor || 'No asignado'}</div>
-              <div style="color:#444;font-size:.85rem;margin-bottom:4px"><b>Depto:</b> ${v.departamento || 'No asignado'}</div>
-              <div style="color:#666;font-size:.85rem"><b>Patente:</b> ${v.placa}</div>
-              <div style="color:#666;font-size:.85rem"><b>Última señal:</b><br>${lastSeen}</div>
-            </div>`, { maxWidth: 250 });
+          .bindPopup(popupHtml, { maxWidth: 250 });
         vehicleMarkersRef.current.set(v._id, marker);
       }
     });
@@ -222,7 +249,7 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
           Vehículos Activos
         </h2>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          {!locationError && isAdmin && (
+          {/* {!locationError && isAdmin && (
             <span style={{
               fontSize: '0.9rem', fontWeight: '600', color: '#ffffffff', background: '#629effff',
               padding: '0.2rem 1rem', borderRadius: '8px', border: '2px solid #000000ff',
@@ -230,7 +257,7 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
             }}>
               Actualización en:&nbsp;<strong>{formatCountdown(countdown)}</strong>
             </span>
-          )}
+          )} */}
           {userLocation && (
             <button
               onClick={centerOnUser}
@@ -312,78 +339,91 @@ export function ActiveVehiclesMap({ token, isAdmin }: ActiveVehiclesMapProps) {
         </div>
       )}
 
-      {/* Map */}
-      <div style={{
-        display: locationError ? 'none' : 'block',
-        borderRadius: '12px', overflow: 'hidden',
-        border: '2px solid #e5e7eb',
-        boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-        height: '480px', position: 'relative'
-      }}>
-        <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
-      </div>
-
-      {/* Vehicle table (admin + vehicles exist) */}
-      {!locationError && isAdmin && activeVehicles.length > 0 && (
-        <div style={{ borderRadius: '12px', overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
-          <div style={{ background: '#033a83ff', color: 'white', padding: '0.75rem 1.25rem', fontWeight: '700', fontSize: '1rem', textAlign: 'center' }}>
-            Detalle de Vehículos en Curso
-          </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table className="admin-table" style={{ borderRadius: 0, boxShadow: 'none', fontSize: '0.95rem' }}>
-              <thead>
-                <tr>
-                  <th style={{ padding: '0.6rem 1rem' }}>Vehículo</th>
-                  <th style={{ padding: '0.6rem 1rem' }}>Patente</th>
-                  <th style={{ padding: '0.6rem 1rem' }}>Última señal GPS</th>
-                  <th style={{ padding: '0.6rem 1rem', textAlign: 'center' }}>Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeVehicles.map((v) => (
-                  <tr key={v._id}>
-                    <td style={{ padding: '0.6rem 1rem' }}>{v.marca} {v.modelo}</td>
-                    <td style={{ padding: '0.6rem 1rem' }}>
-                      <span style={{
-                        background: '#f59e0b', color: 'white', padding: '0.2rem 0.6rem',
-                        borderRadius: '6px', fontWeight: '700', fontSize: '0.85rem'
-                      }}>
-                        {v.placa}
-                      </span>
-                    </td>
-                    <td style={{ padding: '0.6rem 1rem' }}>
-                      {v.ubicacionActual
-                        ? new Date(v.ubicacionActual.timestamp).toLocaleString('es-CL')
-                        : <span style={{ color: '#ef4444' }}>Sin señal GPS</span>}
-                    </td>
-                    <td style={{ padding: '0.6rem 1rem', textAlign: 'center' }}>
-                      {v.ubicacionActual && (
-                        <button
-                          onClick={() => {
-                            if (mapRef.current && v.ubicacionActual) {
-                              mapRef.current.setView(
-                                [v.ubicacionActual.latitud, v.ubicacionActual.longitud], 16
-                              );
-                              vehicleMarkersRef.current.get(v._id)?.openPopup();
-                            }
-                          }}
-                          style={{
-                            background: '#175fbd', color: 'white', border: 'none',
-                            borderRadius: '6px', padding: '0.3rem 0.8rem',
-                            cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600'
-                          }}
-                        >
-                          Ver en mapa
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      {/* Container for Map and Table */}
+      <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'stretch' }}>
+        {/* Map */}
+        <div style={{
+          flex: '1 1 500px',
+          display: locationError ? 'none' : 'block',
+          borderRadius: '12px', overflow: 'hidden',
+          border: '2px solid #e5e7eb',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+          height: '400px', position: 'relative'
+        }}>
+          <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
         </div>
-      )}
+
+        {/* Vehicle table (admin + vehicles exist) */}
+        {!locationError && isAdmin && (
+          <div style={{ flex: '1 1 500px', height: '400px', display: 'flex', flexDirection: 'column', borderRadius: '12px', overflow: 'hidden', boxShadow: 'var(--shadow)', border: '2px solid #e5e7eb' }}>
+            <div style={{ background: '#033a83ff', color: 'white', padding: '0.75rem 1.25rem', fontWeight: '700', fontSize: '1rem', textAlign: 'center', flexShrink: 0 }}>
+              Detalle de Vehículos en Curso
+            </div>
+            <div style={{ overflowY: 'auto', overflowX: 'auto', flex: 1, background: '#fff' }}>
+              <table className="admin-table" style={{ borderRadius: 0, boxShadow: 'none', fontSize: '0.85rem', width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th style={{ padding: '0.5rem' }}>Vehículo</th>
+                    <th style={{ padding: '0.5rem' }}>Conductor</th>
+                    <th style={{ padding: '0.5rem' }}>Departamento</th>
+                    <th style={{ padding: '0.5rem' }}>Patente</th>
+                    <th style={{ padding: '0.5rem' }}>Última señal GPS</th>
+                    <th style={{ padding: '0.5rem', textAlign: 'center' }}>Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayVehicles.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>No hay vehículos en curso en este momento.</td>
+                    </tr>
+                  ) : (
+                    displayVehicles.map((v) => (
+                      <tr key={v._id}>
+                        <td style={{ padding: '0.5rem' }}>{v.marca} {v.modelo}</td>
+                        <td style={{ padding: '0.5rem' }}>{formatConductor(v.conductor)}</td>
+                        <td style={{ padding: '0.5rem' }}>{formatDepto(v)}</td>
+                        <td style={{ padding: '0.5rem' }}>
+                          <span style={{
+                            background: '#f59e0b', color: 'white', padding: '0.2rem 0.5rem',
+                            borderRadius: '6px', fontWeight: '700', fontSize: '0.8rem'
+                          }}>
+                            {v.placa}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.5rem' }}>
+                          {v.ubicacionActual
+                            ? new Date(v.ubicacionActual.timestamp).toLocaleString('es-CL')
+                            : <span style={{ color: '#ef4444' }}>Sin señal GPS</span>}
+                        </td>
+                        <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                          {v.ubicacionActual && (
+                            <button
+                              onClick={() => {
+                                if (mapRef.current && v.ubicacionActual) {
+                                  mapRef.current.setView(
+                                    [v.ubicacionActual.latitud, v.ubicacionActual.longitud], 16
+                                  );
+                                  vehicleMarkersRef.current.get(v._id)?.openPopup();
+                                }
+                              }}
+                              style={{
+                                background: '#175fbd', color: 'white', border: 'none',
+                                borderRadius: '6px', padding: '0.2rem 0.6rem',
+                                cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600'
+                              }}
+                            >
+                              Ver
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    )))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -81,13 +81,16 @@ export function ViewUserModal({ user, onClose, onEdit, onDelete, onUpdateSuccess
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem', fontSize: '1.05rem' }}>
           <p style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
             <strong>Nombre:</strong> <span style={{ marginLeft: '4px' }}>{user.nombre} {user.apellido}</span>
-            {user.banderaActual && (
-              <span style={{
-                display: 'inline-block', width: '14px', height: '14px', borderRadius: '50%',
-                backgroundColor: user.banderaActual === 'verde' ? '#22c55e' : user.banderaActual === 'amarilla' ? '#eab308' : user.banderaActual === 'naranja' ? '#f97316' : '#ef4444',
-                border: '1px solid #fff', boxShadow: '0 0 0 1px #ccc', marginLeft: '8px'
-              }} title={`Bandera ${user.banderaActual}`} />
-            )}
+            {(() => {
+              const currentFlag = user.banderaActual || 'verde';
+              return (
+                <span style={{
+                  display: 'inline-block', width: '14px', height: '14px', borderRadius: '50%',
+                  backgroundColor: currentFlag === 'verde' ? '#22c55e' : currentFlag === 'amarilla' ? '#eab308' : currentFlag === 'naranja' ? '#f97316' : '#ef4444',
+                  border: '1px solid #fff', boxShadow: '0 0 0 1px #ccc', marginLeft: '8px'
+                }} title={`Bandera ${currentFlag}`} />
+              );
+            })()}
           </p>
           <p style={{ margin: 0 }}><strong>Email:</strong> {user.email}</p>
           <p style={{ margin: 0 }}><strong>Departamento:</strong> {user.departamento}</p>

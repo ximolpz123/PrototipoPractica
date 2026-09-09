@@ -23,7 +23,7 @@ import logo from '../assets/bit-mejorado.png';
 const ESTADO_VEHICLE_COLORS: Record<string, string> = {
   disponible: '#22c55e',
   reservado: '#f59e0b',
-  mantenimiento: '#3b82f6',
+  mantenimiento: '#ede47b',
   fuera_de_servicio: '#ef4444',
 };
 const ESTADO_VEHICLE_LABELS: Record<string, string> = {
@@ -149,8 +149,10 @@ function Dashboard() {
 
   // ── Filtros de Reservaciones ──
   const [resFilterVehicle, setResFilterVehicle] = useState('todos');
-  const [resFilterDate, setResFilterDate] = useState('');
-  const [resFilterPhotos, setResFilterPhotos] = useState('todas');
+  const [resFilterStartDate, setResFilterStartDate] = useState('');
+  const [resFilterEndDate, setResFilterEndDate] = useState('');
+  const [resFilterDepartment, setResFilterDepartment] = useState('todos');
+  const [resFilterUser, setResFilterUser] = useState('todos');
   const [resFilterStatus, setResFilterStatus] = useState('todos');
 
   // ── Estado Vehículos ──
@@ -162,10 +164,13 @@ function Dashboard() {
   const [showEditVehicle, setShowEditVehicle] = useState<IVehicle | null>(null);
   const [vehicleForm, setVehicleForm] = useState(EMPTY_VEHICLE_FORM);
   const [vehicleImageFile, setVehicleImageFile] = useState<File | null>(null);
+  const [showMaintenanceConfirm, setShowMaintenanceConfirm] = useState<string | null>(null);
+  const [maintenanceReason, setMaintenanceReason] = useState('');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
   const [loadingAI, setLoadingAI] = useState(false);
   const [aiDataLoaded, setAiDataLoaded] = useState(false);
+  const [showAIPanel, setShowAIPanel] = useState(false);
 
   // ── Cargar datos al cambiar tab ──
   useEffect(() => {
@@ -305,7 +310,7 @@ function Dashboard() {
     e.preventDefault();
     try {
       const formData = new FormData();
-      const payload = { ...createForm };
+      const payload = { ...createForm, banderaActual: 'verde' };
       if (payload.telefono) payload.telefono = `+569${payload.telefono}`;
       Object.entries(payload).forEach(([key, value]) => formData.append(key, value));
       if (!createUserLicenciaFile) {
@@ -427,6 +432,38 @@ function Dashboard() {
     } catch { alert('Error al eliminar vehículo'); }
   };
 
+  const markAsOutOfService = async (id: string) => {
+    if (!token || !selectedVehicle) return;
+    try {
+      const updatedVehicle = { ...selectedVehicle, estado: 'fuera_de_servicio' };
+      await fetch(`http://localhost:5000/api/vehicles/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(updatedVehicle),
+      });
+      setShowDeleteVehicleConfirm(null);
+      setSelectedVehicle(null);
+      fetchVehicles();
+    } catch { alert('Error al dar de baja el vehículo'); }
+  };
+
+  const sendToMaintenance = async (id: string) => {
+    if (!token || !selectedVehicle) return;
+    try {
+      const updatedVehicle = { ...selectedVehicle, estado: 'mantenimiento', motivoMantenimiento: maintenanceReason };
+      await fetch(`http://localhost:5000/api/vehicles/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(updatedVehicle),
+      });
+      setShowMaintenanceConfirm(null);
+      setMaintenanceReason('');
+      setSelectedVehicle(updatedVehicle);
+      fetchVehicles();
+      alert('Vehículo enviado a mantenimiento exitosamente');
+    } catch { alert('Error al enviar a mantenimiento'); }
+  };
+
   // ── Aprobar Reservación ──
   const approveReservation = async (id: string) => {
     setApprovingId(id);
@@ -477,10 +514,37 @@ function Dashboard() {
   // ────────── Helper: form vehículo compartido ──────────
   const renderVehicleFormFields = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      {/* showCreateVehicle && !aiDataLoaded && (
+      {showCreateVehicle && !aiDataLoaded && (
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <button
+            type="button"
+            onClick={() => setShowAIPanel(!showAIPanel)}
+            style={{
+              padding: '0.6rem 1.2rem',
+              borderRadius: '8px',
+              border: 'none',
+              background: showAIPanel ? '#ef4444' : '#0ea5e9',
+              color: 'white',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              marginBottom: '0.5rem',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+          >
+            {showAIPanel ? 'Cerrar Autocompletar IA' : '✨ Abrir Autocompletar IA'}
+          </button>
+        </div>
+      )}
+
+      {showCreateVehicle && !aiDataLoaded && showAIPanel && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', padding: '1.25rem', background: 'linear-gradient(135deg, #0ea5e9, #0369a1)', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', color: '#ffffff', border: 'none' }}>
-          <label style={{ fontWeight: '700', color: '#ffffff', margin: 0, fontSize: '1.1rem' }}>✨ Autocompletar con IA (Opcional)</label>
-          <span style={{ fontSize: '0.9rem', color: '#e0f2fe', textAlign: 'center' }}>Sube fotos del vehículo para que la IA extraiga Patente, Marca y Kilometraje.</span>
+          <label style={{ fontWeight: '700', color: '#ffffff', margin: 0, fontSize: '1.1rem' }}>✨ Autocompletar con IA</label>
+          <span style={{ fontSize: '0.9rem', color: '#e0f2fe', textAlign: 'center', maxWidth: '600px' }}>
+            Sube <strong>hasta 3 fotos</strong> para autocompletar: <br />
+            1° Foto del auto donde aparezca la patente.<br />
+            2° Foto del tablero (indicadores de Km y bencina).<br />
+            3° Foto del interior del auto.
+          </span>
           <input
             type="file"
             multiple
@@ -490,11 +554,16 @@ function Dashboard() {
             disabled={loadingAI}
             onChange={async (e) => {
               if (e.target.files && e.target.files.length > 0) {
+                if (e.target.files.length > 3) {
+                  alert('Por favor sube un máximo de 3 fotos, como se indica en las instrucciones.');
+                  e.target.value = '';
+                  return;
+                }
                 setLoadingAI(true);
                 try {
                   const formData = new FormData();
                   Array.from(e.target.files).forEach(file => formData.append('fotos', file));
-                  
+
                   const res = await fetch('http://localhost:5000/api/vehicles/ia-create', {
                     method: 'POST',
                     headers: { Authorization: `Bearer ${token}` },
@@ -502,7 +571,7 @@ function Dashboard() {
                   });
                   if (!res.ok) throw new Error('Error al procesar con IA');
                   const data = await res.json();
-                  
+
                   setVehicleForm(prev => ({
                     ...prev,
                     placa: data.patente || prev.placa,
@@ -521,12 +590,12 @@ function Dashboard() {
           />
           {loadingAI && <span style={{ color: '#ffffff', fontWeight: 'bold', marginTop: '0.5rem' }}>Analizando con IA... ⏳</span>}
         </div>
-      ) */}
-      {/* showCreateVehicle && aiDataLoaded && (
+      )}
+      {showCreateVehicle && aiDataLoaded && (
         <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-panel)', color: '#22c55e', borderRadius: '8px', textAlign: 'center', marginBottom: '0.5rem', fontWeight: 'bold', border: '1px solid #22c55e' }}>
           ✨ ¡Datos extraídos por IA! Por favor, verifica y completa los campos.
         </div>
-      ) */}
+      )}
       <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '220px' }}>
           <label style={{ fontWeight: '600', width: '70px', margin: 0, textAlign: 'right' }}>Placa:</label>
@@ -693,15 +762,22 @@ function Dashboard() {
       const vId = typeof r.vehiculo === 'object' && r.vehiculo !== null ? (r.vehiculo as any)._id : r.vehiculo;
       if (vId !== resFilterVehicle) return false;
     }
-    if (resFilterDate) {
-      const rDate = new Date(r.createdAt || r.fechaInicio).toISOString().split('T')[0];
-      if (rDate !== resFilterDate) return false;
+    const rDate = new Date(r.createdAt || r.fechaInicio).toISOString().split('T')[0];
+    if (resFilterStartDate && rDate < resFilterStartDate) return false;
+    if (resFilterEndDate && rDate > resFilterEndDate) return false;
+
+    if (resFilterUser !== 'todos') {
+      const uId = typeof r.usuario === 'object' && r.usuario !== null ? (r.usuario as any)._id : r.usuario;
+      if (uId !== resFilterUser) return false;
     }
-    if (resFilterPhotos === 'inicio') {
-      if (!r.fotosSalida || r.fotosSalida.length === 0) return false;
-    } else if (resFilterPhotos === 'fin') {
-      if (!r.fotosRetorno || r.fotosRetorno.length === 0) return false;
+
+    if (resFilterDepartment !== 'todos') {
+      const uId = typeof r.usuario === 'object' && r.usuario !== null ? (r.usuario as any)._id : r.usuario;
+      const uObj = users.find(u => u.id === uId || (u as any)._id === uId);
+      const dept = uObj ? uObj.departamento : (typeof r.usuario === 'object' && (r.usuario as any).departamento ? (r.usuario as any).departamento : 'Desconocido');
+      if (dept !== resFilterDepartment) return false;
     }
+
     return true;
   }).sort((a, b) => {
     const pA = ESTADO_PRIORITY[a.estado] || 99;
@@ -853,12 +929,26 @@ function Dashboard() {
       {/* ══════════ CONTENIDO PRINCIPAL ══════════ */}
       <main className="dashboard-content">
 
+        {/* ── Alertas del Sistema de Puntos ── */}
+        {user?.puntos !== undefined && user.puntos < 35 && user.puntos >= 10 && (
+          <div style={{ backgroundColor: '#fff3cd', color: '#856404', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', border: '1px solid #ffeeba', fontWeight: 'bold' }}>
+            ⚠️ Tienes {user.puntos} puntos. Estás en riesgo de bloqueo. Completa tus inspecciones de penalidad para no seguir bajando, y cumple tus reservas para subir.
+          </div>
+        )}
+        {user?.puntos !== undefined && user.puntos < 10 && (
+          <div style={{ backgroundColor: '#f8d7da', color: '#721c24', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', border: '1px solid #f5c6cb', fontWeight: 'bold' }}>
+            🚨 CUENTA BLOQUEADA: Tienes {user.puntos} puntos. Tu puntaje es demasiado bajo. No puedes crear nuevas reservaciones. Contacta al administrador.
+          </div>
+        )}
+
         {/* ── Bienvenida ── */}
-        <div className="welcome-header" style={{ maxWidth: '100%' }}>
-          <span className="welcome-text">
-            ¡Bienvenido! {user?.nombre ?? ''} {user?.apellido ?? ''}
-          </span>
-        </div>
+        {activeTab === 'dashboard' && (
+          <div className="welcome-header" style={{ maxWidth: '100%' }}>
+            <span className="welcome-text">
+              ¡Bienvenido! {user?.nombre ?? ''} {user?.apellido ?? ''}
+            </span>
+          </div>
+        )}
 
         {/* ══════════ TAB: DASHBOARD ══════════ */}
         {activeTab === 'dashboard' && (
@@ -1090,7 +1180,7 @@ function Dashboard() {
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>Nombre</th><th>Apellido</th><th>Email</th><th>Departamento</th><th>Teléfono</th><th>Licencia Estado</th><th>Rol</th><th>Activo</th><th style={{ textAlign: 'center' }}>Acciones</th>
+                    <th>Nombre</th><th>Apellido</th><th>Email</th><th>Departamento</th><th>Teléfono</th><th>Licencia Estado</th><th>Puntos</th><th>Rol</th><th>Activo</th><th style={{ textAlign: 'center' }}>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1102,6 +1192,14 @@ function Dashboard() {
                       <td>{u.departamento}</td>
                       <td>{u.telefono || 'N/A'}</td>
                       <td><span className="status-badge" style={{ backgroundColor: u.licenciaAlDia ? '#22c55e' : '#ef4444' }}>{u.licenciaAlDia ? 'Al Día' : 'No Al Día'}</span></td>
+                      <td>
+                        <span className="status-badge" style={{
+                          backgroundColor: u.banderaActual === 'verde' ? '#22c55e' : u.banderaActual === 'amarilla' ? '#eab308' : u.banderaActual === 'naranja' ? '#f97316' : u.banderaActual === 'roja' ? '#ef4444' : '#9ca3af',
+                          color: u.banderaActual === 'amarilla' ? 'black' : 'white'
+                        }}>
+                          {u.puntos ?? 100} pts
+                        </span>
+                      </td>
                       <td><span className="status-badge" style={{ backgroundColor: u.rol === 'admin' ? '#175fbd' : '#6b7280' }}>{u.rol}</span></td>
                       <td><span className="status-badge" style={{ backgroundColor: u.activo ? '#22c55e' : '#ef4444' }}>{u.activo ? 'Sí' : 'No'}</span></td>
                       <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
@@ -1134,7 +1232,7 @@ function Dashboard() {
                 {user?.rol === 'admin' && (
                   <div className="filter-panel" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem', padding: '1rem', borderRadius: '8px', width: '100%', boxSizing: 'border-box', alignItems: 'flex-end' }}>
                     <div style={{ flex: '1' }}>
-                      <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>Filtro de Estado de las Reservas</label>
+                      <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem', textAlign: 'center' }}>Estado de las Reservas</label>
                       <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '44px' }} value={resFilterStatus} onChange={e => setResFilterStatus(e.target.value)}>
                         <option value="todos">Todos los Estados</option>
                         <option value="en_curso">En Curso</option>
@@ -1145,7 +1243,7 @@ function Dashboard() {
                       </select>
                     </div>
                     <div style={{ flex: '1' }}>
-                      <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>Vehículo</label>
+                      <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem', textAlign: 'center' }}>Vehículo</label>
                       <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '44px' }} value={resFilterVehicle} onChange={e => setResFilterVehicle(e.target.value)}>
                         <option value="todos">Todos los Vehículos</option>
                         {vehicles.map(v => (
@@ -1154,16 +1252,30 @@ function Dashboard() {
                       </select>
                     </div>
                     <div style={{ flex: '1' }}>
-                      <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>Fecha de Creación</label>
-                      <input type="date" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '44px' }} value={resFilterDate} onChange={e => setResFilterDate(e.target.value)} />
+                      <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem', textAlign: 'center' }}>Fecha Inicio</label>
+                      <input type="date" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '44px' }} value={resFilterStartDate} onChange={e => setResFilterStartDate(e.target.value)} />
                     </div>
                     <div style={{ flex: '1' }}>
-                      <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>Evidencia</label>
+                      <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem', textAlign: 'center' }}>Fecha Fin</label>
+                      <input type="date" className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '44px' }} value={resFilterEndDate} onChange={e => setResFilterEndDate(e.target.value)} />
+                    </div>
+                    <div style={{ flex: '1' }}>
+                      <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem', textAlign: 'center' }}>Departamento</label>
+                      <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '44px' }} value={resFilterDepartment} onChange={e => setResFilterDepartment(e.target.value)}>
+                        <option value="todos">Todos</option>
+                        {Array.from(new Set(users.map(u => u.departamento))).filter(Boolean).map(d => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ flex: '1' }}>
+                      <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem', textAlign: 'center', paddingRight: '66px' }}>Usuario</label>
                       <div style={{ display: 'flex', gap: '0.5rem', height: '44px' }}>
-                        <select className="reserv-input" style={{ flex: '1', boxSizing: 'border-box', height: '100%' }} value={resFilterPhotos} onChange={e => setResFilterPhotos(e.target.value)}>
-                          <option value="todas">Toda la evidencia</option>
-                          <option value="inicio">Solo de inicio</option>
-                          <option value="fin">Solo de fin</option>
+                        <select className="reserv-input" style={{ flex: '1', boxSizing: 'border-box', height: '100%' }} value={resFilterUser} onChange={e => setResFilterUser(e.target.value)}>
+                          <option value="todos">Todos</option>
+                          {users.map(u => (
+                            <option key={u.id} value={u.id}>{u.nombre} {u.apellido}</option>
+                          ))}
                         </select>
                         <button
                           className="btn"
@@ -1219,21 +1331,18 @@ function Dashboard() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                           <select className="reserv-input" style={{ flex: 1, boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={createResForm.usuarioId} onChange={e => setCreateResForm({ ...createResForm, usuarioId: e.target.value })} required>
                             <option value="me">Para mí (Administrador)</option>
-                            {users.filter(u => u.activo).map(u => (
+                            {users.filter(u => u.activo && u.id !== user?.id && (u as any)._id !== (user as any)?._id).map(u => (
                               <option key={u.id} value={u.id}>{u.nombre} {u.apellido}</option>
                             ))}
                           </select>
                           {(() => {
                             const selectedUser = createResForm.usuarioId === 'me' ? user : users.find(u => u.id === createResForm.usuarioId);
-                            if (selectedUser?.banderaActual) {
-                              return (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold', color: 'var(--text-p)' }}>
-
-                                  <span style={{ display: 'inline-block', width: '20px', height: '20px', borderRadius: '50%', backgroundColor: selectedUser.banderaActual === 'verde' ? '#22c55e' : selectedUser.banderaActual === 'amarilla' ? '#eab308' : selectedUser.banderaActual === 'naranja' ? '#f97316' : '#ef4444', border: '2px solid #000' }} title={`Bandera ${selectedUser.banderaActual}`} />
-                                </div>
-                              );
-                            }
-                            return null;
+                            const flagColor = selectedUser?.banderaActual || 'verde';
+                            return (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold', color: 'var(--text-p)' }}>
+                                <span style={{ display: 'inline-block', width: '20px', height: '20px', borderRadius: '50%', backgroundColor: flagColor === 'verde' ? '#22c55e' : flagColor === 'amarilla' ? '#eab308' : flagColor === 'naranja' ? '#f97316' : '#ef4444', border: '2px solid #000' }} title={`Bandera ${flagColor}`} />
+                              </div>
+                            );
                           })()}
                         </div>
                         {(() => {
@@ -1276,7 +1385,7 @@ function Dashboard() {
                         <textarea className="reserv-textarea" style={{ width: '100%', boxSizing: 'border-box', minHeight: '60px', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-p)' }} value={createResForm.motivo} onChange={e => setCreateResForm({ ...createResForm, motivo: e.target.value })} required placeholder="Describa el motivo de uso..." />
                       </div>
                       <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', justifyContent: 'center' }}>
-                        <button type="submit" className="btn" disabled={isCreatingRes} style={{ background: 'linear-gradient(to right, #3D9FD3, #FFFFFF, #B5B8BE)', color: 'black', border: '2px solid black', borderRadius: '8px', padding: '0.5rem 1rem', margin: 0 }}>
+                        <button type="submit" className="btn" disabled={isCreatingRes || (user?.puntos !== undefined && user.puntos < 10)} style={{ background: 'linear-gradient(to right, #3D9FD3, #FFFFFF, #B5B8BE)', color: 'black', border: '2px solid black', borderRadius: '8px', padding: '0.5rem 1rem', margin: 0 }}>
                           {isCreatingRes ? 'Creando...' : 'Crear Reservación'}
                         </button>
                         <button type="button" className="btn" onClick={() => setShowCreateRes(false)} disabled={isCreatingRes} style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black', borderRadius: '8px', padding: '0.5rem 1rem', margin: 0 }}>Cancelar</button>
@@ -1305,7 +1414,7 @@ function Dashboard() {
         {/* ══════════ TAB: VEHÍCULOS ACTIVOS ══════════ */}
         {activeTab === 'vehiculos-activos' && (
           <div style={{ width: '100%' }}>
-            <ActiveVehiclesMap token={token} isAdmin={user?.rol === 'admin'} />
+            <ActiveVehiclesMap token={token} isAdmin={user?.rol === 'admin'} reservations={reservations} />
           </div>
         )}
 
@@ -1574,17 +1683,38 @@ function Dashboard() {
             {showDeleteVehicleConfirm === selectedVehicle._id ? (
               <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '1.25rem', textAlign: 'center' }}>
                 <p style={{ fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '1rem', color: '#000' }}>
-                  ¿Desea eliminar este Vehículo?
+                  {selectedVehicle.estado === 'fuera_de_servicio'
+                    ? '¿Desea eliminar este vehículo permanentemente?'
+                    : '¿Desea dar de baja (fuera de servicio) este vehículo?'}
                 </p>
                 <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                  <button className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', padding: '0.5rem 2rem', border: '2px solid black' }} onClick={() => deleteVehicle(selectedVehicle._id)}>Sí</button>
-                  <button className="btn" style={{ backgroundColor: '#175fbd', color: 'black', padding: '0.5rem 2rem' }} onClick={() => setShowDeleteVehicleConfirm(null)}>No</button>
+                  <button className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'white', padding: '0.5rem 2rem' }} onClick={() => selectedVehicle.estado === 'fuera_de_servicio' ? deleteVehicle(selectedVehicle._id) : markAsOutOfService(selectedVehicle._id)}>Sí</button>
+                  <button className="btn" style={{ backgroundColor: '#175fbd', color: 'white', padding: '0.5rem 2rem' }} onClick={() => setShowDeleteVehicleConfirm(null)}>No</button>
+                </div>
+              </div>
+            ) : showMaintenanceConfirm === selectedVehicle._id ? (
+              <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '1.25rem', textAlign: 'center' }}>
+                <p style={{ fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '0.5rem', color: '#000' }}>
+                  Enviar a Mantenimiento
+                </p>
+                <input
+                  type="text"
+                  className="reserv-input"
+                  style={{ width: '80%', marginBottom: '1rem', padding: '0.5rem', boxSizing: 'border-box' }}
+                  placeholder="Escriba el motivo del mantenimiento..."
+                  value={maintenanceReason}
+                  onChange={e => setMaintenanceReason(e.target.value)}
+                />
+                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                  <button className="btn" style={{ background: '#22c55e', color: 'white', padding: '0.5rem 2rem' }} onClick={() => sendToMaintenance(selectedVehicle._id)}>Confirmar</button>
+                  <button className="btn" style={{ backgroundColor: '#175fbd', color: 'black', padding: '0.5rem 2rem' }} onClick={() => setShowMaintenanceConfirm(null)}>Cancelar</button>
                 </div>
               </div>
             ) : (
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', borderTop: '1px solid #e5e7eb', paddingTop: '1.25rem', flexWrap: 'wrap' }}>
                 <button className="btn" style={{ backgroundColor: '#175fbd', color: 'black', padding: '0.6rem 1.8rem' }} onClick={() => openEditVehicle(selectedVehicle)}> Editar</button>
-                <button className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', padding: '0.6rem 1.8rem', border: '2px solid black' }} onClick={() => setShowDeleteVehicleConfirm(selectedVehicle._id)}> Eliminar</button>
+                <button className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', padding: '0.6rem 1.8rem' }} onClick={() => setShowDeleteVehicleConfirm(selectedVehicle._id)}> Eliminar</button>
+                <button className="btn" style={{ background: '#ede47b', color: 'black', padding: '0.6rem 1.8rem' }} onClick={() => { setShowMaintenanceConfirm(selectedVehicle._id); setMaintenanceReason(''); }}> Mantenimiento</button>
               </div>
             )}
           </div>
