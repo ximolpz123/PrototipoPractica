@@ -252,10 +252,10 @@ export default function VehicleDocumentsScreen({ route, navigation }: any) {
           display={Platform.OS === 'ios' ? 'inline' : 'default'}
           minimumDate={new Date()}
           onChange={handleDateConfirm}
-          onValueChange={(date?: Date) => { if (date) setSelectedDate(date); }}
           onDismiss={() => setShowDatePicker(false)}
         />
       )}
+
 
       {renderFullscreenViewer()}
     </View>
