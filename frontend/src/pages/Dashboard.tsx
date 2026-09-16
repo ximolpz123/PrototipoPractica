@@ -477,7 +477,7 @@ function Dashboard() {
   const sendToMaintenance = async (id: string) => {
     if (!token || !selectedVehicle) return;
     try {
-      const updatedVehicle = { ...selectedVehicle, estado: 'mantenimiento', motivoMantenimiento: maintenanceReason };
+      const updatedVehicle = { ...selectedVehicle, estado: 'mantenimiento', motivoMantenimiento: maintenanceReason } as any;
       await fetch(`http://localhost:5000/api/vehicles/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },

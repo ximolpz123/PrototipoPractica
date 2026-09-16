@@ -81,7 +81,6 @@ export function ActiveVehiclesMap({ token, isAdmin, reservations }: ActiveVehicl
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(60);
 
   const displayVehicles = activeVehicles.length > 0 ? activeVehicles : (reservations || [])
     .filter(r => r.estado === 'completada' || r.estado === 'completado')
@@ -214,24 +213,12 @@ export function ActiveVehiclesMap({ token, isAdmin, reservations }: ActiveVehicl
 
     intervalRef.current = setInterval(() => {
       fetchActiveVehicles();
-      setCountdown(60);
     }, 60000);
-
-    const countdownTimer = setInterval(() => {
-      setCountdown(prev => (prev <= 1 ? 60 : prev - 1));
-    }, 1000);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
-      clearInterval(countdownTimer);
     };
   }, [fetchActiveVehicles]);
-
-  const formatCountdown = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
 
   const centerOnUser = () => {
     if (userLocation && mapRef.current) {
