@@ -245,9 +245,9 @@ export function ActiveVehiclesMap({ token, isAdmin, reservations }: ActiveVehicl
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '700', color: '#000' }}>
+        <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '800', color: 'var(--text-h)', textTransform: 'uppercase', letterSpacing: '1px' }}>
           Vehículos Activos
-        </h2>
+        </h1>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           {/* {!locationError && isAdmin && (
             <span style={{
@@ -262,9 +262,10 @@ export function ActiveVehiclesMap({ token, isAdmin, reservations }: ActiveVehicl
             <button
               onClick={centerOnUser}
               style={{
-                background: '#3b82f6', color: 'white', border: '2px solid #000000ff', borderRadius: '8px',
-                padding: '0.4rem 1rem', cursor: 'pointer', fontWeight: '600', fontSize: '0.9rem',
-                display: 'inline-flex', alignItems: 'center', boxSizing: 'border-box'
+                background: 'var(--accent)', color: '#000', border: 'none', borderRadius: '8px',
+                padding: '0.4rem 1rem', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem',
+                display: 'inline-flex', alignItems: 'center', boxSizing: 'border-box',
+                boxShadow: '0 4px 12px rgba(0, 229, 255, 0.2)'
               }}
             >
               Mi Ubicación
@@ -303,34 +304,34 @@ export function ActiveVehiclesMap({ token, isAdmin, reservations }: ActiveVehicl
       {!locationError && isAdmin && (
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
           <div style={{
-            flex: 1, minWidth: '140px', background: '#f0f9ff', border: '1px solid #bae6fd',
+            flex: 1, minWidth: '140px', background: 'var(--bg-input)', border: '1px solid var(--border)',
             borderRadius: '12px', padding: '1rem', textAlign: 'center'
           }}>
-            <div style={{ fontSize: '2rem', fontWeight: '800', color: '#0284c7' }}>
+            <div style={{ fontSize: '2rem', fontWeight: '800', color: 'var(--accent)' }}>
               {activeVehicles.length}
             </div>
-            <div style={{ fontSize: '0.85rem', color: '#0369a1', fontWeight: '600' }}>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-p)', fontWeight: '600' }}>
               Vehículos en curso
             </div>
           </div>
           {lastUpdated ? (
             <div style={{
-              flex: 2, minWidth: '180px', background: '#f0fdf4', border: '1px solid #bbf7d0',
+              flex: 2, minWidth: '180px', background: 'var(--bg-input)', border: '1px solid var(--border)',
               borderRadius: '12px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem'
             }}>
               <span style={{ fontSize: '1.5rem' }}></span>
               <div>
-                <div style={{ fontWeight: '700', color: '#15803d', fontSize: '0.9rem' }}>Última actualización</div>
-                <div style={{ color: '#16a34a', fontSize: '0.85rem' }}>
+                <div style={{ fontWeight: '700', color: 'var(--text-p)', fontSize: '0.9rem' }}>Última actualización</div>
+                <div style={{ color: '#22c55e', fontSize: '0.85rem' }}>
                   {lastUpdated.toLocaleTimeString('es-CL')}
                 </div>
               </div>
             </div>
           ) : (
             <div style={{
-              flex: 2, minWidth: '180px', background: '#f9fafb', border: '1px solid #e5e7eb',
+              flex: 2, minWidth: '180px', background: 'var(--bg-input)', border: '1px solid var(--border)',
               borderRadius: '12px', padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem',
-              color: '#6b7280'
+              color: 'var(--text-p)'
             }}>
               <span style={{ fontSize: '1.5rem' }}></span>
               <div style={{ fontSize: '0.85rem' }}>Sin vehículos en curso ahora</div>
@@ -346,8 +347,8 @@ export function ActiveVehiclesMap({ token, isAdmin, reservations }: ActiveVehicl
           flex: '1 1 500px',
           display: locationError ? 'none' : 'block',
           borderRadius: '12px', overflow: 'hidden',
-          border: '2px solid #e5e7eb',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+          border: '1px solid var(--border)',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
           height: '400px', position: 'relative'
         }}>
           <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
@@ -355,11 +356,11 @@ export function ActiveVehiclesMap({ token, isAdmin, reservations }: ActiveVehicl
 
         {/* Vehicle table (admin + vehicles exist) */}
         {!locationError && isAdmin && (
-          <div style={{ flex: '1 1 500px', height: '400px', display: 'flex', flexDirection: 'column', borderRadius: '12px', overflow: 'hidden', boxShadow: 'var(--shadow)', border: '2px solid #e5e7eb' }}>
-            <div style={{ background: '#033a83ff', color: 'white', padding: '0.75rem 1.25rem', fontWeight: '700', fontSize: '1rem', textAlign: 'center', flexShrink: 0 }}>
+          <div style={{ flex: '1 1 500px', height: '400px', display: 'flex', flexDirection: 'column', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', border: '1px solid var(--border)' }}>
+            <div style={{ background: 'var(--bg-input)', color: 'var(--text-h)', padding: '0.75rem 1.25rem', fontWeight: '800', fontSize: '1rem', textAlign: 'center', flexShrink: 0, borderBottom: '1px solid var(--border)' }}>
               Detalle de Vehículos en Curso
             </div>
-            <div style={{ overflowY: 'auto', overflowX: 'auto', flex: 1, background: '#fff' }}>
+            <div style={{ overflowY: 'auto', overflowX: 'auto', flex: 1, background: 'var(--bg-panel)' }}>
               <table className="admin-table" style={{ borderRadius: 0, boxShadow: 'none', fontSize: '0.85rem', width: '100%' }}>
                 <thead>
                   <tr>

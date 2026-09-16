@@ -41,8 +41,18 @@ export const userService = {
   },
 
   // Asignar bandera manualmente (admin)
-  assignFlag: async (id: string, tipo: string, motivo: string): Promise<any> => {
-    const response = await api.post(`/users/${id}/flags`, { tipo, motivo });
+  assignFlag: async (id: string, tipo: string, motivo: string, file?: File | null): Promise<any> => {
+    const formData = new FormData();
+    formData.append('tipo', tipo);
+    formData.append('motivo', motivo);
+    if (file) {
+      formData.append('evidencia', file);
+    }
+    const response = await api.post(`/users/${id}/flags`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   }
 };

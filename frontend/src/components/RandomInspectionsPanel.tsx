@@ -189,7 +189,7 @@ export function RandomInspectionsPanel({ token, users = [], vehicles = [] }: Ran
   return (
     <div style={{ width: '100%', overflowX: 'auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '700', color: 'var(--text-h)' }}>Inspecciones Aleatorias</h2>
+        <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '800', color: 'var(--text-h)', textTransform: 'uppercase', letterSpacing: '1px' }}>Inspecciones Aleatorias</h1>
         {/* <button className="btn" style={{ backgroundColor: '#175fbd', color: 'white' }} onClick={() => setShowCreateModal(true)}>Crear Inspección</button> */}
       </div>
 
@@ -229,9 +229,9 @@ export function RandomInspectionsPanel({ token, users = [], vehicles = [] }: Ran
       {/* MODAL CREAR INSPECCIÓN */}
       {showCreateModal && (
         <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="modal-content" style={{ backgroundColor: 'var(--bg-card, #fff)', padding: '2rem', borderRadius: '12px', maxWidth: '500px', width: '90%', position: 'relative', color: 'var(--text-p)' }}>
-            <button onClick={() => setShowCreateModal(false)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold' }}>X</button>
-            <h2 style={{ marginTop: 0, marginBottom: '1.5rem', color: 'var(--text-h)', textAlign: 'center' }}>Nueva Inspección</h2>
+          <div className="modal-content" style={{ backgroundColor: 'var(--bg-panel)', padding: '2rem', borderRadius: '12px', maxWidth: '500px', width: '90%', position: 'relative', color: 'var(--text-p)', border: '1px solid var(--border)' }}>
+            <button onClick={() => setShowCreateModal(false)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: 'var(--bg-input)', color: 'var(--text-h)', cursor: 'pointer', fontWeight: 'bold' }}>X</button>
+            <h2 style={{ marginTop: 0, marginBottom: '1.5rem', color: 'var(--text-h)', textAlign: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>Nueva Inspección</h2>
 
             <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
@@ -303,10 +303,10 @@ export function RandomInspectionsPanel({ token, users = [], vehicles = [] }: Ran
       {/* MODAL DETALLES */}
       {selectedInspection && (
         <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="modal-content" style={{ backgroundColor: 'var(--bg-card, #fff)', padding: '2rem', borderRadius: '12px', maxWidth: '500px', width: '90%', position: 'relative', color: 'var(--text-p)' }}>
-            <button onClick={() => setSelectedInspection(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold' }}>X</button>
+          <div className="modal-content" style={{ backgroundColor: 'var(--bg-panel)', padding: '2rem', borderRadius: '12px', maxWidth: '500px', width: '90%', position: 'relative', color: 'var(--text-p)', border: '1px solid var(--border)' }}>
+            <button onClick={() => setSelectedInspection(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: 'var(--bg-input)', color: 'var(--text-h)', cursor: 'pointer', fontWeight: 'bold' }}>X</button>
 
-            <h2 style={{ marginTop: 0, marginBottom: '1rem', borderBottom: '1px solid #eee', paddingBottom: '0.5rem', color: 'var(--text-h)' }}>Detalle de Inspección</h2>
+            <h2 style={{ marginTop: 0, marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', color: 'var(--text-h)' }}>Detalle de Inspección</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem', fontSize: '1.05rem' }}>
               <p style={{ margin: 0 }}><strong>Conductor:</strong> {selectedInspection.conductorNombre}</p>
               <p style={{ margin: 0 }}><strong>Vehículo:</strong> {selectedInspection.vehiculoPlaca}</p>

@@ -69,9 +69,9 @@ export function FlagsPanel({ token }: FlagsPanelProps) {
 
   return (
     <div style={{ width: '100%', overflowX: 'auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '700', color: 'var(--text-h)' }}>Banderas y Alertas</h2>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+          <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '800', color: 'var(--text-h)', textTransform: 'uppercase', letterSpacing: '1px' }}>Banderas y Alertas</h1>
           <button 
             className="btn" 
             style={{ padding: '0 8px', borderRadius: '50%', minWidth: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0, fontWeight: 'bold' }}
@@ -81,7 +81,7 @@ export function FlagsPanel({ token }: FlagsPanelProps) {
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap', flex: 1, justifyContent: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap', flex: '0 1 auto', justifyContent: 'center' }}>
           <div className="flag-kpi flag-kpi-verde">
             <span style={{ display: 'inline-block', width: '14px', height: '14px', borderRadius: '50%', backgroundColor: '#22c55e' }} />
             <strong>Verde:</strong> {flags.filter(f => f.tipo === 'verde').length}
@@ -99,6 +99,7 @@ export function FlagsPanel({ token }: FlagsPanelProps) {
             <strong>Roja:</strong> {flags.filter(f => f.tipo === 'roja').length}
           </div>
         </div>
+        <div style={{ flex: 1 }}></div>
       </div>
 
       <div className="filter-panel" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem', padding: '1rem', borderRadius: '8px', alignItems: 'flex-end', boxSizing: 'border-box', width: '100%' }}>
@@ -179,16 +180,23 @@ export function FlagsPanel({ token }: FlagsPanelProps) {
       {/* MODAL DETALLES */}
       {selectedFlag && (
         <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="modal-content" style={{ backgroundColor: 'var(--bg-card, #fff)', padding: '2rem', borderRadius: '12px', maxWidth: '500px', width: '90%', position: 'relative', color: 'var(--text-p)' }}>
-            <button onClick={() => setSelectedFlag(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold' }}>X</button>
+          <div className="modal-content" style={{ backgroundColor: 'var(--bg-panel)', padding: '2rem', borderRadius: '12px', maxWidth: '500px', width: '90%', position: 'relative', color: 'var(--text-p)', border: '1px solid var(--border)' }}>
+            <button onClick={() => setSelectedFlag(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: 'var(--bg-input)', color: 'var(--text-h)', cursor: 'pointer', fontWeight: 'bold' }}>X</button>
 
-            <h2 style={{ marginTop: 0, marginBottom: '1rem', borderBottom: '1px solid #eee', paddingBottom: '0.5rem', color: 'var(--text-h)' }}>Detalle de Bandera</h2>
+            <h2 style={{ marginTop: 0, marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', color: 'var(--text-h)' }}>Detalle de Bandera</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem', fontSize: '1.05rem' }}>
               <p style={{ margin: 0 }}><strong>Tipo:</strong> {getFlagBadge(selectedFlag.tipo)}</p>
               <p style={{ margin: 0 }}><strong>Usuario:</strong> {selectedFlag.usuario ? `${selectedFlag.usuario.nombre} ${selectedFlag.usuario.apellido} (${selectedFlag.usuario.departamento})` : 'Desconocido'}</p>
               <p style={{ margin: 0 }}><strong>Motivo:</strong> {selectedFlag.motivo}</p>
               <p style={{ margin: 0 }}><strong>Asignado por:</strong> {selectedFlag.asignadoPor === 'admin' && selectedFlag.adminId ? `${selectedFlag.adminId.nombre} ${selectedFlag.adminId.apellido}` : 'Sistema'}</p>
               <p style={{ margin: 0 }}><strong>Fecha:</strong> {new Date(selectedFlag.createdAt).toLocaleString('es-CL')}</p>
+
+              {selectedFlag.evidenciaUrl && (
+                <div style={{ marginTop: '1rem', padding: '1rem', borderRadius: '8px', border: '1px solid #9ca3af' }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0' }}>Evidencia</h4>
+                  <img src={`http://localhost:5000${selectedFlag.evidenciaUrl}`} alt="Evidencia" style={{ width: '100%', borderRadius: '8px', maxHeight: '300px', objectFit: 'cover' }} />
+                </div>
+              )}
 
               {selectedFlag.reserva && (
                 <div style={{ marginTop: '1rem', padding: '1rem', borderRadius: '8px', border: '1px solid #9ca3af' }}>
@@ -211,9 +219,9 @@ export function FlagsPanel({ token }: FlagsPanelProps) {
       {/* MODAL AYUDA SISTEMA DE PUNTOS */}
       {showHelpModal && (
         <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="modal-content" style={{ backgroundColor: 'var(--bg-card, #fff)', padding: '2rem', borderRadius: '12px', maxWidth: '600px', width: '90%', position: 'relative', color: 'var(--text-p)', maxHeight: '90vh', overflowY: 'auto' }}>
-            <button onClick={() => setShowHelpModal(false)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold' }}>X</button>
-            <h2 style={{ marginTop: 0, marginBottom: '1rem', borderBottom: '1px solid #eee', paddingBottom: '0.5rem', color: 'var(--text-h)' }}>Sistema de Puntos y Banderas</h2>
+          <div className="modal-content" style={{ backgroundColor: 'var(--bg-panel)', padding: '2rem', borderRadius: '12px', maxWidth: '600px', width: '90%', position: 'relative', color: 'var(--text-p)', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border)' }}>
+            <button onClick={() => setShowHelpModal(false)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: 'var(--bg-input)', color: 'var(--text-h)', cursor: 'pointer', fontWeight: 'bold' }}>X</button>
+            <h2 style={{ marginTop: 0, marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', color: 'var(--text-h)' }}>Sistema de Puntos y Banderas</h2>
             
             <p>Todos los usuarios comienzan con <strong>100 puntos</strong>. El sistema clasifica el comportamiento mediante banderas:</p>
             <ul style={{ lineHeight: '1.6' }}>

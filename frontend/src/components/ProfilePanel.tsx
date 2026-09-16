@@ -80,7 +80,7 @@ export function ProfilePanel({ user, token, onUpdateUser }: ProfilePanelProps) {
   return (
     <>
       <div style={{ maxWidth: '800px', margin: '0 auto', padding: '1rem' }}>
-        <h2 style={{ fontSize: '1.8rem', marginBottom: '1.5rem', color: 'var(--text-h)' }}>Configuración de Perfil</h2>
+        <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '800', color: 'var(--text-h)', marginBottom: '1.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Configuración de Perfil</h1>
 
         <div className="filter-panel" style={{ padding: '2rem', borderRadius: '12px', marginBottom: '2rem' }}>
           <h3 style={{ marginTop: 0, borderBottom: '1px solid #ccc', paddingBottom: '0.5rem' }}>Información Personal</h3>
@@ -164,7 +164,7 @@ export function ProfilePanel({ user, token, onUpdateUser }: ProfilePanelProps) {
 
       {showConfirm && (
         <div className="modal-overlay" onClick={() => setShowConfirm(false)}>
-          <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '400px', width: '90%', color: '#000', textAlign: 'center', position: 'relative' }} onClick={e => e.stopPropagation()}>
+          <div className="modal-content" style={{ backgroundColor: 'var(--bg-panel)', padding: '2rem', borderRadius: '8px', maxWidth: '400px', width: '90%', color: 'var(--text-p)', textAlign: 'center', position: 'relative', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
             <h2 style={{ margin: '0' }}>¿Quiere guardar estos cambios?</h2>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
               <button className="btn" style={{ backgroundColor: '#22c55e', color: 'black', padding: '0.5rem 2rem' }} onClick={handleUpdateProfile}>Sí</button>

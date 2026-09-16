@@ -24,6 +24,7 @@ export interface IFlag {
   motivo: string;
   fecha: string;
   asignadoPor?: string;
+  evidenciaUrl?: string;
 }
 
 export interface IVehicle {

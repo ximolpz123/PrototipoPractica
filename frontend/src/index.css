@@ -1,26 +1,47 @@
-:root {
-  --text: #000000;
-  --text-h: #000000;
-  --bg: linear-gradient(to right,
-      #3D9FD3 0%, #3D9FD3 18%,
-      #FFFFFF 18%, #FFFFFF 100%);
-  --sidebar-width: 18%;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+:root {
+  /* Text */
+  --text: #1e3a8a;
+  /* blue-900 */
+  --text-h: #1e40af;
+  /* blue-800 */
+  --text-p: #1e3a8a;
+  /* blue-900 */
+
+  /* Backgrounds */
+  --bg-global: #93c5fd;
+  /* blue-300 */
+  --bg-sidebar: #bfdbfe;
+  /* blue-200 */
+  --bg-panel: #bfdbfe;
+  /* blue-200 */
+  --bg-input: #dbeafe;
+  /* blue-100 */
+  --bg: var(--bg-global);
+
+  /* Borders & Highlights */
+  --border: #60a5fa;
+  /* blue-400 */
+  --accent: #3b82f6;
+  --accent-text: #ffffff;
+  --accent-bg: rgba(59, 130, 246, 0.1);
+  --accent-border: #3b82f6;
+
+  --code-bg: #f9fafb;
+  --social-bg: rgba(0, 0, 0, 0.05);
+  --shadow: rgba(0, 0, 0, 0.1) 0 4px 12px;
+
+  /* Layout */
+  --sidebar-width: 260px;
+
+  --sans: 'Outfit', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: 'Outfit', system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
   font: 20px/145% var(--sans);
   letter-spacing: 0.18px;
-  color-scheme: light dark;
+  color-scheme: light;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -34,24 +55,31 @@
 }
 
 :root.dark-mode {
-  --text: #000000;
-  --text-h: #000000;
-  --bg: linear-gradient(to right,
-      #3D9FD3 0%, #3D9FD3 18%,
-      #383b40 18%, #383b40 100%);
-  --sidebar-width: 18%;
-  --border: #2e303a;
-  --code-bg: #1f2028;
-  --accent: #c084fc;
-  --accent-bg: rgba(192, 132, 252, 0.15);
-  --accent-border: rgba(192, 132, 252, 0.5);
-  --social-bg: rgba(47, 48, 58, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-}
+  /* Text */
+  --text: #ffffff;
+  --text-h: #ffffff;
+  --text-p: #f8fafc; /* Very light near-white instead of slate-gray */
 
-:root.dark-mode #social .button-icon {
-  filter: invert(1) brightness(2);
+  /* Backgrounds */
+  --bg-global: #0a192f; /* Fondo general oscuro */
+  --bg-sidebar: #112240; /* Barra lateral */
+  --bg-panel: #1e3a5f; /* Paneles y modales un poco más claritos en azul */
+  --bg-input: #294a73; /* Inputs aún más claros para contraste */
+  --bg: var(--bg-global);
+
+  /* Borders & Highlights */
+  --border: #3a5b8a;
+  /* Border Blue */
+  --accent: #00e5ff;
+  --accent-text: #000000;
+  --accent-bg: rgba(0, 229, 255, 0.1);
+  --accent-border: #00e5ff;
+
+  --code-bg: #112c47;
+  --social-bg: rgba(0, 229, 255, 0.05);
+  --shadow: rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+
+  color-scheme: dark;
 }
 
 #root {
@@ -156,17 +184,7 @@ code {
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 
-body::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: var(--sidebar-width);
-  background: #3D9FD3;
-  border-top-right-radius: 100% 15vh;
-  z-index: -1;
-}
+/* removed body::before for flat dark sidebar */
 
 /* body::after removed — grey pillars on the right eliminated */
 
@@ -176,10 +194,11 @@ body::before {
   gap: 20px;
   width: 100%;
   max-width: 500px;
-  background: #D6D7D9;
+  background: var(--bg-panel);
   padding: 30px;
   border-radius: 12px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border);
   text-align: left;
 }
 
@@ -310,6 +329,8 @@ body::before {
   gap: 0;
   z-index: 100;
   box-sizing: border-box;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
 }
 
 .sidebar-profile {
@@ -350,7 +371,7 @@ body::before {
 .sidebar-profile-name {
   font-size: 18px;
   font-weight: 700;
-  color: white;
+  color: var(--text-h);
   text-align: left;
   line-height: 1.2;
   white-space: nowrap;
@@ -361,8 +382,8 @@ body::before {
 
 .sidebar-profile-role {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.85);
-  background: rgba(255, 255, 255, 0.18);
+  color: var(--text-p);
+  background: var(--accent-bg);
   padding: 2px 8px;
   border-radius: 20px;
   font-weight: 600;
@@ -387,7 +408,7 @@ body::before {
   background: transparent;
   border: none;
   border-radius: 10px;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--text-p);
   font-size: 18px;
   font-weight: 600;
   cursor: pointer;
@@ -397,15 +418,16 @@ body::before {
 }
 
 .sidebar-btn:hover {
-  background: rgba(255, 255, 255, 0.18);
-  color: white;
+  background: var(--accent-bg);
+  color: var(--text-h);
   transform: translateX(3px);
 }
 
 .sidebar-btn.active {
-  background: rgba(23, 95, 189, 0.4);
-  color: white;
-  box-shadow: inset 3px 0 0 white;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+  border-radius: 8px;
 }
 
 .sidebar-btn .btn-icon {
@@ -448,11 +470,12 @@ body::before {
   flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   padding: 32px 32px 48px;
   gap: 24px;
   box-sizing: border-box;
   min-height: 100svh;
+  width: calc(100% - var(--sidebar-width));
 }
 
 /* ── Photo upload overlay in sidebar ── */
@@ -558,13 +581,15 @@ input:checked+.theme-slider:before {
 
 /* ── Bienvenida ── */
 .welcome-header {
-  background: #D6D7D9;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
   border-radius: 16px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   padding: 18px 40px;
   width: 100%;
   max-width: 860px;
   box-sizing: border-box;
+  text-align: center;
 }
 
 .welcome-text {
@@ -669,9 +694,10 @@ input:checked+.theme-slider:before {
 }
 
 .dash-stat-card {
-  background: #D6D7D9;
+  background: var(--bg-panel);
   border-radius: 16px;
-  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   padding: 24px 20px;
   display: flex;
   flex-direction: column;
@@ -682,7 +708,8 @@ input:checked+.theme-slider:before {
 
 .dash-stat-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.13);
+  box-shadow: 0 8px 24px rgba(0, 229, 255, 0.1);
+  border-color: rgba(0, 229, 255, 0.4);
 }
 
 .dash-stat-icon {
@@ -692,7 +719,7 @@ input:checked+.theme-slider:before {
 
 .dash-stat-label {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--text-p);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -701,7 +728,7 @@ input:checked+.theme-slider:before {
 .dash-stat-value {
   font-size: 2rem;
   font-weight: 800;
-  color: #111;
+  color: var(--text-h);
   line-height: 1;
 }
 
@@ -731,10 +758,10 @@ input:checked+.theme-slider:before {
 
 /* ── Tarjeta de vehículo ── */
 .vehicle-card {
-  background: #D6D7D9;
+  background: var(--bg-panel);
   border-radius: 16px;
-  box-shadow: var(--shadow);
-  border: 2px solid #4b5563;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -743,7 +770,8 @@ input:checked+.theme-slider:before {
 
 .vehicle-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 229, 255, 0.1);
+  border-color: rgba(0, 229, 255, 0.4);
 }
 
 .vehicle-card-img {
@@ -773,7 +801,7 @@ input:checked+.theme-slider:before {
   flex-direction: column;
   gap: 4px;
   font-size: 14px;
-  color: #444;
+  color: var(--text-p);
 }
 
 /* ── Badge de estado ── */
@@ -873,34 +901,38 @@ input:checked+.theme-slider:before {
   gap: 20px;
   width: 100%;
   max-width: 1200px;
+  margin: 0 auto;
   align-items: stretch;
 }
 
 .btn-create {
   padding: 12px 28px;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   color: #000;
-  border: 2px solid #000;
-  border-radius: 10px;
-  background: linear-gradient(to right, #3D9FD3, #FFFFFF, #B5B8BE);
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
   margin: 0;
+  box-shadow: 0 4px 12px rgba(0, 229, 255, 0.2);
 }
 
 .btn-create:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 16px rgba(0, 229, 255, 0.4);
+  opacity: 0.9;
 }
 
 .res-status {
   font-size: 16px;
-  color: #555;
+  color: var(--text-p);
   padding: 20px;
-  background: #D6D7D9;
+  background: var(--bg-panel);
   border-radius: 12px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border);
   width: 100%;
   text-align: center;
   box-sizing: border-box;
@@ -919,9 +951,10 @@ input:checked+.theme-slider:before {
 
 /* ── Tarjeta de reservación ── */
 .reservation-card {
-  background: #D6D7D9;
+  background: var(--bg-panel);
   border-radius: 12px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border);
   padding: 14px 18px;
   display: flex;
   flex-direction: column;
@@ -931,6 +964,8 @@ input:checked+.theme-slider:before {
 
 .reservation-card:hover {
   transform: translateY(-2px);
+  border-color: rgba(0, 229, 255, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 229, 255, 0.1);
 }
 
 .reservation-card-header {
@@ -952,7 +987,7 @@ input:checked+.theme-slider:before {
   flex-wrap: wrap;
   gap: 8px 16px;
   font-size: 14px;
-  color: #444;
+  color: var(--text-p);
 }
 
 /* ── Modificaciones para lista de reservaciones de Admin ── */
@@ -1124,7 +1159,7 @@ input:checked+.theme-slider:before {
 .reserv-label {
   font-weight: 700;
   font-size: 1rem;
-  color: #111;
+  color: var(--text-h);
   min-width: 220px;
   flex-shrink: 0;
 }
@@ -1132,38 +1167,43 @@ input:checked+.theme-slider:before {
 .reserv-input {
   flex: 1;
   padding: 0.55rem 0.9rem;
-  border: 1.5px solid #d1d5db;
+  border: 1.5px solid var(--border);
   border-radius: 8px;
   font-size: 1rem;
-  color: #000;
+  color: var(--text-h);
   outline: none;
-  transition: border-color 0.2s;
-  background: #f9fafb;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: var(--bg-input);
   min-width: 0;
 }
 
+.reserv-input::placeholder {
+  color: var(--text-p);
+  opacity: 0.8;
+}
+
 .reserv-input:focus {
-  border-color: #175fbd;
-  background: white;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
 }
 
 .reserv-select {
   flex: 1;
   width: 100%;
   padding: 0.55rem 0.9rem;
-  border: 1.5px solid #d1d5db;
+  border: 1.5px solid var(--border);
   border-radius: 8px;
   font-size: 1rem;
-  color: #000;
+  color: var(--text-h);
   outline: none;
-  background: #f9fafb;
+  background: var(--bg-input);
   cursor: pointer;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .reserv-select:focus {
-  border-color: #175fbd;
-  background: white;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
 }
 
 .reserv-select-error {
@@ -1219,21 +1259,22 @@ input:checked+.theme-slider:before {
 .admin-table {
   width: 100%;
   border-collapse: collapse;
-  background: #D6D7D9;
+  background: var(--bg-panel);
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: var(--shadow);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   font-size: 0.95rem;
+  border: 1px solid var(--border);
 }
 
 .admin-table th {
-  background: #175fbd;
-  color: #fff;
+  background: var(--bg-input);
+  color: var(--text-h);
   font-weight: 700;
   padding: 12px 16px;
   text-align: left;
-  border-bottom: 2px solid #e5e7eb;
-  border-right: 1px solid rgba(255, 255, 255, 0.3);
+  border-bottom: 2px solid var(--border);
+  border-right: 1px solid var(--border);
 }
 
 .admin-table th:last-child {
@@ -1241,10 +1282,10 @@ input:checked+.theme-slider:before {
 }
 
 .admin-table td {
-  padding: 4px 16px;
-  border-bottom: 1px solid #f0f0f0;
-  border-right: 1px solid #e5e7eb;
-  color: #111;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  color: var(--text-p);
   vertical-align: middle;
   text-align: left;
 }
@@ -1258,79 +1299,16 @@ input:checked+.theme-slider:before {
 }
 
 .admin-table tr:hover td {
-  background: #f9fafb;
+  background: rgba(0, 229, 255, 0.05);
 }
 
 .filter-panel {
-  background: #D6D7D9;
-  box-shadow: var(--shadow);
+  background: var(--bg-panel);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border);
 }
 
-/* ═══════════════════════════════════════════
-   DARK MODE OVERRIDES
-═══════════════════════════════════════════ */
-:root.dark-mode .welcome-header,
-:root.dark-mode .login-form,
-:root.dark-mode .tab-btn,
-:root.dark-mode .dash-stat-card,
-:root.dark-mode .vehicle-card,
-:root.dark-mode .res-status,
-:root.dark-mode .reservation-card,
-:root.dark-mode .profile-menu-panel,
-:root.dark-mode .reserv-form-panel,
-:root.dark-mode .admin-table,
-:root.dark-mode .modal-content,
-:root.dark-mode .user-card,
-:root.dark-mode .perfil-panel,
-:root.dark-mode .filter-panel {
-  background-color: #8E939A !important;
-  color: #FFFFFF !important;
-}
-
-:root.dark-mode h1,
-:root.dark-mode h2,
-:root.dark-mode p,
-:root.dark-mode span:not(.theme-icon-sun):not(.theme-icon-moon),
-:root.dark-mode strong,
-:root.dark-mode label,
-:root.dark-mode th,
-:root.dark-mode td,
-:root.dark-mode .vehicle-card-title,
-:root.dark-mode .dash-stat-label,
-:root.dark-mode .dash-stat-value,
-:root.dark-mode .dash-stat-sub,
-:root.dark-mode .res-vehicle-name,
-:root.dark-mode .welcome-text {
-  color: #FFFFFF !important;
-}
-
-:root.dark-mode .admin-table th {
-  background-color: #175fbd !important;
-  color: #FFFFFF !important;
-}
-
-:root.dark-mode .admin-table tr:hover td {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-}
-
-:root.dark-mode .reserv-input,
-:root.dark-mode .reserv-select,
-:root.dark-mode .reserv-textarea {
-  background-color: #404040 !important;
-  color: #FFFFFF !important;
-  border-color: #555 !important;
-}
-
-:root.dark-mode .reserv-input:focus,
-:root.dark-mode .reserv-select:focus,
-:root.dark-mode .reserv-textarea:focus {
-  border-color: #3D9FD3 !important;
-}
-
-:root.dark-mode .reserv-input::placeholder,
-:root.dark-mode .reserv-textarea::placeholder {
-  color: #d1d5db !important;
-}
+/* Removed old dark-mode overrides */
 
 /* ── Estilos para todos los paneles/inputs de crear y editar (gris oscuro) ── */
 .reserv-input,
@@ -1394,8 +1372,8 @@ input:checked+.theme-slider:before {
   gap: 0.5rem;
   padding: 0.5rem 1rem;
   border-radius: 8px;
-  cursor: help;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  cursor: default;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .flag-kpi-verde {

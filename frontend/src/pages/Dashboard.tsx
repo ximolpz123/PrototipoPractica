@@ -105,12 +105,24 @@ function normalizeUser(u: Record<string, unknown>): IUser {
   } as IUser;
 }
 
+// ─── Helper: generar color basado en nombre ───────────────────────────────────
+const getAvatarColor = (name: string): string => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+  return '#' + '00000'.substring(0, 6 - c.length) + c;
+};
+
 // ─── Componente principal ────────────────────────────────────────────────────
 function Dashboard() {
   const navigate = useNavigate();
 
-  const storedUser = localStorage.getItem('user');
-  const user: IUser | null = storedUser ? JSON.parse(storedUser) : null;
+  const [user, setUser] = useState<IUser | null>(() => {
+    const storedUser = localStorage.getItem('user');
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
   const token = localStorage.getItem('token');
 
   const profileImgKey = user ? `profile_img_${user.id}` : 'profile_img_default';
@@ -171,6 +183,21 @@ function Dashboard() {
   const [loadingAI, setLoadingAI] = useState(false);
   const [aiDataLoaded, setAiDataLoaded] = useState(false);
   const [showAIPanel, setShowAIPanel] = useState(false);
+
+  // ── Cargar perfil actual para actualizar banderas y puntos ──
+  useEffect(() => {
+    if (token) {
+      fetch('http://localhost:5000/api/auth/profile', { headers: { Authorization: `Bearer ${token}` } })
+        .then(res => res.json())
+        .then(data => {
+          if (data && !data.message) {
+            setUser(data);
+            localStorage.setItem('user', JSON.stringify(data));
+          }
+        })
+        .catch(err => console.error(err));
+    }
+  }, [token]);
 
   // ── Cargar datos al cambiar tab ──
   useEffect(() => {
@@ -813,10 +840,10 @@ function Dashboard() {
 
         {/* Bandera del usuario actual (esquina superior derecha del menú) */}
         {user && (
-          <div style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 1001 }} title={`Tu bandera actual: ${user.rol === 'admin' ? 'verde' : 'amarilla'}`}>
+          <div style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 1001 }} title={`Tu bandera: ${['amarilla', 'naranja', 'roja'].includes(user.banderaActual?.toLowerCase() || '') ? user.banderaActual?.toLowerCase() : 'verde'} | Puntos: ${user.puntos ?? 100}/100`}>
             <span style={{
               display: 'inline-block', width: '16px', height: '16px', borderRadius: '50%',
-              backgroundColor: user.rol === 'admin' ? '#22c55e' : '#eab308',
+              backgroundColor: user.banderaActual?.toLowerCase() === 'amarilla' ? '#eab308' : user.banderaActual?.toLowerCase() === 'naranja' ? '#f97316' : user.banderaActual?.toLowerCase() === 'roja' ? '#ef4444' : '#22c55e',
               border: '2px solid #fff', boxShadow: '0 0 0 1px rgba(0,0,0,0.2)'
             }} />
           </div>
@@ -825,7 +852,19 @@ function Dashboard() {
         {/* Perfil */}
         <div className="sidebar-profile">
           <div className="sidebar-photo-upload" onClick={() => fileInputRef.current?.click()} title="Cambiar foto">
-            <img src={profileImg} alt="Perfil" className="sidebar-profile-img" />
+            {profileImg !== defaultProfileImg ? (
+              <img src={profileImg} alt="Perfil" className="sidebar-profile-img" />
+            ) : (
+              <div style={{
+                width: '64px', height: '64px', borderRadius: '50%',
+                backgroundColor: getAvatarColor((user?.nombre || '') + (user?.apellido || '')),
+                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '1.5rem', fontWeight: 'bold', border: '3px solid white',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)', margin: '0 auto', boxSizing: 'border-box'
+              }}>
+                {((user?.nombre?.[0] || '') + (user?.apellido?.[0] || '')).toUpperCase() || 'U'}
+              </div>
+            )}
             <div className="sidebar-photo-overlay"></div>
           </div>
           <input
@@ -910,13 +949,13 @@ function Dashboard() {
         <div className="sidebar-logout" style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 12px', width: '100%', boxSizing: 'border-box', marginBottom: '16px' }}>
           <button
             onClick={() => setActiveTab('perfil')}
-            style={{ background: 'none', border: 'none', color: 'white', fontWeight: 'normal', fontSize: '14px', cursor: 'pointer', textDecoration: activeTab === 'perfil' ? 'underline' : 'none', padding: '4px' }}
+            style={{ background: 'none', border: 'none', color: 'var(--text-p)', fontWeight: 'normal', fontSize: '14px', cursor: 'pointer', textDecoration: activeTab === 'perfil' ? 'underline' : 'none', padding: '4px' }}
           >
             Configuración de Perfil
           </button>
           <button
             onClick={() => setActiveTab('soporte')}
-            style={{ background: 'none', border: 'none', color: 'white', fontWeight: 'normal', fontSize: '14px', cursor: 'pointer', textDecoration: activeTab === 'soporte' ? 'underline' : 'none', padding: '4px' }}
+            style={{ background: 'none', border: 'none', color: 'var(--text-p)', fontWeight: 'normal', fontSize: '14px', cursor: 'pointer', textDecoration: activeTab === 'soporte' ? 'underline' : 'none', padding: '4px' }}
           >
             Soporte Técnico
           </button>
@@ -941,21 +980,19 @@ function Dashboard() {
           </div>
         )}
 
-        {/* ── Bienvenida ── */}
-        {activeTab === 'dashboard' && (
-          <div className="welcome-header" style={{ maxWidth: '100%' }}>
-            <span className="welcome-text">
-              ¡Bienvenido! {user?.nombre ?? ''} {user?.apellido ?? ''}
-            </span>
-          </div>
-        )}
-
         {/* ══════════ TAB: DASHBOARD ══════════ */}
         {activeTab === 'dashboard' && (
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '24px', alignItems: 'flex-start' }}>
-            <h2 style={{ textAlign: 'left', fontSize: '1.6rem', fontWeight: '700', color: 'var(--text-h)', margin: 0 }}>
-              Resumen General
-            </h2>
+            
+            {/* GO SMART STYLE TOP BAR */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingBottom: '20px', borderBottom: '1px solid var(--border)', width: '100%' }}>
+              <h1 style={{ fontSize: '1.6rem', fontWeight: '800', margin: 0, color: 'var(--text-h)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                Dashboard
+              </h1>
+              <span style={{ color: 'var(--accent)', fontSize: '1.4rem', fontWeight: 'bold' }}>|</span>
+              <span style={{ color: 'var(--text-p)', fontSize: '1.1rem', fontWeight: '500' }}>Resumen diario de la flota y sistema</span>
+            </div>
+
             <div style={{ display: 'flex', width: '100%', gap: '24px', flexWrap: 'wrap', alignItems: 'stretch' }}>
 
               {/* PANEL IZQUIERDO: Estado de Reservas */}
@@ -966,7 +1003,7 @@ function Dashboard() {
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '1.5rem', zIndex: 1, position: 'relative' }}>
-                    <span className="dash-stat-label" style={{ margin: 0, fontSize: '1.2rem', color: '#000000ff' }}>Estado de Reservas</span>
+                    <span className="dash-stat-label" style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-h)' }}>Estado de Reservas</span>
                     <button className="btn-sm" onClick={() => setActiveTab('reservaciones')}>Ir a Reservaciones ➔</button>
                   </div>
 
@@ -1045,17 +1082,17 @@ function Dashboard() {
 
                             {/* Indicadores Clave */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
-                              <div style={{ background: '#fef3c7', padding: '10px 16px', borderRadius: '12px', borderLeft: `4px solid ${colors.pendiente}`, width: '200px', textAlign: 'center' }}>
-                                <div style={{ fontSize: '0.85rem', color: '#92400e', fontWeight: 'bold' }}>Pendientes</div>
-                                <div style={{ fontSize: '1.6rem', color: '#b45309', fontWeight: '800', lineHeight: 1.2, marginTop: '4px' }}>{resCounts.pendiente}</div>
+                              <div style={{ background: 'var(--bg-input)', padding: '10px 16px', borderRadius: '12px', borderLeft: `4px solid ${colors.pendiente}`, width: '200px', textAlign: 'center' }}>
+                                <div style={{ fontSize: '0.85rem', color: 'var(--text-p)', fontWeight: 'bold' }}>Pendientes</div>
+                                <div style={{ fontSize: '1.6rem', color: colors.pendiente, fontWeight: '800', lineHeight: 1.2, marginTop: '4px' }}>{resCounts.pendiente}</div>
                               </div>
-                              <div style={{ background: '#e0f2fe', padding: '10px 16px', borderRadius: '12px', borderLeft: `4px solid ${colors.en_curso}`, width: '200px', textAlign: 'center' }}>
-                                <div style={{ fontSize: '0.85rem', color: '#075985', fontWeight: 'bold' }}>Salidas Hoy</div>
-                                <div style={{ fontSize: '1.6rem', color: '#0ea5e9', fontWeight: '800', lineHeight: 1.2, marginTop: '4px' }}>{salidasHoy}</div>
+                              <div style={{ background: 'var(--bg-input)', padding: '10px 16px', borderRadius: '12px', borderLeft: `4px solid ${colors.en_curso}`, width: '200px', textAlign: 'center' }}>
+                                <div style={{ fontSize: '0.85rem', color: 'var(--text-p)', fontWeight: 'bold' }}>Salidas Hoy</div>
+                                <div style={{ fontSize: '1.6rem', color: colors.en_curso, fontWeight: '800', lineHeight: 1.2, marginTop: '4px' }}>{salidasHoy}</div>
                               </div>
-                              <div style={{ background: '#dcfce7', padding: '10px 16px', borderRadius: '12px', borderLeft: `4px solid ${colors.aprobada}`, width: '200px', textAlign: 'center' }}>
-                                <div style={{ fontSize: '0.85rem', color: '#166534', fontWeight: 'bold' }}>Retornos Hoy</div>
-                                <div style={{ fontSize: '1.6rem', color: '#16a34a', fontWeight: '800', lineHeight: 1.2, marginTop: '4px' }}>{retornosHoy}</div>
+                              <div style={{ background: 'var(--bg-input)', padding: '10px 16px', borderRadius: '12px', borderLeft: `4px solid ${colors.aprobada}`, width: '200px', textAlign: 'center' }}>
+                                <div style={{ fontSize: '0.85rem', color: 'var(--text-p)', fontWeight: 'bold' }}>Retornos Hoy</div>
+                                <div style={{ fontSize: '1.6rem', color: colors.aprobada, fontWeight: '800', lineHeight: 1.2, marginTop: '4px' }}>{retornosHoy}</div>
                               </div>
                             </div>
                           </div>
@@ -1092,17 +1129,17 @@ function Dashboard() {
                               {recentReservations.map((r, idx) => {
                                 const stColor = ['cancelada', 'rechazada'].includes(r.estado) ? colors.otras : (colors[r.estado] || '#6b7280');
                                 return (
-                                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', padding: '12px', background: 'white', borderRadius: '10px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', color: '#111827' }}>
+                                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', padding: '12px', background: 'var(--bg-input)', borderRadius: '10px', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', color: 'var(--text-h)' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                      <div style={{ fontSize: '0.9rem', fontWeight: '700', color: '#111827' }}>{getVehicleName(r.vehiculo)}</div>
+                                      <div style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-h)' }}>{getVehicleName(r.vehiculo)}</div>
                                       <div style={{ fontSize: '0.75rem', color: 'white', background: stColor, padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
                                         {r.estado}
                                       </div>
                                     </div>
-                                    <div style={{ fontSize: '0.85rem', color: '#4b5563', marginTop: '6px', fontWeight: '500' }}>
+                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-p)', marginTop: '6px', fontWeight: '500' }}>
                                       {typeof r.usuario === 'object' && r.usuario !== null ? `${(r.usuario as IUser).nombre} ${(r.usuario as IUser).apellido}` : `Usuario ID: ${r.usuario}`}
                                     </div>
-                                    <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '4px' }}>
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-p)', marginTop: '4px', opacity: 0.8 }}>
                                       Fecha inicio: {new Date(r.fechaInicio).toLocaleDateString()}
                                     </div>
                                   </div>
@@ -1120,44 +1157,59 @@ function Dashboard() {
                 </div>
               </div>
 
-              {/* PANEL DERECHO: 3 Paneles de Resumen */}
-              <div style={{ flex: 1, minWidth: '300px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              {/* PANEL SUPERIOR: 3 Paneles de Resumen estilo GO SMART */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', marginBottom: '24px' }}>
 
                 {/* 1. Usuarios */}
-                <div className="dash-stat-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', flex: 1 }}>
-                  <span className="dash-stat-label" style={{ marginBottom: '1rem', color: '#000000ff' }}>Usuarios Activos</span>
-                  <div style={{ display: 'flex', justifyContent: 'space-around', width: '100%' }}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div className="stat-color-blue" style={{ fontSize: '2.5rem', fontWeight: 'bold', lineHeight: 1 }}>{users.filter(u => u.activo).length}</div>
-                      <div className="stat-color-blue" style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Activos</div>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div className="stat-color-gray" style={{ fontSize: '2.5rem', fontWeight: 'bold', lineHeight: 1 }}>{users.filter(u => !u.activo).length}</div>
-                      <div className="stat-color-gray" style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>No Activos</div>
+                <div className="dash-stat-card" style={{ flexDirection: 'row', alignItems: 'center', gap: '20px', padding: '20px' }}>
+                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: 'var(--accent)', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>
+                    👥
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span className="dash-stat-label" style={{ color: 'var(--text-p)', marginBottom: '4px' }}>Usuarios Activos</span>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
+                      <div>
+                        <div className="dash-stat-value">{users.filter(u => u.activo).length}</div>
+                        <div className="dash-stat-sub">Activos</div>
+                      </div>
+                      <div>
+                        <div className="dash-stat-value" style={{ fontSize: '1.2rem', color: 'var(--text-p)' }}>{users.filter(u => !u.activo).length}</div>
+                        <div className="dash-stat-sub">Inactivos</div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* 2. Vehículos Disponibles / En Curso */}
-                <div className="dash-stat-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', flex: 1 }}>
-                  <span className="dash-stat-label" style={{ marginBottom: '1rem', color: '#000000ff' }}>Estado de Vehículos</span>
-                  <div style={{ display: 'flex', justifyContent: 'space-around', width: '100%' }}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div className="stat-color-green" style={{ fontSize: '2.5rem', fontWeight: 'bold', lineHeight: 1 }}>{vehicles.filter(v => v.estado === 'disponible').length}</div>
-                      <div className="stat-color-green" style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Disponibles</div>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div className="stat-color-orange" style={{ fontSize: '2.5rem', fontWeight: 'bold', lineHeight: 1 }}>{vehicles.filter(v => v.estado === 'reservado').length}</div>
-                      <div className="stat-color-orange" style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>En Curso</div>
+                <div className="dash-stat-card" style={{ flexDirection: 'row', alignItems: 'center', gap: '20px', padding: '20px' }}>
+                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: 'var(--accent)', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>
+                    🚗
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span className="dash-stat-label" style={{ color: 'var(--text-p)', marginBottom: '4px' }}>Estado Vehículos</span>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
+                      <div>
+                        <div className="dash-stat-value" style={{ color: '#4ade80' }}>{vehicles.filter(v => v.estado === 'disponible').length}</div>
+                        <div className="dash-stat-sub">Disponibles</div>
+                      </div>
+                      <div>
+                        <div className="dash-stat-value" style={{ fontSize: '1.2rem', color: '#fbbf24' }}>{vehicles.filter(v => v.estado === 'reservado').length}</div>
+                        <div className="dash-stat-sub">En Uso</div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* 3. Mantenimiento */}
-                <div className="dash-stat-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', flex: 1 }}>
-                  <span className="dash-stat-label" style={{ color: '#000000ff' }}>En Mantenimiento</span>
-                  <div className="stat-color-red" style={{ fontSize: '3rem', margin: '0.5rem 0', fontWeight: 'bold' }}>{vehicles.filter(v => v.estado === 'mantenimiento').length}</div>
-                  <span className="dash-stat-sub" style={{ fontWeight: 'bold' }}>Vehículos no disponibles</span>
+                <div className="dash-stat-card" style={{ flexDirection: 'row', alignItems: 'center', gap: '20px', padding: '20px' }}>
+                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: '#f87171', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>
+                    🔧
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span className="dash-stat-label" style={{ color: 'var(--text-p)', marginBottom: '4px' }}>Mantenimiento</span>
+                    <div className="dash-stat-value" style={{ color: '#f87171' }}>{vehicles.filter(v => v.estado === 'mantenimiento').length}</div>
+                    <span className="dash-stat-sub">Vehículos no disp.</span>
+                  </div>
                 </div>
 
               </div>
@@ -1169,8 +1221,10 @@ function Dashboard() {
         {/* ══════════ TAB: USUARIOS ══════════ */}
         {activeTab === 'usuarios' && (
           <div style={{ width: '100%', overflowX: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '700', color: '#000' }}> Usuarios</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '20px', borderBottom: '1px solid var(--border)', marginBottom: '24px' }}>
+              <h1 style={{ fontSize: '1.6rem', fontWeight: '800', margin: 0, color: 'var(--text-h)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                Usuarios
+              </h1>
               <button className="btn btn-create" onClick={() => setShowCreateUser(true)}>Agregar Usuario</button>
             </div>
             {loadingUsers && <p className="res-status">Cargando usuarios…</p>}
@@ -1194,8 +1248,8 @@ function Dashboard() {
                       <td><span className="status-badge" style={{ backgroundColor: u.licenciaAlDia ? '#22c55e' : '#ef4444' }}>{u.licenciaAlDia ? 'Al Día' : 'No Al Día'}</span></td>
                       <td>
                         <span className="status-badge" style={{
-                          backgroundColor: u.banderaActual === 'verde' ? '#22c55e' : u.banderaActual === 'amarilla' ? '#eab308' : u.banderaActual === 'naranja' ? '#f97316' : u.banderaActual === 'roja' ? '#ef4444' : '#9ca3af',
-                          color: u.banderaActual === 'amarilla' ? 'black' : 'white'
+                          backgroundColor: u.banderaActual?.toLowerCase() === 'amarilla' ? '#eab308' : u.banderaActual?.toLowerCase() === 'naranja' ? '#f97316' : u.banderaActual?.toLowerCase() === 'roja' ? '#ef4444' : '#22c55e',
+                          color: u.banderaActual?.toLowerCase() === 'amarilla' ? 'black' : 'white'
                         }}>
                           {u.puntos ?? 100} pts
                         </span>
@@ -1220,10 +1274,12 @@ function Dashboard() {
           <div className="reservations-panel" style={{ maxWidth: '100%' }}>
             {!showCreateRes ? (
               <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', width: '100%' }}>
-                  <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '700', color: 'var(--text-h)' }}> Reservaciones</h2>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '20px', borderBottom: '1px solid var(--border)', marginBottom: '24px', width: '100%' }}>
+                  <h1 style={{ fontSize: '1.6rem', fontWeight: '800', margin: 0, color: 'var(--text-h)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    Reservaciones
+                  </h1>
                   {user?.rol === 'admin' && (
-                    <button className="btn" style={{ margin: 0 }} onClick={() => setShowCreateRes(true)}>
+                    <button className="btn btn-create" style={{ margin: 0 }} onClick={() => setShowCreateRes(true)}>
                       Crear Reservación
                     </button>
                   )}
@@ -1330,17 +1386,17 @@ function Dashboard() {
                         <label className="reserv-label" style={{ fontWeight: '600', display: 'block', marginBottom: '0.2rem', textAlign: 'center' }}>Usuario</label>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                           <select className="reserv-input" style={{ flex: 1, boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={createResForm.usuarioId} onChange={e => setCreateResForm({ ...createResForm, usuarioId: e.target.value })} required>
-                            <option value="me">Para mí (Administrador)</option>
+                            <option value="me">Para mí ({user?.nombre} {user?.apellido})</option>
                             {users.filter(u => u.activo && u.id !== user?.id && (u as any)._id !== (user as any)?._id).map(u => (
                               <option key={u.id} value={u.id}>{u.nombre} {u.apellido}</option>
                             ))}
                           </select>
                           {(() => {
                             const selectedUser = createResForm.usuarioId === 'me' ? user : users.find(u => u.id === createResForm.usuarioId);
-                            const flagColor = selectedUser?.banderaActual || 'verde';
+                            const flagColor = selectedUser?.banderaActual?.toLowerCase() || 'ninguna';
                             return (
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold', color: 'var(--text-p)' }}>
-                                <span style={{ display: 'inline-block', width: '20px', height: '20px', borderRadius: '50%', backgroundColor: flagColor === 'verde' ? '#22c55e' : flagColor === 'amarilla' ? '#eab308' : flagColor === 'naranja' ? '#f97316' : '#ef4444', border: '2px solid #000' }} title={`Bandera ${flagColor}`} />
+                                <span style={{ display: 'inline-block', width: '20px', height: '20px', borderRadius: '50%', backgroundColor: flagColor === 'verde' ? '#22c55e' : flagColor === 'amarilla' ? '#eab308' : flagColor === 'naranja' ? '#f97316' : flagColor === 'roja' ? '#ef4444' : '#9ca3af', border: '2px solid #000' }} title={`Bandera ${flagColor}`} />
                               </div>
                             );
                           })()}
@@ -1421,8 +1477,10 @@ function Dashboard() {
         {/* ══════════ TAB: VEHÍCULOS ══════════ */}
         {activeTab === 'vehiculos' && (
           <div style={{ width: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '700', color: '#000' }}>   Vehículos</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '20px', borderBottom: '1px solid var(--border)', marginBottom: '24px' }}>
+              <h1 style={{ fontSize: '1.6rem', fontWeight: '800', margin: 0, color: 'var(--text-h)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                Vehículos
+              </h1>
               <button className="btn btn-create" onClick={() => { setVehicleForm(EMPTY_VEHICLE_FORM); setAiDataLoaded(false); setShowCreateVehicle(true); }}>
                 Agregar Vehículo
               </button>
@@ -1522,7 +1580,7 @@ function Dashboard() {
         {/* ══════════ TAB: REPORTES DE GASTOS (MOCK) ══════════ */}
         {activeTab === 'reportes' && (
           <div className="reportes-panel" style={{ width: '100%' }}>
-            <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '700', color: 'var(--text-h)', marginBottom: '1.5rem' }}>Reportes de Gastos por Departamento</h2>
+            <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '800', color: 'var(--text-h)', marginBottom: '1.5rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Reportes de Gastos por Departamento</h1>
 
             {/* KPIs Globales */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
@@ -1533,7 +1591,7 @@ function Dashboard() {
               </div>
               <div className="filter-panel stat-card" style={{ padding: '1.5rem', borderRadius: '12px' }}>
                 <h3 style={{ marginTop: 0, color: 'var(--text-h)' }}>Departamento Mayor Gasto</h3>
-                <div className="value" style={{ color: '#3b82f6', fontSize: '1.8rem', fontWeight: 'bold' }}>Ventas</div>
+                <div className="value" style={{ color: 'var(--accent)', fontSize: '1.8rem', fontWeight: 'bold' }}>Ventas</div>
                 <div className="label" style={{ color: 'var(--text-p)' }}>12 Reservas completadas</div>
               </div>
               <div className="filter-panel stat-card" style={{ padding: '1.5rem', borderRadius: '12px' }}>
@@ -1569,7 +1627,7 @@ function Dashboard() {
             {/* Gráfico y Tabla */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem' }}>
               <div className="filter-panel" style={{ borderRadius: '12px' }}>
-                <h3 style={{ margin: 0, color: '#fff', backgroundColor: '#175fbd', padding: '12px 16px', borderRadius: '12px 12px 0 0', marginBottom: '1rem' }}>Costo Estimado por Departamento ($)</h3>
+                <h3 style={{ margin: 0, color: 'var(--text-h)', backgroundColor: 'var(--bg-input)', padding: '12px 16px', borderRadius: '12px 12px 0 0', marginBottom: '1rem', borderBottom: '1px solid var(--border)' }}>Costo Estimado por Departamento ($)</h3>
                 <div style={{ width: '100%', height: '300px' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={MOCK_REPORTES_DATA} margin={{ top: 20 }}>
@@ -1585,7 +1643,7 @@ function Dashboard() {
               </div>
 
               <div className="filter-panel" style={{ borderRadius: '12px', overflowX: 'auto' }}>
-                <h3 style={{ margin: 0, color: '#fff', backgroundColor: '#175fbd', padding: '12px 16px', borderRadius: '12px 12px 0 0' }}>Detalle por Departamento</h3>
+                <h3 style={{ margin: 0, color: 'var(--text-h)', backgroundColor: 'var(--bg-input)', padding: '12px 16px', borderRadius: '12px 12px 0 0', borderBottom: '1px solid var(--border)' }}>Detalle por Departamento</h3>
                 <table style={{ width: '100%', borderCollapse: 'collapse', color: 'var(--text-p)' }}>
                   <thead>
                     <tr style={{ borderBottom: '2px solid var(--border)' }}>
@@ -1621,13 +1679,13 @@ function Dashboard() {
         <div className="modal-overlay" onClick={() => { setSelectedVehicle(null); setShowDeleteVehicleConfirm(null); }}>
           <div
             className="modal-content"
-            style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '12px', maxWidth: '700px', width: '95%', color: '#000', position: 'relative' }}
+            style={{ backgroundColor: 'var(--bg-panel)', padding: '2rem', borderRadius: '12px', maxWidth: '700px', width: '95%', color: 'var(--text-p)', position: 'relative', border: '1px solid var(--border)' }}
             onClick={e => e.stopPropagation()}
           >
             {/* Botón cerrar */}
             <button
               onClick={() => { setSelectedVehicle(null); setShowDeleteVehicleConfirm(null); }}
-              style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+              style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: 'var(--bg-input)', color: 'var(--text-h)', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
             >X</button>
 
             <h2 style={{ marginTop: 0, marginBottom: '1.5rem', textAlign: 'center' }}>
@@ -1724,7 +1782,7 @@ function Dashboard() {
       {/* ══════════ MODAL: CREAR VEHÍCULO ══════════ */}
       {showCreateVehicle && (
         <div className="modal-overlay" onClick={() => setShowCreateVehicle(false)}>
-          <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '580px', width: '95%', color: '#000', textAlign: 'left', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+          <div className="modal-content" style={{ backgroundColor: 'var(--bg-panel)', padding: '2rem', borderRadius: '8px', maxWidth: '580px', width: '95%', color: 'var(--text-p)', textAlign: 'left', position: 'relative', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowCreateVehicle(false)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}> Agregar Vehículo</h2>
             <form onSubmit={createVehicle}>
@@ -1741,7 +1799,7 @@ function Dashboard() {
       {/* ══════════ MODAL: EDITAR VEHÍCULO ══════════ */}
       {showEditVehicle && (
         <div className="modal-overlay" onClick={() => setShowEditVehicle(null)}>
-          <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '580px', width: '95%', color: '#000', textAlign: 'left', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+          <div className="modal-content" style={{ backgroundColor: 'var(--bg-panel)', padding: '2rem', borderRadius: '8px', maxWidth: '580px', width: '95%', color: 'var(--text-p)', textAlign: 'left', position: 'relative', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowEditVehicle(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}> Editar Vehículo</h2>
             {renderVehicleFormFields()}
@@ -1756,7 +1814,7 @@ function Dashboard() {
       {/* ══════════ MODAL: DETALLE RESERVACIÓN ══════════ */}
       {selectedReservation && (
         <div className="modal-overlay" onClick={() => { setSelectedReservation(null); setShowRejectForm(false); setRejectReason(''); }}>
-          <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '520px', width: '90%', color: '#000', textAlign: 'center', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+          <div className="modal-content" style={{ backgroundColor: 'var(--bg-panel)', padding: '2rem', borderRadius: '8px', maxWidth: '520px', width: '90%', color: 'var(--text-p)', textAlign: 'center', position: 'relative', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
             <button onClick={() => { setSelectedReservation(null); setShowRejectForm(false); setRejectReason(''); }} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1.5rem' }}>Detalles de Reservación</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem', textAlign: 'left', fontSize: '1.05rem' }}>
@@ -1817,7 +1875,7 @@ function Dashboard() {
                       return (
                         <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100px' }}>
                           <img src={imgSrc} alt={label} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer' }} onClick={() => setFullScreenImage(imgSrc)} />
-                          <span style={{ fontSize: '0.75rem', marginTop: '6px', color: '#555', textAlign: 'center', fontWeight: 'bold' }}>{label}</span>
+                          <span style={{ fontSize: '0.75rem', marginTop: '6px', color: 'var(--text-p)', textAlign: 'center', fontWeight: 'bold' }}>{label}</span>
                         </div>
                       );
                     })}
@@ -1836,7 +1894,7 @@ function Dashboard() {
                       return (
                         <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100px' }}>
                           <img src={imgSrc} alt={label} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer' }} onClick={() => setFullScreenImage(imgSrc)} />
-                          <span style={{ fontSize: '0.75rem', marginTop: '6px', color: '#555', textAlign: 'center', fontWeight: 'bold' }}>{label}</span>
+                          <span style={{ fontSize: '0.75rem', marginTop: '6px', color: 'var(--text-p)', textAlign: 'center', fontWeight: 'bold' }}>{label}</span>
                         </div>
                       );
                     })}
@@ -1977,10 +2035,10 @@ function Dashboard() {
       {/* ══════════ MODAL: CONFIRMAR ELIMINAR USUARIO ══════════ */}
       {showDeleteUserConfirm && (
         <div className="modal-overlay" onClick={() => setShowDeleteUserConfirm(null)}>
-          <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '400px', width: '90%', color: '#000', textAlign: 'center', position: 'relative' }} onClick={e => e.stopPropagation()}>
+          <div className="modal-content" style={{ backgroundColor: 'var(--bg-panel)', padding: '2rem', borderRadius: '8px', maxWidth: '400px', width: '90%', color: 'var(--text-p)', textAlign: 'center', position: 'relative', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowDeleteUserConfirm(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0 }}>¿Eliminar usuario?</h2>
-            <p style={{ color: '#555', marginBottom: '1.5rem' }}>Esta acción no se puede deshacer.</p>
+            <p style={{ color: 'var(--text-p)', marginBottom: '1.5rem' }}>Esta acción no se puede deshacer.</p>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
               <button className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', padding: '0.5rem 2rem', border: '2px solid black' }} onClick={() => deleteUser(showDeleteUserConfirm)}>Sí</button>
               <button className="btn" style={{ backgroundColor: '#175fbd', color: 'black', padding: '0.5rem 2rem' }} onClick={() => setShowDeleteUserConfirm(null)}>No</button>
@@ -1994,7 +2052,7 @@ function Dashboard() {
         <div className="modal-overlay" onClick={() => setShowCreateUser(false)}>
           <div style={{ position: 'relative', width: '90%', maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
             <form className="login-form" onSubmit={createUser} style={{ margin: '0 auto' }}>
-              <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center', color: '#000' }}>Agregar Usuario</h2>
+              <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center', color: 'var(--text-h)' }}>Agregar Usuario</h2>
               {([['nombre', 'Nombre'], ['apellido', 'Apellido'], ['email', 'Email'], ['password', 'Contraseña'], ['departamento', 'Departamento'], ['telefono', 'Teléfono']] as [keyof typeof createForm, string][]).map(([field, label]) => (
                 <div key={field} className="form-group">
                   <label>{label}</label>

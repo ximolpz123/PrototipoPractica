@@ -25,6 +25,6 @@ router.post('/', upload.single('licenciaFoto'), createUser);
 router.put('/:id', updateUser);
 router.delete('/:id', deleteUser);
 
-router.post('/:id/flags', assignFlag);
+router.post('/:id/flags', upload.single('evidencia'), assignFlag);
 
 export default router;
