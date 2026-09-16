@@ -10,6 +10,12 @@ export interface IUser {
   telefono?: string;
   rol: 'usuario' | 'admin';
   activo: boolean;
+  licenciaEstado?: string;
+  licenciaAlDia?: boolean;
+  licenciaVencimiento?: string;
+  fechaVencimientoLicencia?: string;
+  licenciaFotoUrl?: string;
+  banderaActual?: string;
 }
 
 export interface IVehicle {
@@ -36,10 +42,19 @@ export interface IReservation {
   fechaFin: string;
   destino: string;
   motivo: string;
-  estado: 'pendiente' | 'aprobada' | 'en_curso' | 'completada' | 'cancelada';
+  estado: 'pendiente' | 'aprobada' | 'en_curso' | 'en_transicion' | 'completada' | 'cancelada' | 'rechazada';
   kmSalida?: number;
+  observacionKmSalida?: string;
   kmRetorno?: number;
+  justificacionKm?: string;
+  fotosSalida?: any;
+  fotosSalidaAt?: string;
+  fotosRelevo?: any[];
+  fotosRelevoAt?: string[];
+  fotosRetorno?: any;
+  nivelBencinaRetorno?: number;
   observaciones?: string;
+  tramos?: any[];
   createdAt: string;
 }
 

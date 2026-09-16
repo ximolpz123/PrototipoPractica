@@ -8,6 +8,7 @@ import axios from 'axios';
 import { authService } from '../services/auth.service';
 import { reservationService } from '../services/reservation.service';
 import { locationService } from '../services/location.service';
+import SwipeableBottomSheet from '../components/SwipeableBottomSheet';
 
 const POSITIONS = ['frontal', 'lateralDer', 'lateralIzq', 'trasero', 'tablero', 'interior'];
 const LABELS = ['Frontal', 'Lateral Derecho', 'Lateral Izquierdo', 'Trasero', 'Tablero', 'Interior'];
@@ -45,9 +46,11 @@ export default function CameraScreen({ route, navigation }: any) {
       if (canGoBack) return;
       e.preventDefault();
 
-      const title = tipo === 'salida' ? 'Volver al Inicio' : 'Atención';
+      const title = tipo === 'salida' ? 'Volver al Inicio' : tipo === 'relevo' ? 'Cancelar Relevo' : 'Atención';
       const msg = tipo === 'salida'
         ? 'Aún no has iniciado tu viaje. Si retrocedes, podrás iniciarlo más tarde.'
+        : tipo === 'relevo'
+        ? 'Aún no has tomado las fotos de relevo. Si retrocedes, deberás tomarlas para activar tu GPS.'
         : 'Aún no has completado tu viaje. Si retrocedes, tu viaje seguirá "En Curso" y deberás finalizarlo más tarde.';
 
       showAlert(title, msg, [
@@ -142,6 +145,13 @@ export default function CameraScreen({ route, navigation }: any) {
     setCurrentStep(stepIndex);
   };
 
+  const skipPhoto = () => {
+    const pos = POSITIONS[currentStep];
+    const newPhotos = { ...photos, [pos]: 'skipped' };
+    setPhotos(newPhotos);
+    setCurrentStep(currentStep + 1);
+  };
+
   const confirmarOdometro = () => {
     const kmNum = parseInt(manualKm, 10);
     if (isNaN(kmNum) || kmNum < 0) {
@@ -169,9 +179,11 @@ export default function CameraScreen({ route, navigation }: any) {
     try {
       const formData = new FormData();
       formData.append('tipo', tipo);
-      formData.append('posiciones', JSON.stringify(POSITIONS));
 
-      POSITIONS.forEach((pos) => {
+      const validPositions = POSITIONS.filter(pos => photos[pos] && photos[pos] !== 'skipped');
+      formData.append('posiciones', JSON.stringify(validPositions));
+
+      validPositions.forEach((pos) => {
         formData.append('fotos', {
           uri: photos[pos],
           name: `${pos}.jpg`,
@@ -195,17 +207,29 @@ export default function CameraScreen({ route, navigation }: any) {
         if (!started) {
           showAlert('Aviso de GPS', 'El viaje inició pero no se pudo activar el GPS.');
         }
+      } else if (tipo === 'relevo') {
+        // Fotos de relevo subidas — activar GPS del conductor de relevo
+        const started = await locationService.startTracking(reservaId);
+        if (!started) {
+          showAlert('Aviso de GPS', 'Las fotos se subieron pero no se pudo activar el GPS automáticamente.');
+        }
       } else if (tipo === 'retorno') {
         await axios.patch(`${API_URL}/reservations/${reservaId}/complete`, {
           kmRetorno: finalKmTablero,
-          nivelBencinaRetorno: bencinaLevel
+          nivelBencinaRetorno: bencinaLevel,
+          justificacionKm: observacionKm.trim() || undefined
         }, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         await locationService.stopTracking();
       }
 
-      showAlert('Éxito', (tipo === 'salida' || tipo === 'tramo') ? 'Viaje iniciado exitosamente.' : 'Viaje finalizado exitosamente.');
+      const successMsg =
+        tipo === 'salida' || tipo === 'tramo' ? 'Viaje iniciado exitosamente.' :
+        tipo === 'relevo' ? 'Fotos de relevo subidas. ¡GPS activado!' :
+        'Viaje finalizado exitosamente.';
+
+      showAlert('Exito', successMsg);
       setCanGoBack(true);
       navigation.navigate('MainTabs');
     } catch (error: any) {
@@ -271,12 +295,13 @@ export default function CameraScreen({ route, navigation }: any) {
   return (
     <View style={styles.container}>
       {currentStep < 6 ? (
-        <CameraView style={styles.camera} ref={cameraRef}>
-          <View style={styles.overlay}>
+        <View style={styles.camera}>
+          <CameraView style={StyleSheet.absoluteFillObject} ref={cameraRef} />
+          <View style={[styles.overlay, StyleSheet.absoluteFillObject]}>
             <View style={styles.header}>
               <Text style={styles.stepText}>Paso {currentStep + 1} de 6</Text>
               <Text style={styles.instruction}>
-                Toma foto: {LABELS[currentStep]}
+                {tipo === 'relevo' ? '🔁 Fotos de Relevo — ' : ''}{LABELS[currentStep]}
               </Text>
             </View>
             
@@ -286,19 +311,32 @@ export default function CameraScreen({ route, navigation }: any) {
                   <Text style={styles.aiLoadingText}>Analizando kilometraje del tablero...</Text>
                 </View>
             ) : (
-              <TouchableOpacity style={styles.captureBtn} onPress={takePicture}>
-                <View style={styles.captureInner} />
-              </TouchableOpacity>
+              <View style={styles.captureControls}>
+                <TouchableOpacity style={styles.captureBtn} onPress={takePicture}>
+                  <View style={styles.captureInner} />
+                </TouchableOpacity>
+                {(tipo === 'relevo' || tipo === 'retorno') && POSITIONS[currentStep] !== 'tablero' && (
+                  <TouchableOpacity style={styles.skipBtn} onPress={skipPhoto}>
+                    <Text style={styles.skipBtnText}>Saltar (Opcional) ⏭️</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             )}
           </View>
-        </CameraView>
+        </View>
       ) : (
         <View style={styles.finalView}>
           <Text style={styles.finalTitle}>Resumen de Evidencia</Text>
           <View style={styles.gallery}>
             {POSITIONS.map((pos, index) => (
               <TouchableOpacity key={pos} style={styles.galleryItem} onPress={() => retakePhoto(index)}>
-                <Image source={{ uri: photos[pos] }} style={styles.thumbnail} />
+                <Image 
+                  source={photos[pos] === 'skipped' ? undefined : { uri: photos[pos] }} 
+                  style={[styles.thumbnail, photos[pos] === 'skipped' && styles.thumbnailSkipped]} 
+                />
+                {photos[pos] === 'skipped' && (
+                  <View style={StyleSheet.absoluteFillObject}><Text style={styles.skippedTextLabel}>Omitida</Text></View>
+                )}
                 <Text style={styles.thumbnailLabel}>{LABELS[index]}</Text>
                 <View style={styles.retakeBadge}><Text style={styles.retakeText}>↺</Text></View>
               </TouchableOpacity>
@@ -316,7 +354,9 @@ export default function CameraScreen({ route, navigation }: any) {
               <ActivityIndicator color={colors.white} />
             ) : (
               <Text style={styles.uploadBtnText}>
-                {tipo === 'salida' ? 'Subir e Iniciar Viaje' : 'Subir y Finalizar Viaje'}
+                {tipo === 'salida' || tipo === 'tramo' ? 'Subir e Iniciar Viaje' :
+                 tipo === 'relevo' ? '📸 Subir Fotos de Relevo y Activar GPS' :
+                 'Subir y Finalizar Viaje'}
               </Text>
             )}
           </TouchableOpacity>
@@ -325,19 +365,33 @@ export default function CameraScreen({ route, navigation }: any) {
 
         {/* IA Modal */}
         <Modal visible={showOdometerModal} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.bottomSheetIndicator} />
-              <Text style={styles.modalTitle}>🤖 IA Odómetro</Text>
+          <SwipeableBottomSheet
+            onDismiss={() => setShowOdometerModal(false)}
+            cardStyle={{ backgroundColor: colors.white }}
+            disableSwipe={uploading}
+          >
+            <Text style={styles.modalTitle}>🤖 IA Odómetro</Text>
             
             {!isEditingKm ? (
               <>
                 <Text style={styles.modalText}>
                   El odómetro marca <Text style={styles.boldKm}>{kmDetectado} km</Text>.
                 </Text>
+                
+                {tipo === 'salida' && kmDetectado > kilometrajeActual && (
+                  <TextInput
+                    style={[styles.kmInput, { minHeight: 60, textAlignVertical: 'top', fontSize: 16, marginBottom: 15 }]}
+                    placeholder={`El sistema indica ${kilometrajeActual} km. Justifica la diferencia:`}
+                    placeholderTextColor={colors.textMuted}
+                    multiline
+                    value={observacionKm}
+                    onChangeText={setObservacionKm}
+                  />
+                )}
+
                 <Text style={styles.modalQuestion}>¿Es esto correcto?</Text>
                 <View style={styles.modalBtns}>
-                  <TouchableOpacity style={[styles.modalBtn, styles.btnNo]} onPress={() => setIsEditingKm(true)}>
+                  <TouchableOpacity style={[styles.modalBtn, styles.btnNo, { backgroundColor: 'transparent' }]} onPress={() => setIsEditingKm(true)}>
                     <Text style={styles.btnNoText}>No, editar</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.modalBtn, styles.btnYes]} onPress={confirmarOdometro}>
@@ -368,14 +422,13 @@ export default function CameraScreen({ route, navigation }: any) {
                   />
                 )}
                 
-                                <TouchableOpacity style={[styles.modalBtn, styles.btnYes, { width: '100%', marginTop: 15, paddingVertical: 20 }]} onPress={confirmarOdometro}>
-                    <Text style={[styles.btnYesText, { fontSize: 18, fontWeight: 'bold' }]}>Confirmar</Text>
-                  </TouchableOpacity>
+                <TouchableOpacity style={[styles.modalBtn, styles.btnYes, { width: '100%', marginTop: 15, paddingVertical: 20 }]} onPress={confirmarOdometro}>
+                  <Text style={[styles.btnYesText, { fontSize: 18, fontWeight: 'bold' }]}>Confirmar</Text>
+                </TouchableOpacity>
               </>
             )}
-          </View>
-        </View>
-      </Modal>
+          </SwipeableBottomSheet>
+        </Modal>
     </View>
   );
 }
@@ -417,6 +470,23 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  captureControls: {
+    alignItems: 'center',
+    gap: 15,
+  },
+  skipBtn: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  skipBtnText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   captureInner: {
     width: 60,
@@ -465,6 +535,20 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     borderRadius: 8,
     borderWidth: 2,
     borderColor: colors.border,
+  },
+  thumbnailSkipped: {
+    backgroundColor: colors.grayLight,
+    borderStyle: 'dashed',
+    opacity: 0.5,
+  },
+  skippedTextLabel: {
+    position: 'absolute',
+    top: '40%',
+    width: '100%',
+    textAlign: 'center',
+    color: colors.textMuted,
+    fontWeight: 'bold',
+    fontSize: 12,
   },
   thumbnailLabel: {
     color: colors.text,
@@ -590,7 +674,7 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
     justifyContent: 'center',
   },
   btnNo: {
-    backgroundColor: '#fff',
+    backgroundColor: 'transparent',
     borderWidth: 2,
     borderColor: colors.border,
   },

@@ -108,3 +108,44 @@ export const getTrackingHistory = async (req: AuthRequest, res: Response): Promi
     res.status(500).json({ message: 'Error al obtener el historial de rastreo', error });
   }
 };
+
+// Obtener todas las rutas trazadas en el día de hoy (Agrupadas por vehículo)
+export const getTodayRoutes = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const points = await Tracking.find({
+      timestamp: { $gte: startOfDay, $lte: endOfDay }
+    }).populate('vehiculo', 'placa marca modelo').sort({ timestamp: 1 });
+
+    // Agrupar por vehículo (usando su ID como llave)
+    const groupedRoutes: any = {};
+
+    points.forEach((point) => {
+      if (!point.vehiculo) return; // Por si el vehículo fue eliminado
+      
+      const vId = (point.vehiculo as any)._id.toString();
+      
+      if (!groupedRoutes[vId]) {
+        groupedRoutes[vId] = {
+          vehiculo: point.vehiculo,
+          ruta: []
+        };
+      }
+      
+      groupedRoutes[vId].ruta.push({
+        latitud: point.latitud,
+        longitud: point.longitud,
+        timestamp: point.timestamp,
+      });
+    });
+
+    res.json(Object.values(groupedRoutes));
+  } catch (error) {
+    res.status(500).json({ message: 'Error al obtener las rutas de hoy', error });
+  }
+};

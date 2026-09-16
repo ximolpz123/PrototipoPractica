@@ -14,6 +14,8 @@ import { IUser } from '../types';
 import api from '../services/api';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import { useAuth } from '../context/AuthContext';
+import SwipeableBottomSheet from '../components/SwipeableBottomSheet';
 
 export default function HomeScreen({ route, navigation }: any) {
   const { colors, isDark } = useTheme();
@@ -21,7 +23,8 @@ export default function HomeScreen({ route, navigation }: any) {
   
 
   const { showAlert } = useAlert();
-  const { user } = route.params;
+  const { user: authUser } = useAuth();
+  const user = authUser!; // Safe: HomeScreen only renders when user is logged in
 
   const [activeReserva, setActiveReserva] = useState<IReservation | null>(null);
   const [upcomingReserva, setUpcomingReserva] = useState<IReservation | null>(null);
@@ -79,6 +82,9 @@ export default function HomeScreen({ route, navigation }: any) {
   const [showHandoverAcceptModal, setShowHandoverAcceptModal] = useState(false);
   const [handoverReason, setHandoverReason] = useState('');
   const [respondingHandover, setRespondingHandover] = useState(false);
+
+  // Modal GPS Apagado
+  const [showGpsModal, setShowGpsModal] = useState(false);
 
   const fetchTimeOffset = async () => {
     try {
@@ -194,7 +200,16 @@ export default function HomeScreen({ route, navigation }: any) {
 
       // Sincronizar estado del GPS
       const tracking = await locationService.isTracking();
-      setIsTracking(tracking);
+      
+      // AUTO-CORRECCIÓN: Si el GPS está activo pero el usuario ya no es el conductor activo
+      // (ej. pasó el mando y el otro aceptó, o se canceló), se fuerza el apagado.
+      if (tracking && !enCurso) {
+        console.log('Detectado tracking activo sin reserva en curso. Deteniendo GPS...');
+        await locationService.stopTracking();
+        setIsTracking(false);
+      } else {
+        setIsTracking(tracking);
+      }
 
       // Sincronizar inspecciones aleatorias
       const pendingInspections = await inspectionService.getPendingInspections();
@@ -232,17 +247,20 @@ export default function HomeScreen({ route, navigation }: any) {
       return;
     }
 
+    const maxTiempoAntes = new Date(new Date(reserva.fechaInicio).getTime() - 10 * 60000); // 10 mins antes
+    if (new Date() < maxTiempoAntes) {
+      const horaFormateada = maxTiempoAntes.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      showAlert(
+        'Aún es muy pronto',
+        `Puedes iniciar el viaje a partir de las ${horaFormateada}.`
+      );
+      return;
+    }
+
     // Verificar GPS antes de continuar
     const servicesEnabled = await Location.hasServicesEnabledAsync();
     if (!servicesEnabled) {
-      Alert.alert(
-        'GPS Apagado',
-        'Debes encender el GPS de tu celular para poder iniciar el viaje.',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Ir a Configuración', onPress: () => Linking.openSettings() }
-        ]
-      );
+      setShowGpsModal(true);
       return;
     }
 
@@ -341,8 +359,6 @@ export default function HomeScreen({ route, navigation }: any) {
               setLoading(true);
               setShowDriverModal(false);
               await reservationService.requestCambioConductorTramo(activeReserva._id, (nuevoConductor as any)._id);
-              await locationService.stopTracking(); // Stop MY tracking while handing over
-              setIsTracking(false);
               showAlert('Solicitud enviada', `Se ha notificado a ${nuevoConductor.nombre}. Cuando acepte, el vehículo será transferido.`);
               loadReservas(); // Reload to update state
             } catch (err: any) {
@@ -374,18 +390,21 @@ export default function HomeScreen({ route, navigation }: any) {
     }
   };
 
-  const handleAcceptHandover = async (tipo: 'continuar' | 'regreso') => {
+  const handleAcceptHandover = async () => {
     setRespondingHandover(true);
     try {
-      await reservationService.responderTraspaso(pendingHandover!._id, 'aceptar', tipo);
+      await reservationService.responderTraspaso(pendingHandover!._id, 'aceptar');
       setShowHandoverAcceptModal(false);
       loadReservas();
-      if (tipo === 'continuar') {
-         await locationService.startTracking(pendingHandover!._id);
-         showAlert('Traspaso Aceptado', 'GPS activado. Continuas el trayecto.');
-      } else {
-         showAlert('Traspaso Aceptado', 'Inicias el viaje de regreso. Debes tomar las fotos para arrancar el GPS.');
-      }
+      
+      // Ir directamente a la cámara para fotos de relevo
+      navigation.navigate('Camera', { 
+        reservaId: pendingHandover!._id, 
+        tipo: 'relevo', 
+        tipoIndicador: pendingHandover!.vehiculo?.tipoIndicador,
+        kilometrajeActual: pendingHandover!.vehiculo?.kilometraje || 0 
+      });
+      
     } catch (err: any) {
       showAlert('Error', err.response?.data?.message || 'Error al aceptar');
     } finally {
@@ -432,7 +451,7 @@ export default function HomeScreen({ route, navigation }: any) {
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 0.5,
     });
 
@@ -550,7 +569,7 @@ export default function HomeScreen({ route, navigation }: any) {
             <TouchableOpacity style={[styles.btnDangerHalf, { flex: 1, marginRight: 8 }]} onPress={() => setShowHandoverRejectModal(true)}>
               <Text style={styles.btnText}>Rechazar</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.btnPrimary, { flex: 1 }]} onPress={() => setShowHandoverAcceptModal(true)}>
+            <TouchableOpacity style={[styles.btnSuccessHalf, { flex: 1 }]} onPress={() => setShowHandoverAcceptModal(true)}>
               <Text style={styles.btnText}>Aceptar</Text>
             </TouchableOpacity>
           </View>
@@ -586,32 +605,32 @@ export default function HomeScreen({ route, navigation }: any) {
               onPress={() => {
                 navigation.navigate('Camera', { 
                   reservaId: activeReserva._id, 
-                  tipo: 'tramo', 
+                  tipo: 'relevo', 
                   tipoIndicador: activeReserva.vehiculo?.tipoIndicador,
-                  kilometrajeActual: activeReserva.vehiculo?.kilometraje || 0,
-                  isTramoStart: true 
+                  kilometrajeActual: activeReserva.vehiculo?.kilometraje || 0
                 });
               }}
             >
-              <Text style={styles.btnText}>📷 Iniciar Tramo de Regreso</Text>
+              <Text style={styles.btnText}>📸 Tomar Fotos de Relevo</Text>
             </TouchableOpacity>
           ) : (
-            !isTracking && (
-              <TouchableOpacity style={styles.btnPrimary} onPress={handleResumeGps}>
-                <Text style={styles.btnText}>Reanudar GPS</Text>
-              </TouchableOpacity>
-            )
+            <>
+              {!isTracking && (
+                <TouchableOpacity style={styles.btnPrimary} onPress={handleResumeGps}>
+                  <Text style={styles.btnText}>Reanudar GPS</Text>
+                </TouchableOpacity>
+              )}
+              <View style={styles.activeActionsRow}>
+                <TouchableOpacity style={styles.btnNav} onPress={handleNavigate}>
+                  <Text style={styles.btnText}>Navegar</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.btnDangerHalf} onPress={handleEndTrip}>
+                  <Text style={styles.btnText}>Finalizar</Text>
+                </TouchableOpacity>
+              </View>
+            </>
           )}
-
-          <View style={styles.activeActionsRow}>
-            <TouchableOpacity style={styles.btnNav} onPress={handleNavigate}>
-              <Text style={styles.btnText}>Navegar</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.btnDangerHalf} onPress={handleEndTrip}>
-              <Text style={styles.btnText}>Finalizar</Text>
-            </TouchableOpacity>
-          </View>
 
           <TouchableOpacity 
             style={[styles.btnPrimary, { marginTop: 10, backgroundColor: colors.warning }]} 
@@ -716,9 +735,10 @@ export default function HomeScreen({ route, navigation }: any) {
 
       {/* ─── Modal DEV Time Machine ─── */}
       <Modal visible={devModalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.bottomSheetIndicator} />
+        <SwipeableBottomSheet
+          onDismiss={() => setDevModalVisible(false)}
+          cardStyle={{ backgroundColor: colors.white }}
+        >
             <Text style={styles.modalTitle}>🛠 Máquina del Tiempo</Text>
             <Text style={{ marginBottom: 15, textAlign: 'center', color: colors.textMuted }}>Solo para pruebas. Afecta al backend.</Text>
 
@@ -764,15 +784,15 @@ export default function HomeScreen({ route, navigation }: any) {
             <TouchableOpacity style={[styles.btnPrimary, { marginTop: 15, backgroundColor: colors.textMuted }]} onPress={() => setDevModalVisible(false)}>
               <Text style={styles.btnText}>Cerrar</Text>
             </TouchableOpacity>
-          </View>
-        </View>
+        </SwipeableBottomSheet>
       </Modal>
 
       {/* ── Modal Rechazo Traspaso ── */}
       <Modal visible={showHandoverRejectModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.bottomSheetIndicator} />
+        <SwipeableBottomSheet
+          onDismiss={() => setShowHandoverRejectModal(false)}
+          cardStyle={{ backgroundColor: colors.white }}
+        >
             <Text style={styles.modalTitle}>Rechazar Traspaso</Text>
             <Text style={styles.modalSubtitle}>Indica el motivo por el cual rechazas recibir el vehículo:</Text>
             
@@ -806,32 +826,28 @@ export default function HomeScreen({ route, navigation }: any) {
                 )}
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
+        </SwipeableBottomSheet>
       </Modal>
 
       {/* ── Modal Aceptar Traspaso (Continuar o Regresar) ── */}
       <Modal visible={showHandoverAcceptModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.bottomSheetIndicator} />
+        <SwipeableBottomSheet
+          onDismiss={() => setShowHandoverAcceptModal(false)}
+          cardStyle={{ backgroundColor: colors.white }}
+        >
             <Text style={styles.modalTitle}>Aceptar Vehículo</Text>
-            <Text style={styles.modalSubtitle}>Has aceptado recibir el vehículo. ¿Cómo continuarás el trayecto?</Text>
+            <Text style={styles.modalSubtitle}>Para aceptar el vehículo debes tomar las fotos de relevo. Esto activará tu GPS y apagará el del conductor anterior.</Text>
             
             <TouchableOpacity 
               style={[styles.btnPrimary, { marginTop: 20 }]} 
-              onPress={() => handleAcceptHandover('continuar')}
+              onPress={handleAcceptHandover}
               disabled={respondingHandover}
             >
-              <Text style={styles.btnText}>Continuar Mismo Trayecto</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.btnPrimary, { marginTop: 15, backgroundColor: colors.secondary }]} 
-              onPress={() => handleAcceptHandover('regreso')}
-              disabled={respondingHandover}
-            >
-              <Text style={styles.btnText}>Viaje de Regreso (Fotos IA)</Text>
+              {respondingHandover ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.btnText}>Tomar Fotos y Aceptar</Text>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -841,15 +857,15 @@ export default function HomeScreen({ route, navigation }: any) {
             >
               <Text style={[styles.btnOutlineText, { color: colors.primary }]}>Cancelar</Text>
             </TouchableOpacity>
-          </View>
-        </View>
+        </SwipeableBottomSheet>
       </Modal>
 
       {/* ─── Modal Pasar el Mando ─── */}
       <Modal visible={showDriverModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.bottomSheetIndicator} />
+        <SwipeableBottomSheet
+          onDismiss={() => setShowDriverModal(false)}
+          cardStyle={{ backgroundColor: colors.white }}
+        >
             <Text style={styles.modalTitle}>Seleccionar Conductor</Text>
             {loadingDrivers ? (
               <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: 20 }} />
@@ -876,15 +892,16 @@ export default function HomeScreen({ route, navigation }: any) {
             >
               <Text style={styles.btnText}>Cancelar</Text>
             </TouchableOpacity>
-          </View>
-        </View>
+        </SwipeableBottomSheet>
       </Modal>
 
       {/* ─── Modal Inspección Aleatoria ─── */}
       <Modal visible={!!activeInspection && !isInspectionMinimized} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { paddingHorizontal: 25, paddingBottom: Platform.OS === 'ios' ? 40 : 25 }]}>
-            <View style={styles.bottomSheetIndicator} />
+        <SwipeableBottomSheet
+          onDismiss={() => setIsInspectionMinimized(true)}
+          cardStyle={{ backgroundColor: colors.white, paddingHorizontal: 25, paddingBottom: Platform.OS === 'ios' ? 40 : 25 }}
+          disableSwipe={submittingInspection}
+        >
             <Text style={[styles.modalTitle, { color: colors.primary, fontSize: 20 }]}>🚨 Inspección Aleatoria</Text>
             
             <View style={{ backgroundColor: colors.danger + '15', padding: 10, borderRadius: 8, marginBottom: 15, width: '100%', alignItems: 'center' }}>
@@ -951,15 +968,16 @@ export default function HomeScreen({ route, navigation }: any) {
             >
               <Text style={{ color: colors.textMuted, fontWeight: 'bold', fontSize: 15 }}>Minimizar para luego</Text>
             </TouchableOpacity>
-          </View>
-        </View>
+        </SwipeableBottomSheet>
       </Modal>
 
       {/* ─── Modal Cancelar Reserva ─── */}
       <Modal visible={showCancelModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.bottomSheetIndicator} />
+        <SwipeableBottomSheet
+          onDismiss={() => { setShowCancelModal(false); setCancelReason(''); }}
+          cardStyle={{ backgroundColor: colors.white }}
+          disableSwipe={canceling}
+        >
             <Text style={styles.modalTitle}>Cancelar Reserva</Text>
             <Text style={{ textAlign: 'center', marginBottom: 15 }}>
               Por favor, ingresa el motivo por el cual deseas cancelar esta reserva.
@@ -988,8 +1006,55 @@ export default function HomeScreen({ route, navigation }: any) {
                 {canceling ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Confirmar</Text>}
               </TouchableOpacity>
             </View>
+        </SwipeableBottomSheet>
+      </Modal>
+
+      {/* ─── Modal GPS Apagado ─── */}
+      <Modal visible={showGpsModal} transparent animationType="slide">
+        <SwipeableBottomSheet
+          onDismiss={() => setShowGpsModal(false)}
+          cardStyle={{ backgroundColor: colors.white }}
+        >
+          {/* Ícono de GPS */}
+          <View style={{
+            width: 72,
+            height: 72,
+            borderRadius: 36,
+            backgroundColor: colors.danger + '18',
+            alignSelf: 'center',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 18,
+          }}>
+            <Ionicons name="navigate-circle-outline" size={36} color={colors.danger} />
           </View>
-        </View>
+
+          <Text style={[styles.modalTitle, { textAlign: 'center', fontSize: 22 }]}>
+            GPS Apagado
+          </Text>
+          <Text style={[styles.modalSubtitle, { textAlign: 'center', marginBottom: 24 }]}>
+            Para iniciar el viaje necesitas tener el GPS activado en tu dispositivo. Por favor enciéndelo e intenta nuevamente.
+          </Text>
+
+          {/* Botón principal — ir a configuración */}
+          <TouchableOpacity
+            style={[styles.btnPrimary, { marginTop: 0, backgroundColor: colors.primary }]}
+            onPress={() => { setShowGpsModal(false); Linking.openSettings(); }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <Ionicons name="settings-outline" size={18} color="#fff" />
+              <Text style={styles.btnText}>Ir a Configuración</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Botón secundario — cerrar */}
+          <TouchableOpacity
+            style={[styles.btnOutline, { marginTop: 12 }]}
+            onPress={() => setShowGpsModal(false)}
+          >
+            <Text style={[styles.btnOutlineText, { color: colors.textMuted }]}>Cancelar</Text>
+          </TouchableOpacity>
+        </SwipeableBottomSheet>
       </Modal>
 
     </ScrollView>
@@ -1190,6 +1255,18 @@ const getStyles = (colors: AppColors) => StyleSheet.create({
   btnDangerHalf: {
     flex: 1,
     backgroundColor: colors.danger,
+    paddingVertical: 14,
+    borderRadius: BORDER_RADIUS.md,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  btnSuccessHalf: {
+    flex: 1,
+    backgroundColor: colors.success,
     paddingVertical: 14,
     borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',

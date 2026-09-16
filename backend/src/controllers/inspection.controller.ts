@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/auth.js';
 import InspeccionAleatoria from '../models/InspeccionAleatoria.js';
 import Flag from '../models/Flag.js';
 import { updateUserPoints } from '../services/points.service.js';
+import User from '../models/User.js';
 
 export const getInspections = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -22,7 +23,14 @@ export const getInspections = async (req: AuthRequest, res: Response): Promise<v
 
     const inspecciones = await InspeccionAleatoria.find(filter)
       .populate('usuario', 'nombre apellido departamento')
-      .populate('reserva', 'vehiculo destino')
+      .populate({
+        path: 'reserva',
+        select: 'vehiculo destino',
+        populate: {
+          path: 'vehiculo',
+          select: 'marca modelo placa'
+        }
+      })
       .sort({ fechaActivacion: -1 });
 
     res.json(inspecciones);
@@ -37,7 +45,14 @@ export const getPendingInspections = async (req: AuthRequest, res: Response): Pr
       usuario: req.userId,
       estado: 'pendiente'
     })
-      .populate('reserva', 'vehiculo destino')
+      .populate({
+        path: 'reserva',
+        select: 'vehiculo destino',
+        populate: {
+          path: 'vehiculo',
+          select: 'marca modelo placa'
+        }
+      })
       .sort({ fechaLimite: 1 });
 
     res.json(inspecciones);

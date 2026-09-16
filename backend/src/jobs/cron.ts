@@ -100,8 +100,8 @@ export const initCronJobs = () => {
     }
   });
 
-  // Cron Job 2: Inspección Aleatoria (cada 1 minuto para pruebas)
-  cron.schedule('* * * * *', async () => {
+  // Cron Job 2: Inspección Aleatoria (cada 30 segundos para pruebas)
+  cron.schedule('*/30 * * * * *', async () => {
     try {
       const now = new Date();
       // Filtrar reservas en curso que ya tienen fotos de salida registradas
@@ -110,16 +110,16 @@ export const initCronJobs = () => {
         fotosSalidaAt: { $exists: true }
       }).populate('usuario');
       
-      // Filtrar reservas que ya tienen inspección para no molestar dos veces al mismo conductor
+      // Para PRUEBAS: Permitir hasta 2 inspecciones por conductor en lugar de solo 1
       const inspeccionesExistentes = await InspeccionAleatoria.find({ reserva: { $in: activas.map(r => r._id) } });
-      let reservasSinInspeccion = activas.filter(r => !inspeccionesExistentes.some(i => i.reserva.toString() === r._id.toString()));
+      let reservasSinInspeccion = activas.filter(r => {
+        const count = inspeccionesExistentes.filter(i => i.reserva.toString() === r._id.toString()).length;
+        return count < 2; // Máximo 2 inspecciones para pruebas
+      });
 
-      // Filtrar solo aquellas donde fotosSalidaAt fue hace más de 10 minutos
+      // Para PRUEBAS: No esperar 10 minutos, generar inmediatamente
       reservasSinInspeccion = reservasSinInspeccion.filter(r => {
-        if (!r.fotosSalidaAt) return false;
-        const diffMs = now.getTime() - new Date(r.fotosSalidaAt).getTime();
-        const diffMins = Math.floor(diffMs / 60000);
-        return diffMins >= 10;
+        return true; 
       });
 
       if (reservasSinInspeccion.length > 0) {
@@ -136,8 +136,8 @@ export const initCronJobs = () => {
             'revisarCarroceria': 'Revisa la carrocería en busca de abolladuras o rayones.'
           };
           
-          const now = new Date();
-          const limite = new Date(now.getTime() + 20 * 60000); // +20 min
+          // Para PRUEBAS: Límite de 30 SEGUNDOS
+          const limite = new Date(now.getTime() + 30 * 1000); 
 
           const nuevaInspeccion = await InspeccionAleatoria.create({
             usuario: seleccionada.usuario,
@@ -160,8 +160,8 @@ export const initCronJobs = () => {
     }
   });
 
-  // Cron Job 3: Seguimiento de inspecciones aleatorias (cada minuto)
-  cron.schedule('* * * * *', async () => {
+  // Cron Job 3: Seguimiento de inspecciones aleatorias (cada 10 segundos para pruebas)
+  cron.schedule('*/10 * * * * *', async () => {
     try {
       const now = new Date();
       const pendientes = await InspeccionAleatoria.find({ estado: 'pendiente' }).populate('usuario reserva');
@@ -194,13 +194,7 @@ export const initCronJobs = () => {
             {}
           );
         } else if (diffMinutes > 0 && diffMinutes % 5 === 0) {
-          // Spam cada 5 minutos
-          await sendPushNotification(
-            (insp.usuario as any)._id.toString(),
-            'Recordatorio: Inspección Pendiente',
-            `Te quedan ${20 - diffMinutes} minutos para completar la inspección: ${insp.descripcion}`,
-            { tipo: 'INSPECCION_ALEATORIA', inspeccionId: insp._id }
-          );
+          // Desactivado temporalmente el spam por ser tiempo tan corto
         }
       }
     } catch(err) {

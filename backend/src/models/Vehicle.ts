@@ -20,6 +20,13 @@ export interface IVehicle extends Document {
   nivelBencina: number;          // 0–100 (porcentaje)
   tipoIndicador: 'digital' | 'analogico';
   fotosVehiculo?: string[];      // 5 fotos de presentación
+  // ── v3: Documentos Legales ──
+  documentos?: {
+    permisoCirculacion?: { url: string; vencimiento?: Date };
+    soap?:               { url: string; vencimiento?: Date };
+    revisionTecnica?:    { url: string; vencimiento?: Date };
+    seguro?:             { url: string; vencimiento?: Date };
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -92,6 +99,13 @@ const vehicleSchema = new Schema<IVehicle>(
     fotosVehiculo: {
       type: [String],
       default: [],
+    },
+    // ── v3: Documentos Legales ──
+    documentos: {
+      permisoCirculacion: { url: String, vencimiento: Date },
+      soap:               { url: String, vencimiento: Date },
+      revisionTecnica:    { url: String, vencimiento: Date },
+      seguro:             { url: String, vencimiento: Date },
     },
   },
   { timestamps: true }

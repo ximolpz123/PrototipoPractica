@@ -37,7 +37,7 @@ export const getVehicles = async (_req: Request, res: Response): Promise<void> =
           const conductores = [activeRes.usuario];
           if (activeRes.tramos && activeRes.tramos.length > 0) {
             activeRes.tramos.forEach((tramo: any) => {
-              if (tramo.conductor && tramo.conductor._id.toString() !== conductores[conductores.length - 1]._id.toString()) {
+              if (tramo.conductor && tramo.conductor._id.toString() !== (conductores[conductores.length - 1] as any)._id.toString()) {
                 conductores.push(tramo.conductor);
               }
             });
@@ -105,7 +105,7 @@ export const createVehicle = async (req: Request, res: Response): Promise<void> 
     const vehicle = await Vehicle.create(req.body);
     res.status(201).json(vehicle);
   } catch (error) {
-    res.status(500).json({ message: 'Error al crear vehículo', error });
+    res.status(500).json({ message: 'Error al subir imagen', error });
   }
 };
 
@@ -155,16 +155,14 @@ Extrae la siguiente información y devuélvela ÚNICAMENTE como un objeto JSON v
 
     try {
       const data = JSON.parse(text);
-      // Incluir las URLs de Cloudinary en la respuesta
-      data.fotosVehiculo = files.map(file => file.path);
       res.json(data);
     } catch (e) {
       console.error("Gemini returned invalid JSON:", text);
-      res.status(400).json({ message: 'No se pudieron extraer datos de la imagen. Asegúrate de que la foto sea clara y los elementos sean visibles.', raw: text });
+      res.status(500).json({ message: 'La IA no devolvió un formato válido', raw: text });
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error en iaCreateVehicle:', error);
-    res.status(400).json({ message: 'Error procesando las imágenes con IA. Es posible que las fotos no sean claras o sean demasiado oscuras.', detail: error.message });
+    res.status(500).json({ message: 'Error procesando las imágenes con IA' });
   }
 };
 
@@ -237,9 +235,59 @@ export const uploadVehicleImage = async (req: Request, res: Response): Promise<v
       res.status(400).json({ message: 'No se proporcionó imagen' });
       return;
     }
-    const fileUrl = `http://localhost:5000/uploads/${file.filename}`;
-    res.json({ url: fileUrl });
+    // Cloudinary multer storage sets the url in req.file.path
+    res.json({ url: file.path });
   } catch (error) {
     res.status(500).json({ message: 'Error al subir imagen de vehículo', error });
   }
 };
+
+// ── v3: Subir / actualizar documento legal de vehículo (admin) ──────────────
+const TIPOS_DOCUMENTO_VALIDOS = ['permisoCirculacion', 'soap', 'revisionTecnica', 'seguro'];
+
+export const updateVehicleDocumento = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const file = req.file;
+    const { tipo, vencimiento } = req.body;
+
+    if (!file) {
+      res.status(400).json({ message: 'Se requiere una imagen del documento' });
+      return;
+    }
+
+    if (!TIPOS_DOCUMENTO_VALIDOS.includes(tipo)) {
+      res.status(400).json({ message: `Tipo de documento inválido. Debe ser uno de: ${TIPOS_DOCUMENTO_VALIDOS.join(', ')}` });
+      return;
+    }
+
+    const vehicle = await Vehicle.findById(req.params.id);
+    if (!vehicle) {
+      res.status(404).json({ message: 'Vehículo no encontrado' });
+      return;
+    }
+
+    // Inicializar documentos si no existe
+    if (!vehicle.documentos) {
+      (vehicle as any).documentos = {};
+    }
+
+    // Actualizar el documento específico
+    (vehicle as any).documentos[tipo] = {
+      url: file.path, // Cloudinary URL
+      vencimiento: vencimiento ? new Date(vencimiento) : undefined,
+    };
+
+    // Marcar el subdocumento como modificado para Mongoose
+    vehicle.markModified('documentos');
+    await vehicle.save();
+
+    res.json({
+      message: `Documento "${tipo}" actualizado correctamente`,
+      documento: (vehicle as any).documentos[tipo],
+    });
+  } catch (error) {
+    console.error('Error al actualizar documento:', error);
+    res.status(500).json({ message: 'Error al actualizar el documento del vehículo', error });
+  }
+};
+
