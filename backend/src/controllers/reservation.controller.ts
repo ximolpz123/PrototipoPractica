@@ -261,7 +261,7 @@ export const startReservation = async (req: AuthRequest, res: Response): Promise
         motivo: `Inicio de reserva atrasado por ${Math.floor(tiempoRetrasoMinutos)} minutos.`,
         asignadoPor: 'sistema'
       });
-      await updateUserPoints(req.userId, 'amarilla');
+      await updateUserPoints(req.userId as string, 'amarilla');
     }
 
     // Marcar el vehículo como reservado
@@ -756,7 +756,7 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
         }
       }
 
-      await User.findByIdAndUpdate(conductorQueEntrego, { banderaActual: finalColorToAssign });
+      await User.findByIdAndUpdate(conductorQueEntrego, { banderaActual: assignedColor });
     }
     // ──────────────────────────────────────────────────
 

@@ -113,7 +113,7 @@ export const initCronJobs = () => {
       // Para PRUEBAS: Permitir hasta 2 inspecciones por conductor en lugar de solo 1
       const inspeccionesExistentes = await InspeccionAleatoria.find({ reserva: { $in: activas.map(r => r._id) } });
       let reservasSinInspeccion = activas.filter(r => {
-        const count = inspeccionesExistentes.filter(i => i.reserva.toString() === r._id.toString()).length;
+        const count = inspeccionesExistentes.filter(i => i.reserva?.toString() === r._id.toString()).length;
         return count < 2; // Máximo 2 inspecciones para pruebas
       });
 
