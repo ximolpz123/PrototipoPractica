@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import InspeccionAleatoria from '../models/InspeccionAleatoria.js';
 import Flag from '../models/Flag.js';
+import { updateUserPoints } from '../services/points.service.js';
 import User from '../models/User.js';
 
 export const getInspections = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -60,6 +61,36 @@ export const getPendingInspections = async (req: AuthRequest, res: Response): Pr
   }
 };
 
+export const createManualInspection = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (req.userRol !== 'admin') {
+      res.status(403).json({ message: 'No tienes permiso para crear inspecciones' });
+      return;
+    }
+
+    const { conductorId, vehiculoId, tarea, fechaActivacion } = req.body;
+    if (!conductorId || !vehiculoId || !tarea || !fechaActivacion) {
+      res.status(400).json({ message: 'Faltan campos requeridos' });
+      return;
+    }
+
+    const nuevaInspeccion = await InspeccionAleatoria.create({
+      usuario: conductorId,
+      reserva: null,
+      vehiculo: vehiculoId,
+      tipo: tarea, // usamos tarea como tipo
+      descripcion: `Vehículo ID: ${vehiculoId} - ${tarea}`,
+      estado: 'pendiente',
+      fechaActivacion: new Date(fechaActivacion),
+      fechaLimite: new Date(new Date(fechaActivacion).getTime() + 10 * 60 * 1000) // +10 min
+    });
+
+    res.status(201).json(nuevaInspeccion);
+  } catch (error) {
+    res.status(500).json({ message: 'Error al crear la inspección manual', error });
+  }
+};
+
 export const respondToInspection = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -97,20 +128,15 @@ export const respondToInspection = async (req: AuthRequest, res: Response): Prom
 
     await inspeccion.save();
 
-    // ── Bandera Verde por responder a tiempo ──────────────────────────────────
-    // Se asigna una bandera verde al conductor que respondió la inspección
-    // dentro del tiempo límite establecido (aún en estado 'pendiente').
+    // Crear bandera verde y actualizar puntos
     await Flag.create({
       usuario: req.userId,
-      reserva: inspeccion.reserva,
       tipo: 'verde',
-      motivo: 'Respondió a la inspección aleatoria correctamente y dentro del plazo.',
+      motivo: `Inspección aleatoria respondida a tiempo: ${inspeccion.descripcion}`,
+      reserva: inspeccion.reserva,
       asignadoPor: 'sistema'
     });
-
-    // Actualizar la bandera actual del conductor en su perfil
-    await User.findByIdAndUpdate(req.userId, { banderaActual: 'verde' });
-    // ─────────────────────────────────────────────────────────────────────────
+    await updateUserPoints(req.userId, 'verde');
 
     res.json({ message: 'Inspección respondida exitosamente', inspeccion });
   } catch (error) {

@@ -60,6 +60,16 @@ const getVehicleImage = (v: IVehicle): string => {
   return camionetaBlancaImg;
 };
 
+// ─── Helper: generar color basado en nombre ───────────────────────────────────
+const getAvatarColor = (name: string): string => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+  return '#' + '00000'.substring(0, 6 - c.length) + c;
+};
+
 // ─── Componente ───────────────────────────────────────────────────────────────
 function Vehicles() {
   const navigate = useNavigate();
@@ -77,9 +87,26 @@ function Vehicles() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   // Leer usuario del localStorage
-  const storedUser = localStorage.getItem('user');
-  const user: IUser | null = storedUser ? JSON.parse(storedUser) : null;
+  const [user, setUser] = useState<IUser | null>(() => {
+    const storedUser = localStorage.getItem('user');
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
   const token = localStorage.getItem('token');
+
+  // ── Cargar perfil actual para actualizar banderas y puntos ──
+  useEffect(() => {
+    if (token) {
+      fetch('http://localhost:5000/api/auth/profile', { headers: { Authorization: `Bearer ${token}` } })
+        .then(res => res.json())
+        .then(data => {
+          if (data && !data.message) {
+            setUser(data);
+            localStorage.setItem('user', JSON.stringify(data));
+          }
+        })
+        .catch(err => console.error(err));
+    }
+  }, [token]);
 
   const defaultProfileImg = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
   const profileImgKey = user ? `profile_img_${user.id}` : 'profile_img_default';
@@ -172,10 +199,10 @@ function Vehicles() {
 
         {/* Bandera del usuario actual (esquina superior derecha del menú) */}
         {user && (
-          <div style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 1001 }} title={`Tu bandera actual: ${user.rol === 'admin' ? 'verde' : 'amarilla'}`}>
+          <div style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 1001 }} title={`Tu bandera: ${['amarilla', 'naranja', 'roja'].includes(user.banderaActual?.toLowerCase() || '') ? user.banderaActual?.toLowerCase() : 'verde'} | Puntos: ${user.puntos ?? 100}/100`}>
             <span style={{
               display: 'inline-block', width: '16px', height: '16px', borderRadius: '50%',
-              backgroundColor: user.rol === 'admin' ? '#22c55e' : '#eab308',
+              backgroundColor: user.banderaActual?.toLowerCase() === 'amarilla' ? '#eab308' : user.banderaActual?.toLowerCase() === 'naranja' ? '#f97316' : user.banderaActual?.toLowerCase() === 'roja' ? '#ef4444' : '#22c55e',
               border: '2px solid #fff', boxShadow: '0 0 0 1px rgba(0,0,0,0.2)'
             }} />
           </div>
@@ -183,7 +210,19 @@ function Vehicles() {
 
         <div className="sidebar-profile">
           <div className="sidebar-photo-upload" onClick={() => fileInputRef.current?.click()} title="Cambiar foto">
-            <img src={profileImg} alt="Perfil" className="sidebar-profile-img" />
+            {profileImg !== defaultProfileImg ? (
+              <img src={profileImg} alt="Perfil" className="sidebar-profile-img" />
+            ) : (
+              <div style={{
+                width: '64px', height: '64px', borderRadius: '50%',
+                backgroundColor: getAvatarColor((user?.nombre || '') + (user?.apellido || '')),
+                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '1.5rem', fontWeight: 'bold', border: '3px solid white',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)', margin: '0 auto', boxSizing: 'border-box'
+              }}>
+                {((user?.nombre?.[0] || '') + (user?.apellido?.[0] || '')).toUpperCase() || 'U'}
+              </div>
+            )}
             <div className="sidebar-photo-overlay"></div>
           </div>
           <input
@@ -225,7 +264,7 @@ function Vehicles() {
           </button>
           <button
             onClick={() => { }}
-            style={{ background: 'none', border: 'none', color: 'gray', fontWeight: 'normal', fontSize: '14px', cursor: 'not-allowed', padding: '4px' }}
+            style={{ background: 'none', border: 'none', color: 'white', fontWeight: 'normal', fontSize: '14px', cursor: 'not-allowed', padding: '4px' }}
           >
             Soporte Técnico
           </button>
@@ -278,7 +317,7 @@ function Vehicles() {
                         </div>
                       )}
                       {v.ultimoMantenimiento && (
-                        <div style={{ display: 'flex', justifyContent: 'flex-start', gap: '0.5rem', fontSize: '0.85rem', color: '#555', marginTop: '4px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-start', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-p)', marginTop: '4px' }}>
                           <strong>Último Mantenimiento:</strong>
                           <span>{new Date(v.ultimoMantenimiento).toLocaleString('es-CL')}</span>
                         </div>
@@ -317,7 +356,7 @@ function Vehicles() {
                 onClick={() => navigate('/reservations')}
                 style={{ margin: 0, height: '44px', display: 'flex', alignItems: 'center' }}
               >
-                ➕ Crear Reservación
+                Crear Reservación
               </button>
 
               <div className="filter-panel" style={{ flex: 'none', width: '240px', boxSizing: 'border-box' }}>
@@ -486,7 +525,7 @@ function Vehicles() {
                         return (
                           <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100px' }}>
                             <img src={imgSrc} alt={label} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer' }} onClick={() => setModalImg(imgSrc)} />
-                            <span style={{ fontSize: '0.75rem', marginTop: '6px', color: '#555', textAlign: 'center', fontWeight: 'bold' }}>{label}</span>
+                            <span style={{ fontSize: '0.75rem', marginTop: '6px', color: 'var(--text-p)', textAlign: 'center', fontWeight: 'bold' }}>{label}</span>
                           </div>
                         );
                       })}
@@ -505,7 +544,7 @@ function Vehicles() {
                         return (
                           <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100px' }}>
                             <img src={imgSrc} alt={label} style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ccc', cursor: 'pointer' }} onClick={() => setModalImg(imgSrc)} />
-                            <span style={{ fontSize: '0.75rem', marginTop: '6px', color: '#555', textAlign: 'center', fontWeight: 'bold' }}>{label}</span>
+                            <span style={{ fontSize: '0.75rem', marginTop: '6px', color: 'var(--text-p)', textAlign: 'center', fontWeight: 'bold' }}>{label}</span>
                           </div>
                         );
                       })}

@@ -9,6 +9,7 @@ export interface IFlag extends Document {
   reserva?: Types.ObjectId;       // Reserva que originó la bandera (si aplica)
   asignadoPor: 'sistema' | 'admin';
   adminId?: Types.ObjectId;       // Quién asignó (si fue un admin)
+  evidenciaUrl?: string;          // URL de la evidencia fotográfica
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +30,9 @@ const flagSchema = new Schema<IFlag>(
       type: String,
       required: [true, 'El motivo es obligatorio'],
       trim: true,
+    },
+    evidenciaUrl: {
+      type: String,
     },
     reserva: {
       type: Schema.Types.ObjectId,

@@ -15,6 +15,7 @@ interface ViewUserModalProps {
 export function ViewUserModal({ user, onClose, onEdit, onDelete, onUpdateSuccess, currentUserRole }: ViewUserModalProps) {
   const [flagTipo, setFlagTipo] = useState<'verde' | 'amarilla' | 'naranja' | 'roja'>('verde');
   const [flagMotivo, setFlagMotivo] = useState('');
+  const [evidenciaFile, setEvidenciaFile] = useState<File | null>(null);
   const [isAssigning, setIsAssigning] = useState(false);
   const [isInvalidating, setIsInvalidating] = useState(false);
   const [message, setMessage] = useState('');
@@ -29,7 +30,7 @@ export function ViewUserModal({ user, onClose, onEdit, onDelete, onUpdateSuccess
     setMessage('');
     setError('');
     try {
-      await userService.assignFlag(user.id, flagTipo, flagMotivo);
+      const response = await userService.assignFlag(user.id, flagTipo, flagMotivo, evidenciaFile);
       setMessage(`Bandera ${flagTipo} asignada correctamente.`);
 
       // Update local user state representation
@@ -39,11 +40,13 @@ export function ViewUserModal({ user, onClose, onEdit, onDelete, onUpdateSuccess
         tipo: flagTipo,
         motivo: flagMotivo,
         asignadoPor: 'admin',
+        evidenciaUrl: response.flag?.evidenciaUrl,
         fecha: new Date().toISOString()
       });
 
       onUpdateSuccess(updatedUser);
       setFlagMotivo('');
+      setEvidenciaFile(null);
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Error al asignar bandera');
     } finally {
@@ -71,8 +74,8 @@ export function ViewUserModal({ user, onClose, onEdit, onDelete, onUpdateSuccess
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '600px', width: '90%', color: '#000', textAlign: 'left', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-        <button onClick={onClose} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold' }}>X</button>
+      <div className="modal-content" style={{ backgroundColor: 'var(--bg-panel)', padding: '2rem', borderRadius: '8px', maxWidth: '600px', width: '90%', color: 'var(--text-p)', textAlign: 'left', position: 'relative', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+        <button onClick={onClose} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: 'var(--bg-input)', color: 'var(--text-h)', cursor: 'pointer', fontWeight: 'bold' }}>X</button>
         <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}>Detalles del Usuario</h2>
 
         {message && <p style={{ color: '#22c55e', fontWeight: 'bold', textAlign: 'center' }}>{message}</p>}
@@ -81,13 +84,17 @@ export function ViewUserModal({ user, onClose, onEdit, onDelete, onUpdateSuccess
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem', fontSize: '1.05rem' }}>
           <p style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
             <strong>Nombre:</strong> <span style={{ marginLeft: '4px' }}>{user.nombre} {user.apellido}</span>
-            {user.banderaActual && (
-              <span style={{
-                display: 'inline-block', width: '14px', height: '14px', borderRadius: '50%',
-                backgroundColor: user.banderaActual === 'verde' ? '#22c55e' : user.banderaActual === 'amarilla' ? '#eab308' : user.banderaActual === 'naranja' ? '#f97316' : '#ef4444',
-                border: '1px solid #fff', boxShadow: '0 0 0 1px #ccc', marginLeft: '8px'
-              }} title={`Bandera ${user.banderaActual}`} />
-            )}
+            {(() => {
+              const f = user.banderaActual?.toLowerCase();
+              const currentFlag = ['amarilla', 'naranja', 'roja'].includes(f || '') ? f : 'verde';
+              return (
+                <span style={{
+                  display: 'inline-block', width: '14px', height: '14px', borderRadius: '50%',
+                  backgroundColor: currentFlag === 'amarilla' ? '#eab308' : currentFlag === 'naranja' ? '#f97316' : currentFlag === 'roja' ? '#ef4444' : '#22c55e',
+                  border: '1px solid #fff', boxShadow: '0 0 0 1px #ccc', marginLeft: '8px'
+                }} title={`Bandera ${currentFlag}`} />
+              );
+            })()}
           </p>
           <p style={{ margin: 0 }}><strong>Email:</strong> {user.email}</p>
           <p style={{ margin: 0 }}><strong>Departamento:</strong> {user.departamento}</p>
@@ -119,14 +126,24 @@ export function ViewUserModal({ user, onClose, onEdit, onDelete, onUpdateSuccess
               <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
                 <select className="reserv-select" value={flagTipo} onChange={e => setFlagTipo(e.target.value as any)} style={{ flex: 1 }}>
                   <option value="verde">Verde (Sin faltas)</option>
-                  <option value="amarilla">Amarilla (Alerta)</option>
-                  <option value="naranja">Naranja (Grave)</option>
-                  <option value="roja">Roja (Bloqueo)</option>
+                  <option value="amarilla">Amarilla (Falta leve)</option>
+                  <option value="naranja">Naranja (Falta grave)</option>
+                  <option value="roja">Roja (Falta crítica)</option>
                 </select>
                 <input type="text" className="reserv-input" placeholder="Motivo (ej. Choque, Atraso)" value={flagMotivo} onChange={e => setFlagMotivo(e.target.value)} style={{ flex: 2 }} />
                 <button className="btn" style={{ margin: 0, backgroundColor: '#3b82f6', color: 'black', border: '1px solid black' }} onClick={handleAssignFlag} disabled={isAssigning}>
                   {isAssigning ? 'Asignando...' : 'Asignar'}
                 </button>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+                <label style={{ fontSize: '0.9rem', color: '#374151', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Evidencia (opcional):</label>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  className="reserv-input" 
+                  onChange={e => setEvidenciaFile(e.target.files ? e.target.files[0] : null)}
+                  style={{ flex: 1, padding: '0.4rem', boxSizing: 'border-box' }}
+                />
               </div>
             </div>
           )}

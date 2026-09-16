@@ -4,6 +4,7 @@ import User from '../models/User.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import Flag from '../models/Flag.js';
+import { updateUserPoints } from '../services/points.service.js';
 
 // GET /api/users
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
@@ -321,16 +322,21 @@ export const assignFlag = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
+    let evidenciaUrl = undefined;
+    if (req.file) {
+      evidenciaUrl = `/uploads/${req.file.filename}`;
+    }
+
     const flag = await Flag.create({
       usuario: req.params.id,
       tipo,
       motivo,
+      evidenciaUrl,
       asignadoPor: 'admin',
       adminId: req.userId,
     });
 
-    user.banderaActual = tipo;
-    await user.save();
+    await updateUserPoints(user._id.toString(), tipo as 'verde' | 'amarilla' | 'naranja' | 'roja');
 
     res.status(201).json({ message: 'Bandera asignada exitosamente', flag });
   } catch (error) {

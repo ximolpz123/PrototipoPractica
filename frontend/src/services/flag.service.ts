@@ -4,6 +4,7 @@ export interface IAdminFlag {
   tipo: 'verde' | 'amarilla' | 'naranja' | 'roja';
   motivo: string;
   asignadoPor: 'sistema' | 'admin';
+  evidenciaUrl?: string;
   createdAt: string;
   updatedAt: string;
   usuario?: {

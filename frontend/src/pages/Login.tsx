@@ -102,8 +102,10 @@ function Login() {
         <img src={logo} alt="Bitnets" className="logo-img" />
         <span className="logo-text">Bitnets</span>
       </div>
-      <h1>{isRegistering ? 'Crear una Cuenta' : 'Iniciar Sesión'}</h1>
       <form className="login-form" onSubmit={handleSubmit} style={{ width: '100%' }}>
+        <h1 style={{ marginTop: 0, marginBottom: '1.5rem', textAlign: 'center' }}>
+          {isRegistering ? 'Crear una Cuenta' : 'Iniciar Sesión'}
+        </h1>
         {error && <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
 
         {isRegistering && (

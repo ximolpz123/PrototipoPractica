@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getInspections, getPendingInspections, respondToInspection } from '../controllers/inspection.controller.js';
+import { getInspections, getPendingInspections, respondToInspection, createManualInspection } from '../controllers/inspection.controller.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { upload } from '../config/cloudinary.js';
 
@@ -7,6 +7,9 @@ const router = Router();
 
 // GET /api/inspections (Todas del día para el dashboard)
 router.get('/', authMiddleware, getInspections);
+
+// POST /api/inspections (Crear manual)
+router.post('/', authMiddleware, createManualInspection);
 
 // GET /api/inspections/pending (Pendientes del usuario actual)
 router.get('/pending', authMiddleware, getPendingInspections);

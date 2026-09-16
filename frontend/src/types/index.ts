@@ -12,6 +12,7 @@ export interface IUser {
   licenciaAlDia?: boolean;
   licenciaVencimiento?: string;
   licenciaFotoUrl?: string;
+  puntos?: number;
   banderaActual?: 'verde' | 'amarilla' | 'naranja' | 'roja';
   historialBanderas?: IFlag[];
   createdAt: string;
@@ -23,6 +24,7 @@ export interface IFlag {
   motivo: string;
   fecha: string;
   asignadoPor?: string;
+  evidenciaUrl?: string;
 }
 
 export interface IVehicle {
@@ -79,7 +81,7 @@ export interface IRandomInspection {
   vehiculoId: string;
   vehiculoPlaca: string;
   tarea: string;
-  estado: 'pendiente' | 'respondida' | 'vencida';
+  estado: 'pendiente' | 'en_curso' | 'respondida' | 'vencida';
   fechaActivacion: string;
   respuesta?: {
     texto?: string;

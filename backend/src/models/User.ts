@@ -9,6 +9,7 @@ export interface IUser extends Document {
   telefono?: string;
   rol: 'usuario' | 'admin';
   activo: boolean;
+  puntos: number;
   banderaActual: 'verde' | 'amarilla' | 'naranja' | 'roja' | 'ninguna';
   pushToken?: string;
   // ── Licencia (sistema antiguo — se mantiene por compatibilidad) ──
@@ -65,10 +66,14 @@ const userSchema = new Schema<IUser>(
       type: Boolean,
       default: true,
     },
+    puntos: {
+      type: Number,
+      default: 100,
+    },
     banderaActual: {
       type: String,
       enum: ['verde', 'amarilla', 'naranja', 'roja', 'ninguna'],
-      default: 'ninguna',
+      default: 'verde',
     },
     pushToken: {
       type: String,

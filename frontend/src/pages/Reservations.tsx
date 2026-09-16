@@ -40,15 +40,43 @@ const getVehicleImage = (v: IVehicle): string => {
   return camionetaBlancaImg;
 };
 
+// ─── Helper: generar color basado en nombre ───────────────────────────────────
+const getAvatarColor = (name: string): string => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+  return '#' + '00000'.substring(0, 6 - c.length) + c;
+};
+
 function Reservations() {
   const navigate = useNavigate();
 
-  let user: IUser | null = null;
-  try {
-    user = JSON.parse(localStorage.getItem('user') || 'null');
-  } catch {
-    /* ignore */
-  }
+  const [user, setUser] = useState<IUser | null>(() => {
+    try {
+      const stored = localStorage.getItem('user');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+  const token = localStorage.getItem('token');
+
+  // ── Cargar perfil actual para actualizar banderas y puntos ──
+  useEffect(() => {
+    if (token) {
+      fetch('http://localhost:5000/api/auth/profile', { headers: { Authorization: `Bearer ${token}` } })
+        .then(res => res.json())
+        .then(data => {
+          if (data && !data.message) {
+            setUser(data);
+            localStorage.setItem('user', JSON.stringify(data));
+          }
+        })
+        .catch(err => console.error(err));
+    }
+  }, [token]);
 
   const defaultProfileImg = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
   const profileImgKey = user ? `profile_img_${user.id}` : 'profile_img_default';
@@ -159,10 +187,10 @@ function Reservations() {
         </div>
         {/* Bandera del usuario actual (esquina superior derecha del menú) */}
         {user && (
-          <div style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 1001 }} title={`Tu bandera actual: ${user.rol === 'admin' ? 'verde' : 'amarilla'}`}>
+          <div style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 1001 }} title={`Tu bandera: ${['amarilla', 'naranja', 'roja'].includes(user.banderaActual?.toLowerCase() || '') ? user.banderaActual?.toLowerCase() : 'verde'} | Puntos: ${user.puntos ?? 100}/100`}>
             <span style={{
               display: 'inline-block', width: '16px', height: '16px', borderRadius: '50%',
-              backgroundColor: user.rol === 'admin' ? '#22c55e' : '#eab308',
+              backgroundColor: user.banderaActual?.toLowerCase() === 'amarilla' ? '#eab308' : user.banderaActual?.toLowerCase() === 'naranja' ? '#f97316' : user.banderaActual?.toLowerCase() === 'roja' ? '#ef4444' : '#22c55e',
               border: '2px solid #fff', boxShadow: '0 0 0 1px rgba(0,0,0,0.2)'
             }} />
           </div>
@@ -170,7 +198,19 @@ function Reservations() {
 
         <div className="sidebar-profile">
           <div className="sidebar-photo-upload" onClick={() => fileInputRef.current?.click()} title="Cambiar foto">
-            <img src={profileImg} alt="Perfil" className="sidebar-profile-img" />
+            {profileImg !== defaultProfileImg ? (
+              <img src={profileImg} alt="Perfil" className="sidebar-profile-img" />
+            ) : (
+              <div style={{
+                width: '64px', height: '64px', borderRadius: '50%',
+                backgroundColor: getAvatarColor((user?.nombre || '') + (user?.apellido || '')),
+                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '1.5rem', fontWeight: 'bold', border: '3px solid white',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)', margin: '0 auto', boxSizing: 'border-box'
+              }}>
+                {((user?.nombre?.[0] || '') + (user?.apellido?.[0] || '')).toUpperCase() || 'U'}
+              </div>
+            )}
             <div className="sidebar-photo-overlay"></div>
           </div>
           <input
@@ -260,7 +300,7 @@ function Reservations() {
 
                     <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', justifyContent: 'center' }}>
                       <button type="submit" className="btn" disabled={loading || vehiculoError || !vehiculoId || !fechaInicio || !fechaFin || !destino} style={{ background: 'linear-gradient(to right, #3D9FD3, #FFFFFF, #B5B8BE)', color: 'black', border: '2px solid black', borderRadius: '8px', padding: '0.5rem 1rem', margin: 0, opacity: (loading || vehiculoError || !vehiculoId || !fechaInicio || !fechaFin || !destino) ? 0.5 : 1 }}>
-                        {loading ? 'Creando...' : '➕ Crear Reservación'}
+                        {loading ? 'Creando...' : ' Crear Reservación'}
                       </button>
                       <button type="button" className="btn" onClick={handleCancel} style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black', borderRadius: '8px', padding: '0.5rem 1rem', margin: 0 }}>Cancelar</button>
                     </div>

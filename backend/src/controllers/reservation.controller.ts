@@ -6,6 +6,7 @@ import Audit from '../models/Audit.js';
 import { AuthRequest } from '../middleware/auth.js';
 import Flag from '../models/Flag.js';
 import User from '../models/User.js';
+import { updateUserPoints } from '../services/points.service.js';
 import { timeService } from '../services/time.service.js';
 import { sendPushNotification, notifyAdmins } from '../services/notification.service.js';
 
@@ -253,13 +254,14 @@ export const startReservation = async (req: AuthRequest, res: Response): Promise
     const tiempoRetrasoMinutos = (currentTime.getTime() - fechaInicioReserva.getTime()) / 60000;
     
     if (tiempoRetrasoMinutos > toleranciaMinutos && !isTramo) {
-      await Flag.create({
+      const flag = await Flag.create({
         usuario: req.userId,
         reserva: reservation._id,
         tipo: 'amarilla',
         motivo: `Inicio de reserva atrasado por ${Math.floor(tiempoRetrasoMinutos)} minutos.`,
         asignadoPor: 'sistema'
       });
+      await updateUserPoints(req.userId, 'amarilla');
     }
 
     // Marcar el vehículo como reservado
@@ -738,19 +740,19 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
         motivo: assignedMotivo,
         asignadoPor: 'sistema'
       });
+      await updateUserPoints(reservation.usuario.toString(), assignedColor as 'verde' | 'amarilla' | 'naranja' | 'roja');
 
       // Si es naranja, validar regla: 3 naranjas = 1 roja
-      let finalColorToAssign = assignedColor;
       if (assignedColor === 'naranja') {
         const naranjasCount = await Flag.countDocuments({ usuario: conductorQueEntrego, tipo: 'naranja' });
         if (naranjasCount >= 3) {
-          finalColorToAssign = 'roja';
           await Flag.create({
             usuario: conductorQueEntrego,
             tipo: 'roja',
             motivo: 'Acumulación de 3 banderas naranjas.',
             asignadoPor: 'sistema'
           });
+          await updateUserPoints(reservation.usuario.toString(), 'roja');
         }
       }
 
