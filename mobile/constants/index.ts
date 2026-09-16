@@ -1,9 +1,9 @@
 import { Appearance } from 'react-native';
 
-export const API_URL = 'https://qvvsd-186-11-118-26.run.pinggy-free.link/api'; // Pinggy URL (127.0.0.1)
+// export const API_URL = 'https://qvvsd-186-11-118-26.run.pinggy-free.link/api'; // Pinggy URL (127.0.0.1)
 //export const API_URL = 'https://bfalx-181-42-196-231.run.pinggy-free.link/api'; // Pinggy URL
 //export const API_URL = 'https://cold-trams-punch.loca.lt/api'; // Localtunnel URL
-//export const API_URL = 'https://prototipopractica-production-68f6.up.railway.app/api'; // Railway producción
+export const API_URL = 'https://controlflota.bitnets.cl/Backend_API/api'; // cPanel Producción
 
 const isDarkMode = Appearance.getColorScheme() === 'dark';
 
