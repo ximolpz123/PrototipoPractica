@@ -81,9 +81,10 @@ export function ActiveVehiclesMap({ token, isAdmin, reservations }: ActiveVehicl
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(60);
+  const [selectedRouteVehicle, setSelectedRouteVehicle] = useState<string | null>(null);
+  const routeLayerRef = useRef<L.Polyline | null>(null);
 
-  const displayVehicles = activeVehicles.length > 0 ? activeVehicles : (reservations || [])
+  const displayVehicles = (activeVehicles.length > 0 ? activeVehicles : (reservations || [])
     .filter(r => r.estado === 'completada' || r.estado === 'completado')
     .map(r => {
       const veh = r.vehiculo && typeof r.vehiculo === 'object' ? r.vehiculo : {};
@@ -97,6 +98,11 @@ export function ActiveVehiclesMap({ token, isAdmin, reservations }: ActiveVehicl
         departamento: usr.departamento || 'No asignado',
         ubicacionActual: null,
       } as unknown as ActiveVehicle;
+    }))
+    .sort((a, b) => {
+      if (a.ubicacionActual && !b.ubicacionActual) return -1;
+      if (!a.ubicacionActual && b.ubicacionActual) return 1;
+      return a.placa.localeCompare(b.placa);
     });
 
   // Fetch active vehicles
@@ -161,6 +167,34 @@ export function ActiveVehiclesMap({ token, isAdmin, reservations }: ActiveVehicl
     };
   }, []);
 
+  const generateMockRoute = useCallback((lat: number, lng: number) => {
+    // Simula una ruta de ida y vuelta (trayecto cerrado/circular)
+    return [
+      [lat - 0.02, lng - 0.02],   // Base (Inicio de ruta)
+      [lat - 0.01, lng - 0.03],   // Ida
+      [lat + 0.03, lng - 0.025],  // Destino
+      [lat + 0.04, lng + 0.01],   // Retorno
+      [lat + 0.01, lng + 0.02],   // Retorno
+      [lat, lng]                  // Ubicación actual
+    ] as L.LatLngExpression[];
+  }, []);
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (routeLayerRef.current) {
+      routeLayerRef.current.remove();
+      routeLayerRef.current = null;
+    }
+    if (selectedRouteVehicle) {
+      const vehicle = displayVehicles.find(v => v._id === selectedRouteVehicle);
+      if (vehicle && vehicle.ubicacionActual) {
+        const routePts = generateMockRoute(vehicle.ubicacionActual.latitud, vehicle.ubicacionActual.longitud);
+        routeLayerRef.current = L.polyline(routePts, { color: '#8b5cf6', weight: 5, opacity: 0.8 }).addTo(mapRef.current);
+        mapRef.current.fitBounds(routeLayerRef.current.getBounds(), { padding: [50, 50] });
+      }
+    }
+  }, [selectedRouteVehicle, displayVehicles, generateMockRoute]);
+
   // Update vehicle markers when data changes
   useEffect(() => {
     const map = mapRef.current;
@@ -208,30 +242,18 @@ export function ActiveVehiclesMap({ token, isAdmin, reservations }: ActiveVehicl
     });
   }, [activeVehicles]);
 
-  // Auto-refresh every 3 minutes + countdown
+  // Auto-refresh every 1 minute
   useEffect(() => {
     fetchActiveVehicles();
 
     intervalRef.current = setInterval(() => {
       fetchActiveVehicles();
-      setCountdown(60);
     }, 60000);
-
-    const countdownTimer = setInterval(() => {
-      setCountdown(prev => (prev <= 1 ? 60 : prev - 1));
-    }, 1000);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
-      clearInterval(countdownTimer);
     };
   }, [fetchActiveVehicles]);
-
-  const formatCountdown = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
 
   const centerOnUser = () => {
     if (userLocation && mapRef.current) {
@@ -321,7 +343,10 @@ export function ActiveVehiclesMap({ token, isAdmin, reservations }: ActiveVehicl
             }}>
               <span style={{ fontSize: '1.5rem' }}></span>
               <div>
-                <div style={{ fontWeight: '700', color: 'var(--text-p)', fontSize: '0.9rem' }}>Última actualización</div>
+                <div style={{ fontWeight: '700', color: 'var(--text-p)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  Última actualización
+                  <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px #22c55e', animation: 'pulse 2s infinite' }}></span>
+                </div>
                 <div style={{ color: '#22c55e', fontSize: '0.85rem' }}>
                   {lastUpdated.toLocaleTimeString('es-CL')}
                 </div>
@@ -349,14 +374,14 @@ export function ActiveVehiclesMap({ token, isAdmin, reservations }: ActiveVehicl
           borderRadius: '12px', overflow: 'hidden',
           border: '1px solid var(--border)',
           boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-          height: '400px', position: 'relative'
+          minHeight: '400px', height: 'calc(100vh - 280px)', position: 'relative'
         }}>
           <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
         </div>
 
         {/* Vehicle table (admin + vehicles exist) */}
         {!locationError && isAdmin && (
-          <div style={{ flex: '1 1 500px', height: '400px', display: 'flex', flexDirection: 'column', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', border: '1px solid var(--border)' }}>
+          <div style={{ flex: '1 1 500px', minHeight: '400px', height: 'calc(100vh - 280px)', display: 'flex', flexDirection: 'column', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', border: '1px solid var(--border)' }}>
             <div style={{ background: 'var(--bg-input)', color: 'var(--text-h)', padding: '0.75rem 1.25rem', fontWeight: '800', fontSize: '1rem', textAlign: 'center', flexShrink: 0, borderBottom: '1px solid var(--border)' }}>
               Detalle de Vehículos en Curso
             </div>
@@ -393,28 +418,35 @@ export function ActiveVehiclesMap({ token, isAdmin, reservations }: ActiveVehicl
                         </td>
                         <td style={{ padding: '0.5rem' }}>
                           {v.ubicacionActual
-                            ? new Date(v.ubicacionActual.timestamp).toLocaleString('es-CL')
-                            : <span style={{ color: '#ef4444' }}>Sin señal GPS</span>}
+                            ? <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e' }}></span>
+                                <span>{new Date(v.ubicacionActual.timestamp).toLocaleTimeString('es-CL')}</span>
+                              </div>
+                            : <span style={{ background: '#ef4444', color: 'white', padding: '0.2rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700' }}>Sin señal</span>}
                         </td>
                         <td style={{ padding: '0.5rem', textAlign: 'center' }}>
                           {v.ubicacionActual && (
-                            <button
-                              onClick={() => {
-                                if (mapRef.current && v.ubicacionActual) {
-                                  mapRef.current.setView(
-                                    [v.ubicacionActual.latitud, v.ubicacionActual.longitud], 16
-                                  );
-                                  vehicleMarkersRef.current.get(v._id)?.openPopup();
-                                }
-                              }}
-                              style={{
-                                background: '#175fbd', color: 'white', border: 'none',
-                                borderRadius: '6px', padding: '0.2rem 0.6rem',
-                                cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600'
-                              }}
-                            >
-                              Ver
-                            </button>
+                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                              <button
+                                onClick={() => {
+                                  if (mapRef.current && v.ubicacionActual) {
+                                    mapRef.current.setView([v.ubicacionActual.latitud, v.ubicacionActual.longitud], 16);
+                                    vehicleMarkersRef.current.get(v._id)?.openPopup();
+                                  }
+                                }}
+                                style={{ background: 'var(--accent)', color: '#000', border: 'none', borderRadius: '6px', padding: '0.3rem 0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '600' }}
+                                title="Centrar"
+                              >
+                                📍
+                              </button>
+                              <button
+                                onClick={() => setSelectedRouteVehicle(selectedRouteVehicle === v._id ? null : v._id)}
+                                style={{ background: selectedRouteVehicle === v._id ? '#8b5cf6' : 'var(--bg-input)', color: selectedRouteVehicle === v._id ? 'white' : 'var(--text-h)', border: '1px solid var(--border)', borderRadius: '6px', padding: '0.3rem 0.6rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '600' }}
+                                title={selectedRouteVehicle === v._id ? 'Ocultar Ruta' : 'Ver Ruta'}
+                              >
+                                🗺️ Ruta
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>

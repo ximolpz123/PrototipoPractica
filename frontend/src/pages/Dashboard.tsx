@@ -212,6 +212,7 @@ function Dashboard() {
       fetchVehicles();
     }
     if (activeTab === 'vehiculos') fetchVehicles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   // ────────── FETCH FUNCTIONS ──────────
@@ -477,7 +478,7 @@ function Dashboard() {
   const sendToMaintenance = async (id: string) => {
     if (!token || !selectedVehicle) return;
     try {
-      const updatedVehicle = { ...selectedVehicle, estado: 'mantenimiento', motivoMantenimiento: maintenanceReason };
+      const updatedVehicle = { ...selectedVehicle, estado: 'mantenimiento' as const, motivoMantenimiento: maintenanceReason };
       await fetch(`http://localhost:5000/api/vehicles/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -874,10 +875,23 @@ function Dashboard() {
             onChange={handleImageUpload}
             style={{ display: 'none' }}
           />
-          <div className="sidebar-profile-info">
+          <div className="sidebar-profile-info" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
             <span className="sidebar-profile-name">
               {user?.nombre ?? ''} {user?.apellido ?? ''} | <span title={`Departamento de: ${user?.departamento || 'Sin Departamento'}`} style={{ fontWeight: 'normal', color: 'rgba(255,255,255,0.85)', fontSize: '14px', cursor: 'default' }}>{user?.departamento ? user.departamento.slice(0, 2) : 'Sin'}</span>
             </span>
+            {user?.licenciaAlDia !== undefined && (
+              <span style={{
+                fontSize: '0.75rem',
+                fontWeight: 'bold',
+                backgroundColor: user?.licenciaAlDia ? 'rgba(22, 163, 74, 0.15)' : 'rgba(239, 68, 68, 0.2)',
+                color: user?.licenciaAlDia ? '#16a34a' : '#fca5a5',
+                padding: '3px 8px',
+                borderRadius: '12px',
+                border: `1px solid ${user?.licenciaAlDia ? 'rgba(22, 163, 74, 0.5)' : 'rgba(239, 68, 68, 0.5)'}`
+              }}>
+                Licencia {user?.licenciaAlDia ? 'Al Día' : 'Vencida'}
+              </span>
+            )}
           </div>
         </div>
 
@@ -969,7 +983,7 @@ function Dashboard() {
       <main className="dashboard-content">
 
         {/* ── Alertas del Sistema de Puntos ── */}
-        {user?.puntos !== undefined && user.puntos < 35 && user.puntos >= 10 && (
+        {user?.puntos !== undefined && user.puntos <= 35 && user.puntos >= 10 && (
           <div style={{ backgroundColor: '#fff3cd', color: '#856404', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', border: '1px solid #ffeeba', fontWeight: 'bold' }}>
             ⚠️ Tienes {user.puntos} puntos. Estás en riesgo de bloqueo. Completa tus inspecciones de penalidad para no seguir bajando, y cumple tus reservas para subir.
           </div>
@@ -983,7 +997,7 @@ function Dashboard() {
         {/* ══════════ TAB: DASHBOARD ══════════ */}
         {activeTab === 'dashboard' && (
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '24px', alignItems: 'flex-start' }}>
-            
+
             {/* GO SMART STYLE TOP BAR */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingBottom: '20px', borderBottom: '1px solid var(--border)', width: '100%' }}>
               <h1 style={{ fontSize: '1.6rem', fontWeight: '800', margin: 0, color: 'var(--text-h)', textTransform: 'uppercase', letterSpacing: '1px' }}>
@@ -1189,7 +1203,7 @@ function Dashboard() {
                     <span className="dash-stat-label" style={{ color: 'var(--text-p)', marginBottom: '4px' }}>Estado Vehículos</span>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
                       <div>
-                        <div className="dash-stat-value" style={{ color: '#4ade80' }}>{vehicles.filter(v => v.estado === 'disponible').length}</div>
+                        <div className="dash-stat-value" style={{ color: '#16a34a' }}>{vehicles.filter(v => v.estado === 'disponible').length}</div>
                         <div className="dash-stat-sub">Disponibles</div>
                       </div>
                       <div>
@@ -1215,6 +1229,106 @@ function Dashboard() {
               </div>
 
             </div>
+
+            {/* NUEVA FILA DE MEJORAS */}
+            {(() => {
+              const last7Days = Array.from({ length: 7 }, (_, i) => {
+                const d = new Date();
+                d.setDate(d.getDate() - (6 - i));
+                return d.toISOString().split('T')[0];
+              });
+
+              const trendData = last7Days.map(date => {
+                const count = reservations.filter(r => r.fechaInicio && r.fechaInicio.startsWith(date)).length;
+                const parts = date.split('-');
+                return { date: `${parts[2]}/${parts[1]}`, reservas: count };
+              });
+
+              const criticalUsers = users.filter(u => u.banderaActual === 'roja' || (u.puntos !== undefined && u.puntos <= 35));
+
+              const maintenanceVehicles = vehicles
+                .map(v => ({ ...v, kmParaMantenimiento: 10000 - (v.kilometraje % 10000) }))
+                .filter(v => v.kmParaMantenimiento < 1000)
+                .sort((a, b) => a.kmParaMantenimiento - b.kmParaMantenimiento)
+                .slice(0, 3); // top 3
+
+              return (
+                <div style={{ display: 'flex', width: '100%', gap: '24px', flexWrap: 'wrap', alignItems: 'stretch' }}>
+
+                  {/* Gráfico de Uso (Tendencia de Reservas) */}
+                  <div className="dash-stat-card dash-stat-full" style={{ flex: 2, minWidth: '500px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', padding: '1.4rem', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                      <span className="dash-stat-label" style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-h)', display: 'flex', alignItems: 'center', gap: '8px' }}>Tendencia de Reservas (Últimos 7 días)</span>
+                    </div>
+                    <div style={{ width: '100%', height: '250px' }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <XAxis dataKey="date" stroke="var(--text-p)" fontSize={12} tickLine={false} axisLine={true} />
+                          <YAxis stroke="var(--text-p)" fontSize={12} tickLine={false} axisLine={false} tick={false} allowDecimals={false} />
+                          <Tooltip cursor={{ fill: 'rgba(0,0,0,0.05)' }} contentStyle={{ backgroundColor: 'var(--bg-panel)', border: 'none', borderRadius: '8px', color: 'var(--text-p)' }} />
+                          <Bar dataKey="reservas" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Panel de Alertas y Mantenimientos */}
+                  <div style={{ flex: 1, minWidth: '300px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+                    {/* Alertas Críticas */}
+                    <div className="dash-stat-card" style={{ padding: '1.4rem', border: '1px solid #fca5a5', backgroundColor: 'rgba(254, 242, 242, 0.5)' }}>
+                      <h4 style={{ margin: 0, marginBottom: '1rem', fontSize: '1.1rem', color: '#b91c1c', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        Alertas Críticas
+                      </h4>
+                      {criticalUsers.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          {criticalUsers.slice(0, 3).map(u => (
+                            <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: 'var(--bg-panel)', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid var(--border)' }}>
+                              <div>
+                                <div style={{ fontWeight: '700', color: 'var(--text-h)', fontSize: '0.9rem' }}>{u.nombre} {u.apellido}</div>
+                                <div style={{ fontSize: '0.8rem', color: '#ef4444', fontWeight: '600' }}>{u.banderaActual === 'roja' ? 'Bandera Roja' : `${u.puntos} pts (Penalizado)`}</div>
+                              </div>
+                              <button className="btn-sm" style={{ padding: '4px 10px', fontSize: '0.75rem', margin: 0 }} onClick={() => { setViewUser(u); setActiveTab('usuarios'); }}>Ver</button>
+                            </div>
+                          ))}
+                          {criticalUsers.length > 3 && (
+                            <div style={{ fontSize: '0.8rem', color: '#b91c1c', textAlign: 'center', cursor: 'pointer', fontWeight: '600' }} onClick={() => setActiveTab('banderas')}>
+                              Ver {criticalUsers.length - 3} más...
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.9rem', color: '#991b1b', opacity: 0.8 }}>No hay usuarios en estado crítico.</div>
+                      )}
+                    </div>
+
+                    {/* Próximos Mantenimientos */}
+                    <div className="dash-stat-card" style={{ padding: '1.4rem', border: '1px solid #fdba74', backgroundColor: 'rgba(255, 247, 237, 0.5)' }}>
+                      <h4 style={{ margin: 0, marginBottom: '1rem', fontSize: '1.1rem', color: '#c2410c', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        Próximos Mantenimientos
+                      </h4>
+                      {maintenanceVehicles.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          {maintenanceVehicles.map(v => (
+                            <div key={v._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: 'var(--bg-panel)', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', border: '1px solid var(--border)' }}>
+                              <div>
+                                <div style={{ fontWeight: '700', color: 'var(--text-h)', fontSize: '0.9rem' }}>{v.marca} {v.modelo}</div>
+                                <div style={{ fontSize: '0.8rem', color: '#c2410c', fontWeight: '600' }}>Faltan {v.kmParaMantenimiento} km</div>
+                              </div>
+                              <button className="btn-sm" style={{ padding: '4px 10px', fontSize: '0.75rem', margin: 0 }} onClick={() => { setActiveTab('vehiculos'); }}>Ver</button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.9rem', color: '#9a3412', opacity: 0.8 }}>No hay mantenimientos próximos.</div>
+                      )}
+                    </div>
+
+                  </div>
+                </div>
+              );
+            })()}
+
           </div>
         )}
 
@@ -1387,12 +1501,12 @@ function Dashboard() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                           <select className="reserv-input" style={{ flex: 1, boxSizing: 'border-box', height: '36px', padding: '0.25rem 0.5rem' }} value={createResForm.usuarioId} onChange={e => setCreateResForm({ ...createResForm, usuarioId: e.target.value })} required>
                             <option value="me">Para mí ({user?.nombre} {user?.apellido})</option>
-                            {users.filter(u => u.activo && u.id !== user?.id && (u as any)._id !== (user as any)?._id).map(u => (
+                            {users.filter(u => u.activo).map(u => (
                               <option key={u.id} value={u.id}>{u.nombre} {u.apellido}</option>
                             ))}
                           </select>
                           {(() => {
-                            const selectedUser = createResForm.usuarioId === 'me' ? user : users.find(u => u.id === createResForm.usuarioId);
+                            const selectedUser = createResForm.usuarioId === 'me' ? (users.find(u => u.id === user?.id || (u as any)._id === (user as any)?._id) || user) : users.find(u => u.id === createResForm.usuarioId);
                             const flagColor = selectedUser?.banderaActual?.toLowerCase() || 'ninguna';
                             return (
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold', color: 'var(--text-p)' }}>
@@ -1402,7 +1516,7 @@ function Dashboard() {
                           })()}
                         </div>
                         {(() => {
-                          const selectedUser = createResForm.usuarioId === 'me' ? user : users.find(u => u.id === createResForm.usuarioId);
+                          const selectedUser = createResForm.usuarioId === 'me' ? (users.find(u => u.id === user?.id || (u as any)._id === (user as any)?._id) || user) : users.find(u => u.id === createResForm.usuarioId);
                           if (selectedUser?.banderaActual === 'roja') {
                             return (
                               <div style={{ marginTop: '0.5rem', color: '#b91c1c', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#fef2f2', padding: '0.5rem', borderRadius: '4px', border: '1px solid #f87171' }}>
@@ -1783,7 +1897,7 @@ function Dashboard() {
       {showCreateVehicle && (
         <div className="modal-overlay" onClick={() => setShowCreateVehicle(false)}>
           <div className="modal-content" style={{ backgroundColor: 'var(--bg-panel)', padding: '2rem', borderRadius: '8px', maxWidth: '580px', width: '95%', color: 'var(--text-p)', textAlign: 'left', position: 'relative', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
-            <button onClick={() => setShowCreateVehicle(false)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
+            <button onClick={() => setShowCreateVehicle(false)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: 'var(--bg-input)', color: 'var(--text-h)', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}> Agregar Vehículo</h2>
             <form onSubmit={createVehicle}>
               {renderVehicleFormFields()}
@@ -1800,7 +1914,7 @@ function Dashboard() {
       {showEditVehicle && (
         <div className="modal-overlay" onClick={() => setShowEditVehicle(null)}>
           <div className="modal-content" style={{ backgroundColor: 'var(--bg-panel)', padding: '2rem', borderRadius: '8px', maxWidth: '580px', width: '95%', color: 'var(--text-p)', textAlign: 'left', position: 'relative', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
-            <button onClick={() => setShowEditVehicle(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
+            <button onClick={() => setShowEditVehicle(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: 'var(--bg-input)', color: 'var(--text-h)', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1.25rem', textAlign: 'center' }}> Editar Vehículo</h2>
             {renderVehicleFormFields()}
             <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'center' }}>
@@ -1815,7 +1929,7 @@ function Dashboard() {
       {selectedReservation && (
         <div className="modal-overlay" onClick={() => { setSelectedReservation(null); setShowRejectForm(false); setRejectReason(''); }}>
           <div className="modal-content" style={{ backgroundColor: 'var(--bg-panel)', padding: '2rem', borderRadius: '8px', maxWidth: '520px', width: '90%', color: 'var(--text-p)', textAlign: 'center', position: 'relative', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
-            <button onClick={() => { setSelectedReservation(null); setShowRejectForm(false); setRejectReason(''); }} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
+            <button onClick={() => { setSelectedReservation(null); setShowRejectForm(false); setRejectReason(''); }} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: 'var(--bg-input)', color: 'var(--text-h)', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1.5rem' }}>Detalles de Reservación</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem', textAlign: 'left', fontSize: '1.05rem' }}>
               {user?.rol === 'admin' && typeof selectedReservation.usuario === 'object' && selectedReservation.usuario !== null && (
@@ -2036,7 +2150,7 @@ function Dashboard() {
       {showDeleteUserConfirm && (
         <div className="modal-overlay" onClick={() => setShowDeleteUserConfirm(null)}>
           <div className="modal-content" style={{ backgroundColor: 'var(--bg-panel)', padding: '2rem', borderRadius: '8px', maxWidth: '400px', width: '90%', color: 'var(--text-p)', textAlign: 'center', position: 'relative', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
-            <button onClick={() => setShowDeleteUserConfirm(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
+            <button onClick={() => setShowDeleteUserConfirm(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: 'var(--bg-input)', color: 'var(--text-h)', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>X</button>
             <h2 style={{ marginTop: 0 }}>¿Eliminar usuario?</h2>
             <p style={{ color: 'var(--text-p)', marginBottom: '1.5rem' }}>Esta acción no se puede deshacer.</p>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
@@ -2113,18 +2227,19 @@ function Dashboard() {
           <div
             className="modal-content"
             style={{
-              backgroundColor: 'white',
+              backgroundColor: 'var(--bg-panel)',
               padding: '2rem',
               borderRadius: '8px',
               maxWidth: '500px',
               width: '90%',
-              color: '#000',
+              color: 'var(--text-p)',
               textAlign: 'center',
-              position: 'relative'
+              position: 'relative',
+              border: '1px solid var(--border)'
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 style={{ marginTop: 0, marginBottom: '1.5rem', color: '#000', fontSize: '1.5rem' }}>¿Seguro que quiere Cerrar Sesión?</h2>
+            <h2 style={{ marginTop: 0, marginBottom: '1.5rem', color: 'var(--text-h)', fontSize: '1.5rem' }}>¿Seguro que quiere Cerrar Sesión?</h2>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
               <button
                 className="btn"
@@ -2155,7 +2270,7 @@ function Dashboard() {
           <div style={{ position: 'relative', maxWidth: '90%', maxHeight: '90%' }} onClick={e => e.stopPropagation()}>
             <button
               onClick={() => setFullScreenImage(null)}
-              style={{ position: 'absolute', top: '-15px', right: '-15px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: '#e5e7eb', color: '#000', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+              style={{ position: 'absolute', top: '-15px', right: '-15px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: 'var(--bg-input)', color: 'var(--text-h)', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
             >
               X
             </button>

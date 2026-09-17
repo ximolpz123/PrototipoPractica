@@ -91,7 +91,7 @@ function Login() {
       } else {
         setError(data.message || 'Error en la operación');
       }
-    } catch (err) {
+    } catch {
       setError('Error de conexión con el servidor');
     }
   };

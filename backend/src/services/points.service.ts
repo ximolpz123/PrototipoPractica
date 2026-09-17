@@ -57,7 +57,7 @@ export const updateUserPoints = async (userId: string, flagType: 'verde' | 'amar
       } else if (user.puntos >= 10 && user.puntos <= 20) {
         // 3 Inspecciones
         await generatePenaltyInspections(user._id.toString(), 3);
-      } else if (user.puntos < 35 && user.puntos > 20) {
+      } else if (user.puntos <= 35 && user.puntos > 20) {
         // 2 Inspecciones
         await generatePenaltyInspections(user._id.toString(), 2);
       }

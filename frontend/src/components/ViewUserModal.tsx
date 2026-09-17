@@ -122,7 +122,7 @@ export function ViewUserModal({ user, onClose, onEdit, onDelete, onUpdateSuccess
 
           {currentUserRole === 'admin' && (
             <div style={{ marginTop: '1rem', borderTop: '1px solid #e5e7eb', paddingTop: '1rem' }}>
-              <h4 style={{ margin: '0 0 0.5rem 0', color: '#374151' }}>Asignar Nueva Bandera (Sanción/Alerta)</h4>
+              <h4 style={{ margin: '0 0 0.5rem 0', color: 'white' }}>Asignar Nueva Bandera (Sanción/Alerta)</h4>
               <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
                 <select className="reserv-select" value={flagTipo} onChange={e => setFlagTipo(e.target.value as any)} style={{ flex: 1 }}>
                   <option value="verde">Verde (Sin faltas)</option>
@@ -136,7 +136,7 @@ export function ViewUserModal({ user, onClose, onEdit, onDelete, onUpdateSuccess
                 </button>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
-                <label style={{ fontSize: '0.9rem', color: '#374151', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Evidencia (opcional):</label>
+                <label style={{ fontSize: '0.9rem', color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Evidencia (opcional):</label>
                 <input 
                   type="file" 
                   accept="image/*" 
@@ -150,7 +150,7 @@ export function ViewUserModal({ user, onClose, onEdit, onDelete, onUpdateSuccess
 
           {user.historialBanderas && user.historialBanderas.length > 0 && (
             <div style={{ marginTop: '0.5rem', borderTop: '1px solid #e5e7eb', paddingTop: '1rem' }}>
-              <h4 style={{ margin: '0 0 0.5rem 0', color: '#374151' }}>Historial de Banderas</h4>
+              <h4 style={{ margin: '0 0 0.5rem 0', color: 'white' }}>Historial de Banderas</h4>
               <ul style={{ paddingLeft: '0', listStyleType: 'none', margin: 0, fontSize: '0.95rem', maxHeight: '150px', overflowY: 'auto' }}>
                 {user.historialBanderas.map((bandera, i) => (
                   <li key={i} style={{ marginBottom: '8px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
@@ -176,7 +176,7 @@ export function ViewUserModal({ user, onClose, onEdit, onDelete, onUpdateSuccess
               <button className="btn" style={{ background: 'rgba(239, 68, 68, 0.75)', color: 'black', border: '2px solid black' }} onClick={() => onDelete(user.id)}>Eliminar</button>
             </>
           ) : (
-            <span style={{ fontSize: '0.9rem', color: '#888', fontStyle: 'italic', padding: '0.5rem' }}>Usuario protegido (no se puede editar ni eliminar)</span>
+            <span style={{ fontSize: '0.9rem', color: 'white', fontStyle: 'italic', padding: '0.5rem' }}>Usuario protegido (no se puede editar ni eliminar)</span>
           )}
         </div>
       </div>

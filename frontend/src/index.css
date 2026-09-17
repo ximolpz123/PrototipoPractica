@@ -10,14 +10,14 @@
   /* blue-900 */
 
   /* Backgrounds */
-  --bg-global: #93c5fd;
+  --bg-global: #60a5fa;
+  /* blue-400 */
+  --bg-sidebar: #93c5fd;
   /* blue-300 */
-  --bg-sidebar: #bfdbfe;
+  --bg-panel: #93c5fd;
+  /* blue-300 */
+  --bg-input: #bfdbfe;
   /* blue-200 */
-  --bg-panel: #bfdbfe;
-  /* blue-200 */
-  --bg-input: #dbeafe;
-  /* blue-100 */
   --bg: var(--bg-global);
 
   /* Borders & Highlights */
@@ -58,13 +58,18 @@
   /* Text */
   --text: #ffffff;
   --text-h: #ffffff;
-  --text-p: #f8fafc; /* Very light near-white instead of slate-gray */
+  --text-p: #f8fafc;
+  /* Very light near-white instead of slate-gray */
 
   /* Backgrounds */
-  --bg-global: #0a192f; /* Fondo general oscuro */
-  --bg-sidebar: #112240; /* Barra lateral */
-  --bg-panel: #1e3a5f; /* Paneles y modales un poco más claritos en azul */
-  --bg-input: #294a73; /* Inputs aún más claros para contraste */
+  --bg-global: #0a192f;
+  /* Fondo general oscuro */
+  --bg-sidebar: #112240;
+  /* Barra lateral */
+  --bg-panel: #1e3a5f;
+  /* Paneles y modales un poco más claritos en azul */
+  --bg-input: #294a73;
+  /* Inputs aún más claros para contraste */
   --bg: var(--bg-global);
 
   /* Borders & Highlights */
@@ -900,8 +905,6 @@ input:checked+.theme-slider:before {
   flex-direction: column;
   gap: 20px;
   width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
   align-items: stretch;
 }
 
@@ -944,8 +947,8 @@ input:checked+.theme-slider:before {
 
 .reservations-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+  gap: 24px;
   width: 100%;
 }
 
@@ -983,11 +986,12 @@ input:checked+.theme-slider:before {
 }
 
 .reservation-card-info {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px 16px;
   font-size: 14px;
   color: var(--text-p);
+  text-align: left;
 }
 
 /* ── Modificaciones para lista de reservaciones de Admin ── */
@@ -1240,7 +1244,7 @@ input:checked+.theme-slider:before {
 
 .reserv-divider {
   border: none;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border);
   margin: 0;
 }
 
@@ -1422,4 +1426,19 @@ input:checked+.theme-slider:before {
   background-color: rgba(239, 68, 68, 0.1) !important;
   border-color: #ef4444 !important;
   color: #fca5a5 !important;
+}
+.reserv-input::placeholder,
+.reserv-textarea::placeholder {
+  color: #d1d5db;
+}
+
+:root.dark-mode .reserv-input::placeholder,
+:root.dark-mode .reserv-textarea::placeholder {
+  color: #9ca3af;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
 }

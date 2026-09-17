@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { IUser, IReservation, IVehicle } from '../types';
 import { ProfilePanel } from '../components/ProfilePanel';
+import { UserInspectionsPanel } from '../components/UserInspectionsPanel';
 
 import camionetaBlancaImg from '../assets/camioneta-blanca.png'; // Fallback
 import autoCafeImg from '../assets/auto-cafe.png';
@@ -75,7 +76,7 @@ function Vehicles() {
   const navigate = useNavigate();
   const location = useLocation();
   const initialTab = (location.state as { tab?: string })?.tab === 'reservaciones' ? 'reservaciones' : 'catalogo';
-  const [activeTab, setActiveTab] = useState<'catalogo' | 'reservaciones' | 'perfil'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'catalogo' | 'reservaciones' | 'perfil' | 'inspecciones'>(initialTab as 'catalogo' | 'reservaciones' | 'perfil' | 'inspecciones');
   const [modalImg, setModalImg] = useState<string | null>(null);
   const [vehiclesList, setVehiclesList] = useState<IVehicle[]>([]);
   const [loadingVehicles, setLoadingVehicles] = useState(false);
@@ -83,6 +84,8 @@ function Vehicles() {
   const [loadingRes, setLoadingRes] = useState(false);
   const [errorRes, setErrorRes] = useState('');
   const [resFilterStatus, setResFilterStatus] = useState('todos');
+  const [resFilterVehicleId, setResFilterVehicleId] = useState('todos');
+  const [resFilterMonth, setResFilterMonth] = useState('todos');
   const [selectedReservation, setSelectedReservation] = useState<IReservation | null>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
@@ -180,6 +183,16 @@ function Vehicles() {
 
   const filteredReservations = reservations
     .filter((r) => resFilterStatus === 'todos' || r.estado === resFilterStatus)
+    .filter((r) => {
+      if (resFilterVehicleId !== 'todos') {
+        const vId = typeof r.vehiculo === 'object' && r.vehiculo !== null ? (r.vehiculo as any)._id : r.vehiculo;
+        if (vId !== resFilterVehicleId) return false;
+      }
+      if (resFilterMonth !== 'todos') {
+        if (!r.fechaInicio || !r.fechaInicio.startsWith(resFilterMonth)) return false;
+      }
+      return true;
+    })
     .sort((a, b) => {
       const pA = ESTADO_PRIORITY[a.estado] || 99;
       const pB = ESTADO_PRIORITY[b.estado] || 99;
@@ -232,14 +245,22 @@ function Vehicles() {
             onChange={handleImageUpload}
             style={{ display: 'none' }}
           />
-          <div className="sidebar-profile-info">
+          <div className="sidebar-profile-info" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
             <span className="sidebar-profile-name">
               {user?.nombre ?? ''} {user?.apellido ?? ''} | <span title={`Departamento de ${user?.departamento || 'Sin Departamento'}`} style={{ fontWeight: 'normal', color: 'rgba(255,255,255,0.85)', fontSize: '14px', cursor: 'default' }}>{user?.departamento ? user.departamento.slice(0, 2) : 'Sin'}</span>
             </span>
-            {user?.rol !== 'admin' && (
-              <div style={{ fontSize: '16px', color: 'rgba(255,255,255,0.9)', textAlign: 'left' }}>
-                <span><strong>Licencia:</strong> <span style={{ color: user?.licenciaAlDia === false ? '#ef4444' : '#4ade80', fontWeight: 'bold' }}>{user?.licenciaAlDia === false ? 'NO AL DÍA' : 'AL DÍA'}</span></span>
-              </div>
+            {user?.rol !== 'admin' && user?.licenciaAlDia !== undefined && (
+              <span style={{
+                fontSize: '0.75rem',
+                fontWeight: 'bold',
+                backgroundColor: user?.licenciaAlDia ? 'rgba(22, 163, 74, 0.15)' : 'rgba(239, 68, 68, 0.2)',
+                color: user?.licenciaAlDia ? '#16a34a' : '#fca5a5',
+                padding: '3px 8px',
+                borderRadius: '12px',
+                border: `1px solid ${user?.licenciaAlDia ? 'rgba(22, 163, 74, 0.5)' : 'rgba(239, 68, 68, 0.5)'}`
+              }}>
+                Licencia {user?.licenciaAlDia ? 'Al Día' : 'Vencida'}
+              </span>
             )}
           </div>
         </div>
@@ -250,7 +271,10 @@ function Vehicles() {
             <span className="btn-icon"></span> Vehículos
           </button>
           <button className={`sidebar-btn${activeTab === 'reservaciones' ? ' active' : ''}`} onClick={() => setActiveTab('reservaciones')}>
-            <span className="btn-icon"></span> Mis Reservaciones
+            <span className="btn-icon"></span> Reservaciones
+          </button>
+          <button className={`sidebar-btn${activeTab === 'inspecciones' ? ' active' : ''}`} onClick={() => setActiveTab('inspecciones')}>
+            <span className="btn-icon"></span> Inspecciones
           </button>
         </div>
 
@@ -258,13 +282,13 @@ function Vehicles() {
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 12px', width: '100%', boxSizing: 'border-box', marginBottom: '16px' }}>
           <button
             onClick={() => setActiveTab('perfil')}
-            style={{ background: 'none', border: 'none', color: 'white', fontWeight: 'normal', fontSize: '14px', cursor: 'pointer', textDecoration: activeTab === 'perfil' ? 'underline' : 'none', padding: '4px' }}
+            style={{ background: 'none', border: 'none', color: 'var(--text-p)', fontWeight: 'normal', fontSize: '14px', cursor: 'pointer', textDecoration: activeTab === 'perfil' ? 'underline' : 'none', padding: '4px' }}
           >
             Configuración de Perfil
           </button>
           <button
             onClick={() => { }}
-            style={{ background: 'none', border: 'none', color: 'white', fontWeight: 'normal', fontSize: '14px', cursor: 'not-allowed', padding: '4px' }}
+            style={{ background: 'none', border: 'none', color: 'var(--text-p)', fontWeight: 'normal', fontSize: '14px', cursor: 'not-allowed', padding: '4px' }}
           >
             Soporte Técnico
           </button>
@@ -278,11 +302,13 @@ function Vehicles() {
       <main className="dashboard-content">
 
         {/* ── Bienvenida ── */}
-        <div className="welcome-header" style={{ maxWidth: '100%' }}>
-          <span className="welcome-text">
-            ¡Bienvenido! {user?.nombre ?? ''} {user?.apellido ?? ''}
-          </span>
-        </div>
+        {activeTab === 'catalogo' && (
+          <div className="welcome-header" style={{ maxWidth: '100%' }}>
+            <span className="welcome-text">
+              ¡Bienvenido! {user?.nombre ?? ''} {user?.apellido ?? ''}
+            </span>
+          </div>
+        )}
 
         {/* ── Panel: Catálogo ── */}
         {activeTab === 'catalogo' && (
@@ -349,17 +375,23 @@ function Vehicles() {
         {/* ── Panel: Reservaciones ── */}
         {activeTab === 'reservaciones' && (
           <div className="reservations-panel">
-            <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', width: '100%', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '20px', borderBottom: '1px solid var(--border)', marginBottom: '24px', width: '100%' }}>
+              <h1 style={{ fontSize: '1.6rem', fontWeight: '800', margin: 0, color: 'var(--text-h)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                Mis Reservaciones
+              </h1>
               <button
                 id="btn-crear-reservacion"
                 className="btn btn-create"
+                style={{ margin: 0 }}
                 onClick={() => navigate('/reservations')}
-                style={{ margin: 0, height: '44px', display: 'flex', alignItems: 'center' }}
               >
                 Crear Reservación
               </button>
+            </div>
 
-              <div className="filter-panel" style={{ flex: 'none', width: '240px', boxSizing: 'border-box' }}>
+            <div className="filter-panel" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem', padding: '1rem', borderRadius: '8px', width: '100%', boxSizing: 'border-box', alignItems: 'flex-end' }}>
+              <div style={{ flex: '1' }}>
+                <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem', textAlign: 'center' }}>Estado de las Reservas</label>
                 <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '44px' }} value={resFilterStatus} onChange={e => setResFilterStatus(e.target.value)}>
                   <option value="todos">Todos los Estados</option>
                   <option value="en_curso">En Curso</option>
@@ -367,6 +399,28 @@ function Vehicles() {
                   <option value="pendiente">Pendiente</option>
                   <option value="completada">Completada</option>
                   <option value="cancelada">Cancelada</option>
+                </select>
+              </div>
+              <div style={{ flex: '1' }}>
+                <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem', textAlign: 'center' }}>Vehículo</label>
+                <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '44px' }} value={resFilterVehicleId} onChange={e => setResFilterVehicleId(e.target.value)}>
+                  <option value="todos">Todos los Vehículos</option>
+                  {vehiclesList.map(v => (
+                    <option key={v._id} value={v._id}>{v.marca} {v.modelo}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: '1' }}>
+                <label style={{ display: 'block', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem', textAlign: 'center' }}>Fecha Inicio</label>
+                <select className="reserv-input" style={{ width: '100%', boxSizing: 'border-box', height: '44px' }} value={resFilterMonth} onChange={e => setResFilterMonth(e.target.value)}>
+                  <option value="todos">Todos los Meses</option>
+                  {Array.from(new Set(reservations.map(r => r.fechaInicio?.substring(0, 7)))).filter(Boolean).sort().reverse().map(month => {
+                    const [yyyy, mm] = month.split('-');
+                    const date = new Date(parseInt(yyyy), parseInt(mm) - 1, 1);
+                    const monthName = date.toLocaleString('es-ES', { month: 'long' });
+                    const formattedMonth = `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${yyyy}`;
+                    return <option key={month} value={month}>{formattedMonth}</option>;
+                  })}
                 </select>
               </div>
             </div>
@@ -457,14 +511,15 @@ function Vehicles() {
             <div
               className="modal-content"
               style={{
-                backgroundColor: 'white',
+                backgroundColor: 'var(--bg-panel)',
                 padding: '2rem',
                 borderRadius: '8px',
                 maxWidth: '500px',
                 width: '90%',
-                color: '#000',
+                color: 'var(--text-p)',
                 textAlign: 'center',
-                position: 'relative'
+                position: 'relative',
+                border: '1px solid var(--border)'
               }}
               onClick={(e) => e.stopPropagation()}
             >
@@ -480,8 +535,8 @@ function Vehicles() {
                   height: '32px',
                   borderRadius: '50%',
                   border: 'none',
-                  backgroundColor: '#e5e7eb',
-                  color: '#000',
+                  backgroundColor: 'var(--bg-input)',
+                  color: 'var(--text-h)',
                   cursor: 'pointer',
                   fontWeight: 'bold',
                   display: 'flex',
@@ -492,7 +547,7 @@ function Vehicles() {
               >
                 X
               </button>
-              <h2 style={{ marginTop: 0, marginBottom: '1.5rem', color: '#000' }}>Detalles de Reservación</h2>
+              <h2 style={{ marginTop: 0, marginBottom: '1.5rem', color: 'var(--text-h)' }}>Detalles de Reservación</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem', textAlign: 'left', fontSize: '1.1rem' }}>
                 <p style={{ margin: 0 }}><strong>Tipo de vehículo:</strong> {getVehicleName(selectedReservation.vehiculo)}</p>
                 <p style={{ margin: 0 }}><strong>Estado:</strong> {selectedReservation.estado.charAt(0).toUpperCase() + selectedReservation.estado.slice(1).replace('_', ' ')}</p>
@@ -556,6 +611,13 @@ function Vehicles() {
           </div>
         )}
 
+        {/* ── Panel: Inspecciones ── */}
+        {activeTab === 'inspecciones' && (
+          <div style={{ padding: '0 20px', width: '100%', boxSizing: 'border-box' }}>
+            <UserInspectionsPanel token={token} />
+          </div>
+        )}
+
         {/* ── Modal Logout ── */}
         {showLogoutModal && (
           <div
@@ -565,18 +627,19 @@ function Vehicles() {
             <div
               className="modal-content"
               style={{
-                backgroundColor: 'white',
+                backgroundColor: 'var(--bg-panel)',
                 padding: '2rem',
                 borderRadius: '8px',
                 maxWidth: '500px',
                 width: '90%',
-                color: '#000',
+                color: 'var(--text-p)',
                 textAlign: 'center',
-                position: 'relative'
+                position: 'relative',
+                border: '1px solid var(--border)'
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 style={{ marginTop: 0, marginBottom: '1.5rem', color: '#000', fontSize: '1.5rem' }}>¿Seguro que quiere Cerrar Sesión?</h2>
+              <h2 style={{ marginTop: 0, marginBottom: '1.5rem', color: 'var(--text-h)', fontSize: '1.5rem' }}>¿Seguro que quiere Cerrar Sesión?</h2>
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
                 <button
                   className="btn"

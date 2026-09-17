@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { flagService } from '../services/flag.service';
 import type { IAdminFlag } from '../services/flag.service';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 interface FlagsPanelProps {
   token: string | null;
@@ -12,6 +13,7 @@ export function FlagsPanel({ token }: FlagsPanelProps) {
   const [error, setError] = useState('');
   const [selectedFlag, setSelectedFlag] = useState<IAdminFlag | null>(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showStatsModal, setShowStatsModal] = useState(false);
 
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
@@ -67,15 +69,23 @@ export function FlagsPanel({ token }: FlagsPanelProps) {
     return true;
   });
 
+  const chartData = [
+    { name: 'Verde', value: filteredFlags.filter(f => f.tipo === 'verde').length, color: '#22c55e' },
+    { name: 'Amarilla', value: filteredFlags.filter(f => f.tipo === 'amarilla').length, color: '#eab308' },
+    { name: 'Naranja', value: filteredFlags.filter(f => f.tipo === 'naranja').length, color: '#f97316' },
+    { name: 'Roja', value: filteredFlags.filter(f => f.tipo === 'roja').length, color: '#ef4444' }
+  ].filter(d => d.value > 0);
+
   return (
     <div style={{ width: '100%', overflowX: 'auto' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
-          <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '800', color: 'var(--text-h)', textTransform: 'uppercase', letterSpacing: '1px' }}>Banderas y Alertas</h1>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: '280px' }}>
+          <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '800', color: 'var(--text-h)', textTransform: 'uppercase', letterSpacing: '1px', whiteSpace: 'nowrap' }}>Banderas y Alertas</h1>
           <button 
             className="btn" 
             style={{ padding: '0 8px', borderRadius: '50%', minWidth: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0, fontWeight: 'bold' }}
             onClick={() => setShowHelpModal(true)}
+            title="Ayuda sobre Banderas"
           >
             ?
           </button>
@@ -99,7 +109,17 @@ export function FlagsPanel({ token }: FlagsPanelProps) {
             <strong>Roja:</strong> {flags.filter(f => f.tipo === 'roja').length}
           </div>
         </div>
-        <div style={{ flex: 1 }}></div>
+
+        <div style={{ display: 'flex', flex: 1, justifyContent: 'flex-end', minWidth: '150px' }}>
+          <button
+            className="btn btn-create"
+            style={{ margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.05rem', padding: '0.4rem 1.2rem' }}
+            onClick={() => setShowStatsModal(true)}
+            title="Ver Estadísticas"
+          >
+            Estadísticas
+          </button>
+        </div>
       </div>
 
       <div className="filter-panel" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem', padding: '1rem', borderRadius: '8px', alignItems: 'flex-end', boxSizing: 'border-box', width: '100%' }}>
@@ -144,19 +164,21 @@ export function FlagsPanel({ token }: FlagsPanelProps) {
       {error && <p className="res-status res-error">{error}</p>}
       {!loading && !error && flags.length === 0 && <p className="res-status">No hay banderas registradas.</p>}
 
+
       {!loading && flags.length > 0 && (
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Tipo</th>
-              <th>Usuario</th>
-              <th>Motivo</th>
-              <th>Asignado Por</th>
-              <th style={{ textAlign: 'center' }}>Detalles</th>
-            </tr>
-          </thead>
-          <tbody>
+        <div style={{ maxHeight: 'calc(100vh - 320px)', overflowY: 'auto', borderRadius: '12px', border: '1px solid var(--border)', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
+          <table className="admin-table" style={{ border: 'none', boxShadow: 'none', borderRadius: 0, margin: 0 }}>
+            <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
+              <tr>
+                <th style={{ borderTop: 'none' }}>Fecha</th>
+                <th style={{ borderTop: 'none' }}>Tipo</th>
+                <th style={{ borderTop: 'none' }}>Usuario</th>
+                <th style={{ borderTop: 'none' }}>Motivo</th>
+                <th style={{ borderTop: 'none' }}>Asignado Por</th>
+                <th style={{ textAlign: 'center', borderTop: 'none' }}>Detalles</th>
+              </tr>
+            </thead>
+            <tbody>
             {filteredFlags.map(flag => (
               <tr key={flag._id}>
                 <td>{new Date(flag.createdAt).toLocaleString('es-CL')}</td>
@@ -175,12 +197,13 @@ export function FlagsPanel({ token }: FlagsPanelProps) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
       {/* MODAL DETALLES */}
       {selectedFlag && (
-        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="modal-content" style={{ backgroundColor: 'var(--bg-panel)', padding: '2rem', borderRadius: '12px', maxWidth: '500px', width: '90%', position: 'relative', color: 'var(--text-p)', border: '1px solid var(--border)' }}>
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setSelectedFlag(null)}>
+          <div className="modal-content" style={{ backgroundColor: 'var(--bg-panel)', padding: '2rem', borderRadius: '12px', maxWidth: '500px', width: '90%', position: 'relative', color: 'var(--text-p)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setSelectedFlag(null)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: 'var(--bg-input)', color: 'var(--text-h)', cursor: 'pointer', fontWeight: 'bold' }}>X</button>
 
             <h2 style={{ marginTop: 0, marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', color: 'var(--text-h)' }}>Detalle de Bandera</h2>
@@ -218,11 +241,11 @@ export function FlagsPanel({ token }: FlagsPanelProps) {
 
       {/* MODAL AYUDA SISTEMA DE PUNTOS */}
       {showHelpModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="modal-content" style={{ backgroundColor: 'var(--bg-panel)', padding: '2rem', borderRadius: '12px', maxWidth: '600px', width: '90%', position: 'relative', color: 'var(--text-p)', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border)' }}>
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowHelpModal(false)}>
+          <div className="modal-content" style={{ backgroundColor: 'var(--bg-panel)', padding: '2rem', borderRadius: '12px', maxWidth: '600px', width: '90%', position: 'relative', color: 'var(--text-p)', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowHelpModal(false)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: 'var(--bg-input)', color: 'var(--text-h)', cursor: 'pointer', fontWeight: 'bold' }}>X</button>
             <h2 style={{ marginTop: 0, marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', color: 'var(--text-h)' }}>Sistema de Puntos y Banderas</h2>
-            
+
             <p>Todos los usuarios comienzan con <strong>100 puntos</strong>. El sistema clasifica el comportamiento mediante banderas:</p>
             <ul style={{ lineHeight: '1.6' }}>
               <li><span style={{ color: '#22c55e', fontWeight: 'bold' }}>Verde (76-100 pts):</span> Sin faltas o comportamiento adecuado. Suma <strong>+5 puntos</strong> (ej. completar inspección a tiempo).</li>
@@ -233,10 +256,61 @@ export function FlagsPanel({ token }: FlagsPanelProps) {
 
             <h3 style={{ borderBottom: '1px solid #eee', paddingBottom: '0.5rem', marginTop: '1.5rem', color: 'var(--text-h)' }}>Consecuencias (Penalidades)</h3>
             <ul style={{ lineHeight: '1.6' }}>
-              <li><strong>Menos de 35 puntos:</strong> Se asignan 2 inspecciones aleatorias como penalidad.</li>
+              <li><strong>35 puntos o menos:</strong> Se asignan 2 inspecciones aleatorias como penalidad.</li>
               <li><strong>20 puntos o menos:</strong> Se asignan 3 inspecciones aleatorias como penalidad.</li>
               <li><strong>Menos de 10 puntos:</strong> La cuenta es <strong>bloqueada</strong> automáticamente y el usuario no podrá crear nuevas reservaciones hasta ser habilitado por un administrador.</li>
             </ul>
+          </div>
+        </div>
+      )}
+      {/* MODAL ESTADÍSTICAS */}
+      {showStatsModal && (
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowStatsModal(false)}>
+          <div className="modal-content" style={{ backgroundColor: 'var(--bg-panel)', padding: '2rem', borderRadius: '12px', maxWidth: '600px', width: '90%', position: 'relative', color: 'var(--text-p)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowStatsModal(false)} style={{ position: 'absolute', top: '12px', right: '12px', width: '32px', height: '32px', borderRadius: '50%', border: 'none', backgroundColor: 'var(--bg-input)', color: 'var(--text-h)', cursor: 'pointer', fontWeight: 'bold' }}>X</button>
+            <h2 style={{ marginTop: 0, marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', color: 'var(--text-h)' }}>Estadísticas de Banderas</h2>
+
+            {chartData.length > 0 ? (
+              <div style={{ width: '100%', height: '300px', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ flex: 1, height: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={chartData}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={90}
+                          paddingAngle={5}
+                        >
+                          {chartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px', color: '#fff' }} itemStyle={{ color: '#fff' }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', justifyContent: 'center', width: '200px' }}>
+                    {chartData.map(entry => {
+                      const total = chartData.reduce((acc, curr) => acc + curr.value, 0);
+                      const percent = total > 0 ? ((entry.value / total) * 100).toFixed(0) : 0;
+                      return (
+                        <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: entry.color, fontWeight: 'bold', fontSize: '1.1rem' }}>
+                          <span style={{ display: 'inline-block', width: '14px', height: '14px', borderRadius: '50%', backgroundColor: entry.color }} />
+                          {entry.name} {percent}%
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p style={{ textAlign: 'center', fontStyle: 'italic', color: '#9ca3af' }}>No hay datos suficientes para mostrar.</p>
+            )}
           </div>
         </div>
       )}

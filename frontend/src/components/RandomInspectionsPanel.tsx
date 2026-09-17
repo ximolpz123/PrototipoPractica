@@ -105,14 +105,14 @@ export function RandomInspectionsPanel({ token, users = [], vehicles = [] }: Ran
             // 3 minutos = 180000 ms
             if (now - actTime > 180000) {
               changed = true;
-              return { ...insp, estado: 'en_curso' };
+              return { ...insp, estado: 'en_curso' as const };
             }
           } else if (insp.estado === 'en_curso') {
             const actTime = new Date(insp.fechaActivacion).getTime();
             // 3 minutos (espera) + 10 minutos (tarea) = 13 minutos = 780000 ms
             if (now - actTime > 780000) {
               changed = true;
-              return { ...insp, estado: 'vencida' };
+              return { ...insp, estado: 'vencida' as const };
             }
           }
           return insp;
@@ -171,7 +171,7 @@ export function RandomInspectionsPanel({ token, users = [], vehicles = [] }: Ran
         tarea: '',
         fechaActivacion: getLocalDatetimeString()
       });
-    } catch (err) {
+    } catch {
       alert('Hubo un error al crear la inspección en el servidor.');
     }
   };

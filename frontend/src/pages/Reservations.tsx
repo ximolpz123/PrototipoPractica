@@ -220,14 +220,22 @@ function Reservations() {
             onChange={handleImageUpload}
             style={{ display: 'none' }}
           />
-          <div className="sidebar-profile-info">
+          <div className="sidebar-profile-info" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
             <span className="sidebar-profile-name">
               {user?.nombre ?? ''} {user?.apellido ?? ''} | <span title={`Departamento de: ${user?.departamento || 'Sin Departamento'}`} style={{ fontWeight: 'normal', color: 'rgba(255,255,255,0.85)', fontSize: '14px', cursor: 'default' }}>{user?.departamento ? user.departamento.slice(0, 2) : 'Sin'}</span>
             </span>
-            {user?.rol !== 'admin' && (
-              <div style={{ fontSize: '16px', color: 'rgba(255,255,255,0.9)', textAlign: 'left', marginTop: '2px' }}>
-                <span><strong>Licencia:</strong> <span style={{ color: user?.licenciaAlDia === false ? '#ef4444' : '#4ade80', fontWeight: 'bold' }}>{user?.licenciaAlDia === false ? 'NO AL DÍA' : 'AL DÍA'}</span></span>
-              </div>
+            {user?.rol !== 'admin' && user?.licenciaAlDia !== undefined && (
+              <span style={{
+                fontSize: '0.75rem',
+                fontWeight: 'bold',
+                backgroundColor: user?.licenciaAlDia ? 'rgba(22, 163, 74, 0.15)' : 'rgba(239, 68, 68, 0.2)',
+                color: user?.licenciaAlDia ? '#16a34a' : '#fca5a5',
+                padding: '3px 8px',
+                borderRadius: '12px',
+                border: `1px solid ${user?.licenciaAlDia ? 'rgba(22, 163, 74, 0.5)' : 'rgba(239, 68, 68, 0.5)'}`
+              }}>
+                Licencia {user?.licenciaAlDia ? 'Al Día' : 'Vencida'}
+              </span>
             )}
           </div>
         </div>
@@ -334,18 +342,19 @@ function Reservations() {
             <div
               className="modal-content"
               style={{
-                backgroundColor: 'white',
+                backgroundColor: 'var(--bg-panel)',
                 padding: '2rem',
                 borderRadius: '8px',
                 maxWidth: '500px',
                 width: '90%',
-                color: '#000',
+                color: 'var(--text-p)',
                 textAlign: 'center',
-                position: 'relative'
+                position: 'relative',
+                border: '1px solid var(--border)'
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 style={{ marginTop: 0, marginBottom: '1.5rem', color: '#000', fontSize: '1.5rem' }}>¿Seguro que quiere Cerrar Sesión?</h2>
+              <h2 style={{ marginTop: 0, marginBottom: '1.5rem', color: 'var(--text-h)', fontSize: '1.5rem' }}>¿Seguro que quiere Cerrar Sesión?</h2>
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
                 <button
                   className="btn"
