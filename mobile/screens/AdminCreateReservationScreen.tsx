@@ -198,30 +198,33 @@ export default function AdminCreateReservationScreen({ navigation }: any) {
             value={date}
             mode="date"
             minimumDate={new Date()}
-            onChange={(_: any, selected?: Date) => {
+            onValueChange={(_: any, selected?: Date) => {
               setShowDatePicker(false);
               if (selected) setDate(selected);
             }}
+            onDismiss={() => setShowDatePicker(false)}
           />
         )}
         {showStartTimePicker && (
           <DateTimePicker
             value={startTime}
             mode="time"
-            onChange={(_: any, selected?: Date) => {
+            onValueChange={(_: any, selected?: Date) => {
               setShowStartTimePicker(false);
               if (selected) setStartTime(selected);
             }}
+            onDismiss={() => setShowStartTimePicker(false)}
           />
         )}
         {showEndTimePicker && (
           <DateTimePicker
             value={endTime}
             mode="time"
-            onChange={(_: any, selected?: Date) => {
+            onValueChange={(_: any, selected?: Date) => {
               setShowEndTimePicker(false);
               if (selected) setEndTime(selected);
             }}
+            onDismiss={() => setShowEndTimePicker(false)}
           />
         )}
 

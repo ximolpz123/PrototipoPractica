@@ -66,10 +66,14 @@ export default function AdminDashboardScreen() {
       if (!isRefresh) setLoading(true);
       const todas = await reservationService.getAllReservations();
       setReservas(todas);
+    } catch (err) {
+      showAlert('Error', 'No se pudieron cargar las solicitudes.');
+    }
+    try {
       const insp = await inspectionService.getAllInspections();
       setInspecciones(insp);
     } catch (err) {
-      showAlert('Error', 'No se pudieron cargar las reservas.');
+      console.warn('Error al cargar inspecciones:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);

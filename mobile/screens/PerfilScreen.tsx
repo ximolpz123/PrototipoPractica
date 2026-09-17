@@ -8,6 +8,8 @@ import { useAlert } from '../context/AlertContext';
 import { userService } from '../services/user.service';
 import { authService } from '../services/auth.service';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import SwipeableBottomSheet from '../components/SwipeableBottomSheet';
 
 const FLAG_COLORS: Record<string, string> = {
   verde: '#10B981',
@@ -24,56 +26,51 @@ const FLAG_ICONS: Record<string, string> = {
   ninguna: '⚪'
 };
 
-
-
-export default function PerfilScreen({ route }: any) {
+export default function PerfilScreen({ navigation }: any) {
+  const { user, handleLogout } = useAuth();
   const { colors, themePreference, setThemePreference } = useTheme();
   const styles = useMemo(() => getStyles(colors), [colors]);
   const { showAlert } = useAlert();
-  const handleLogout = route.params?.handleLogout || (() => {});
-  
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  const confirmLogout = () => {
-    setShowLogoutModal(true);
-  };
+  const defaultAvatarUrl = user
+    ? `https://ui-avatars.com/api/?name=${user.nombre}+${user.apellido}&background=3D9FD3&color=fff&size=256`
+    : '';
 
-  const user = route.params?.user || {
-    nombre: 'Joaquín',
-    apellido: 'López',
-    email: 'joaquin@bitnets.cl',
-    rol: 'operario',
-    licenciaAlDia: true,
-    fechaVencimientoLicencia: '2026-08-15T00:00:00.000Z',
-  };
-
-  const defaultAvatar = `https://ui-avatars.com/api/?name=${user.nombre}+${user.apellido}&background=3D9FD3&color=fff&size=256`;
-  const [avatarUri, setAvatarUri] = useState<string>(defaultAvatar);
+  const [avatarUri, setAvatarUri] = useState<string>(defaultAvatarUrl);
   const [uploading, setUploading] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [scanningLicense, setScanningLicense] = useState(false);
 
   // Edit states
-  const [departamento, setDepartamento] = useState(user.departamento || '');
-  const [telefono, setTelefono] = useState(user.telefono || '');
-  
-  // Real license validation based on v2 model
-  const [licenciaEstado, setLicenciaEstado] = useState(user.licenciaEstado || (user.licenciaAlDia ? 'vigente' : 'vencida'));
-  const [fechaVencimiento, setFechaVencimiento] = useState(user.licenciaVencimiento || user.fechaVencimientoLicencia);
-  const [licenciaFotoUrl, setLicenciaFotoUrl] = useState(user.licenciaFotoUrl || null);
+  const [departamento, setDepartamento] = useState(user?.departamento || '');
+  const [telefono, setTelefono] = useState(user?.telefono || '');
+
+  // License states
+  const [licenciaEstado, setLicenciaEstado] = useState(user?.licenciaEstado || (user?.licenciaAlDia ? 'vigente' : 'vencida'));
+  const [fechaVencimiento, setFechaVencimiento] = useState(user?.licenciaVencimiento || user?.fechaVencimientoLicencia);
+  const [licenciaFotoUrl, setLicenciaFotoUrl] = useState(user?.licenciaFotoUrl || null);
   const [showLicenciaModal, setShowLicenciaModal] = useState(false);
   const isLicenciaValida = licenciaEstado === 'vigente' && fechaVencimiento && new Date(fechaVencimiento) > new Date();
   const [flags, setFlags] = useState<any[]>([]);
-  const banderaActual = user.banderaActual || 'ninguna';
+  const banderaActual = user?.banderaActual || 'ninguna';
 
   useEffect(() => {
-    const userId = user.id || user._id;
+    const userId = user?.id || user?._id;
     if (userId) {
       userService.getUserFlags(userId)
         .then(res => setFlags(res))
         .catch(err => console.error('Error cargando banderas', err));
     }
-  }, [user.id, user._id]);
+  }, [user]);
+
+  const confirmLogout = () => setShowLogoutModal(true);
+
+
+  // Guard: all hooks must be called before this return
+  if (!user) return null;
+
+
 
   const handleChangePhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -83,7 +80,7 @@ export default function PerfilScreen({ route }: any) {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -137,7 +134,7 @@ export default function PerfilScreen({ route }: any) {
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
@@ -380,30 +377,30 @@ export default function PerfilScreen({ route }: any) {
 
       {/* Modal de Cierre de Sesión (Bottom Sheet) */}
       <Modal visible={showLogoutModal} transparent animationType="slide">
-        <View style={styles.logoutModalOverlay}>
-          <View style={styles.logoutModalCard}>
-            <View style={styles.bottomSheetIndicator} />
-            <Text style={styles.logoutModalTitle}>Cerrar Sesión</Text>
-            <Text style={styles.logoutModalSubtitle}>¿Estás seguro de que deseas cerrar sesión?</Text>
-            <View style={styles.modalBtns}>
-              <TouchableOpacity 
-                style={[styles.modalBtnCancel, { flex: 1, marginRight: 8 }]} 
-                onPress={() => setShowLogoutModal(false)}
-              >
-                <Text style={styles.modalBtnCancelText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalBtnConfirm, { flex: 1, backgroundColor: colors.danger }]} 
-                onPress={() => {
-                  setShowLogoutModal(false);
-                  handleLogout();
-                }}
-              >
-                <Text style={styles.modalBtnConfirmText}>Sí, Cerrar Sesión</Text>
-              </TouchableOpacity>
-            </View>
+        <SwipeableBottomSheet
+          onDismiss={() => setShowLogoutModal(false)}
+          cardStyle={{ backgroundColor: colors.white }}
+        >
+          <Text style={styles.logoutModalTitle}>Cerrar Sesión</Text>
+          <Text style={styles.logoutModalSubtitle}>¿Estás seguro de que deseas cerrar sesión?</Text>
+          <View style={styles.modalBtns}>
+            <TouchableOpacity 
+              style={[styles.modalBtnCancel, { flex: 1, marginRight: 8 }]} 
+              onPress={() => setShowLogoutModal(false)}
+            >
+              <Text style={styles.modalBtnCancelText}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.modalBtnConfirm, { flex: 1, backgroundColor: colors.danger }]} 
+              onPress={() => {
+                setShowLogoutModal(false);
+                handleLogout();
+              }}
+            >
+              <Text style={styles.modalBtnConfirmText}>Sí, Cerrar Sesión</Text>
+            </TouchableOpacity>
           </View>
-        </View>
+        </SwipeableBottomSheet>
       </Modal>
     </View>
   );

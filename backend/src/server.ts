@@ -10,8 +10,8 @@ import trackingRoutes from './routes/tracking.routes.js';
 import userRoutes from './routes/user.routes.js';
 import devRoutes from './routes/dev.routes.js';
 import configRoutes from './routes/config.routes.js';
-import inspectionRoutes from './routes/inspection.routes.js';
 import flagRoutes from './routes/flag.routes.js';
+import inspectionRoutes from './routes/inspection.routes.js';
 import { initCronJobs } from './jobs/cron.js';
 
 // Cargar variables de entorno
@@ -20,16 +20,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -49,8 +42,8 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/tracking', trackingRoutes);
 app.use('/api/dev', devRoutes);
 app.use('/api/config', configRoutes);
-app.use('/api/inspections', inspectionRoutes);
 app.use('/api/flags', flagRoutes);
+app.use('/api/inspections', inspectionRoutes);
 
 // Iniciar servidor
 const startServer = async () => {

@@ -3,35 +3,43 @@ import { timeService } from '../services/time.service.js';
 
 const router = Router();
 
-// GET /api/dev/time (Para que la app consulte el offset actual)
-router.get('/time', (req: Request, res: Response) => {
-  res.json({
-    offset: timeService.getOffset(),
-    simulatedTime: timeService.getCurrentTime(),
+// ── Guard de entorno: estas rutas SOLO existen fuera de producción ─────────────
+// En producción, cualquier petición a /api/dev/* devuelve 404.
+if (process.env.NODE_ENV === 'production') {
+  router.use((_req: Request, res: Response) => {
+    res.status(404).json({ message: 'Not found' });
   });
-});
+} else {
+  // GET /api/dev/time (Para que la app consulte el offset actual)
+  router.get('/time', (req: Request, res: Response) => {
+    res.json({
+      offset: timeService.getOffset(),
+      simulatedTime: timeService.getCurrentTime(),
+    });
+  });
 
-// POST /api/dev/time
-router.post('/time', (req: Request, res: Response) => {
-  const { action, hours, days, minutes } = req.body;
+  // POST /api/dev/time
+  router.post('/time', (req: Request, res: Response) => {
+    const { action, hours, days, minutes } = req.body;
 
-  try {
-    if (action === 'reset') {
-      timeService.reset();
-      res.json({ message: 'Tiempo reiniciado', simulatedTime: timeService.getCurrentTime() });
-      return;
+    try {
+      if (action === 'reset') {
+        timeService.reset();
+        res.json({ message: 'Tiempo reiniciado', simulatedTime: timeService.getCurrentTime() });
+        return;
+      }
+
+      let offset = timeService.getOffset();
+      if (minutes) offset += minutes * 60 * 1000;
+      if (hours) offset += hours * 60 * 60 * 1000;
+      if (days) offset += days * 24 * 60 * 60 * 1000;
+
+      timeService.setOffset(offset);
+      res.json({ message: 'Tiempo actualizado', simulatedTime: timeService.getCurrentTime() });
+    } catch (error) {
+      res.status(500).json({ message: 'Error al cambiar tiempo', error });
     }
-
-    let offset = timeService.getOffset();
-    if (minutes) offset += minutes * 60 * 1000;
-    if (hours) offset += hours * 60 * 60 * 1000;
-    if (days) offset += days * 24 * 60 * 60 * 1000;
-
-    timeService.setOffset(offset);
-    res.json({ message: 'Tiempo actualizado', simulatedTime: timeService.getCurrentTime() });
-  } catch (error) {
-    res.status(500).json({ message: 'Error al cambiar tiempo', error });
-  }
-});
+  });
+}
 
 export default router;

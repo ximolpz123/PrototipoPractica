@@ -21,6 +21,7 @@ import { authService } from './services/auth.service';
 import { userService } from './services/user.service';
 import { reservationService } from './services/reservation.service';
 import { locationService } from './services/location.service'; // Import location service for global TaskManager registration
+import { eventEmitter } from './utils/eventEmitter';
 import type { IUser } from './types';
 import { COLORS } from './constants';
 import * as Notifications from 'expo-notifications';
@@ -53,15 +54,17 @@ import AddVehicleAIScreen from './screens/AddVehicleAIScreen';
 import AdminCreateReservationScreen from './screens/AdminCreateReservationScreen';
 import AdminBanderasScreen from './screens/AdminBanderasScreen';
 import ScanQRScreen from './screens/ScanQRScreen';
+import RouteMapScreen from './screens/RouteMapScreen';
+import VehicleDocumentsScreen from './screens/VehicleDocumentsScreen';
 import { AlertProvider, useAlert } from './context/AlertContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { AuthContext, useAuth } from './context/AuthContext';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 // ── Navegación del CONDUCTOR ────────────────────────────────────────────────
 function MainTabNavigator({ route }: any) {
-  const { user, handleLogout } = route.params;
   const { colors } = useTheme();
 
   return (
@@ -97,19 +100,19 @@ function MainTabNavigator({ route }: any) {
         ),
       })}
     >
-      <Tab.Screen name="Inicio" component={HomeScreen} initialParams={{ user }} />
+      <Tab.Screen name="Inicio" component={HomeScreen} />
       <Tab.Screen name="Reservas" component={MisReservasScreen} />
       <Tab.Screen name="Flota" component={FlotaScreen} />
-      <Tab.Screen name="Perfil" component={PerfilScreen} initialParams={{ user, handleLogout }} />
+      <Tab.Screen name="Perfil" component={PerfilScreen} />
     </Tab.Navigator>
   );
 }
 
 // ── Navegación del ADMINISTRADOR ─────────────────────────────────────────────
-function AdminTabNavigator({ route }: any) {
-  const { user, handleLogout } = route.params;
+function AdminTabNavigator() {
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const { themePreference, setThemePreference, colors } = useTheme();
+  const { handleLogout } = useAuth();
 
   return (
     <>
@@ -292,6 +295,19 @@ function MainApp() {
     checkSession();
   }, []);
 
+  // Interceptor global: si el JWT expira, hacer logout automático
+  useEffect(() => {
+    const handleUnauthorized = async () => {
+      await locationService.stopTracking(); // Detener GPS si estaba activo
+      await authService.logout();
+      setUser(null);
+      setEmail('');
+      setPassword('');
+    };
+    eventEmitter.on('UNAUTHORIZED', handleUnauthorized);
+    return () => eventEmitter.off('UNAUTHORIZED', handleUnauthorized);
+  }, []);
+
   // Listeners de Notificaciones
   useEffect(() => {
     if (!user) return;
@@ -389,14 +405,14 @@ function MainApp() {
   if (user) {
     const isAdmin = user.rol === 'admin';
     return (
-      <NavigationContainer>
-        <Stack.Navigator>
-          <Stack.Screen
-            name="MainTabs"
-            component={isAdmin ? AdminTabNavigator : MainTabNavigator}
-            initialParams={{ user, handleLogout }}
-            options={{ headerShown: false }}
-          />
+      <AuthContext.Provider value={{ user, handleLogout }}>
+        <NavigationContainer>
+          <Stack.Navigator>
+            <Stack.Screen
+              name="MainTabs"
+              component={isAdmin ? AdminTabNavigator : MainTabNavigator}
+              options={{ headerShown: false }}
+            />
           {/* Pantallas de stack solo para conductores */}
           {!isAdmin && (
             <>
@@ -415,6 +431,11 @@ function MainApp() {
                 component={ScanQRScreen}
                 options={{ title: 'Escanear QR Vehículo' }}
               />
+              <Stack.Screen
+                name="VehicleDocuments"
+                component={VehicleDocumentsScreen}
+                options={{ headerShown: false }}
+              />
             </>
           )}
           {isAdmin && (
@@ -430,14 +451,25 @@ function MainApp() {
                 options={{ title: 'Asignar Vehículo' }}
               />
               <Stack.Screen
+                name="RouteMap"
+                component={RouteMapScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
                 name="ScanQR"
                 component={ScanQRScreen}
                 options={{ title: 'Escanear QR Vehículo' }}
               />
+              <Stack.Screen
+                name="VehicleDocuments"
+                component={VehicleDocumentsScreen}
+                options={{ headerShown: false }}
+              />
             </>
           )}
-        </Stack.Navigator>
-      </NavigationContainer>
+          </Stack.Navigator>
+        </NavigationContainer>
+      </AuthContext.Provider>
     );
   }
 

@@ -234,15 +234,18 @@ export default function CreateReservationScreen({ navigation, route }: any) {
 
         {showDatePicker && (
           <DateTimePicker value={date} mode="date" display="default"
-            onChange={(_, d) => { setShowDatePicker(false); if (d) setDate(d); }} />
+            onValueChange={(_, d) => { setShowDatePicker(false); if (d) setDate(d); }}
+            onDismiss={() => setShowDatePicker(false)} />
         )}
         {showStartTimePicker && (
           <DateTimePicker value={startTime} mode="time" display="default"
-            onChange={(_, t) => { setShowStartTimePicker(false); if (t) setStartTime(t); }} />
+            onValueChange={(_, t) => { setShowStartTimePicker(false); if (t) setStartTime(t); }}
+            onDismiss={() => setShowStartTimePicker(false)} />
         )}
         {showEndTimePicker && (
           <DateTimePicker value={endTime} mode="time" display="default"
-            onChange={(_, t) => { setShowEndTimePicker(false); if (t) setEndTime(t); }} />
+            onValueChange={(_, t) => { setShowEndTimePicker(false); if (t) setEndTime(t); }}
+            onDismiss={() => setShowEndTimePicker(false)} />
         )}
 
         {/* 3. Destino */}

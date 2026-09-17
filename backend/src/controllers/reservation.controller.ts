@@ -427,12 +427,13 @@ export const responderTraspaso = async (req: AuthRequest, res: Response): Promis
         reservation.tramos = [];
       }
       
+      // Cerramos el tramo del conductor de origen
       if (reservation.tramos.length === 0) {
         reservation.tramos.push({
           conductor: reservation.usuario,
           fechaInicio: reservation.fechaInicio,
           fechaFin: now,
-          gpsActivo: true,
+          gpsActivo: false,
           kmInicio: reservation.kmSalida,
           kmFin: currentKm
         });
@@ -440,15 +441,16 @@ export const responderTraspaso = async (req: AuthRequest, res: Response): Promis
         const lastTramo = reservation.tramos[reservation.tramos.length - 1];
         lastTramo.fechaFin = now;
         lastTramo.kmFin = currentKm;
+        lastTramo.gpsActivo = false;
       }
 
-      // Nuevo tramo
+      // Nuevo tramo para el conductor destino — siempre requiere fotos de relevo
       reservation.tramos.push({
         conductor: reservation.solicitudTraspaso.conductorDestino,
         fechaInicio: now,
-        gpsActivo: true,
+        gpsActivo: false,              // Se activa cuando sube las fotos
         kmInicio: currentKm,
-        requiereFotosInicio: tipo === 'regreso'
+        requiereFotosInicio: true      // Siempre debe tomar fotos al relevar
       });
 
       await reservation.save();
@@ -458,7 +460,7 @@ export const responderTraspaso = async (req: AuthRequest, res: Response): Promis
         await vehiculo.save();
       }
 
-      // Notificar al origen que se aceptó
+      // Notificar al origen que se aceptó y que su GPS fue apagado
       await sendPushNotification(
         reservation.solicitudTraspaso.conductorOrigen.toString(),
         'Traspaso Aceptado',
@@ -466,9 +468,7 @@ export const responderTraspaso = async (req: AuthRequest, res: Response): Promis
         { type: 'HANDOVER_ACCEPTED', reservaId: reservation._id }
       );
 
-      // Desactivamos el gps del conductor origen mandando push para que la app sepa (opcional, la app de origen puede hacer polling o manejar la push)
-      
-      res.json({ message: 'Traspaso aceptado exitosamente', requiereFotos: tipo === 'regreso' });
+      res.json({ message: 'Traspaso aceptado. Procede a tomar las fotos de relevo.', requiereFotos: true });
       return;
     }
 
@@ -596,7 +596,7 @@ export const cambioConductorTramo = async (req: AuthRequest, res: Response): Pro
 // Completar una reserva y registrar kilometraje de retorno
 export const completeReservation = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { kmRetorno, observaciones, nivelBencinaRetorno } = req.body;
+    const { kmRetorno, observaciones, nivelBencinaRetorno, justificacionKm } = req.body;
 
     // Validar que kmRetorno es un número positivo
     if (typeof kmRetorno !== 'number' || kmRetorno < 0) {
@@ -626,11 +626,13 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
       return;
     }
 
-    // Validar fotos faltantes (pero NO bloquear, se evaluará para banderas)
+    // Validar fotos faltantes para Banderas
+    // (Ahora las fotos de retorno son opcionales excepto el tablero, por lo que solo penalizamos por las de salida)
     const requiredFotos = ['frontal', 'lateralDer', 'lateralIzq', 'trasero', 'tablero', 'interior'];
     const faltanSalidaCount = requiredFotos.filter(pos => !(reservation.fotosSalida as any)?.[pos]).length;
-    const faltanRetornoCount = requiredFotos.filter(pos => !(reservation.fotosRetorno as any)?.[pos]).length;
-    const missingPhotosCount = faltanSalidaCount + faltanRetornoCount;
+    // La foto del tablero en el retorno sigue siendo obligatoria conceptualmente,
+    // pero para las banderas, evaluaremos principalmente la salida y la puntualidad.
+    const missingPhotosCount = faltanSalidaCount;
 
     // Validar que kmRetorno > kmSalida (si se registró kmSalida)
     if (reservation.kmSalida && kmRetorno < reservation.kmSalida) {
@@ -643,6 +645,16 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
     // Calcular kilómetros recorridos en este viaje
     const kmRecorridos = reservation.kmSalida ? kmRetorno - reservation.kmSalida : 0;
 
+    // ── BUG FIX: Cerrar el último tramo activo (si hubo relevo) ──────────────
+    if (reservation.tramos && reservation.tramos.length > 0) {
+      const lastTramo = reservation.tramos[reservation.tramos.length - 1];
+      if (!lastTramo.fechaFin) {
+        lastTramo.fechaFin = new Date();
+        lastTramo.gpsActivo = false;
+        if (!lastTramo.kmFin) lastTramo.kmFin = kmRetorno;
+      }
+    }
+
     // Actualizar la reserva
     reservation.kmRetorno = kmRetorno;
     if (nivelBencinaRetorno !== undefined) {
@@ -650,6 +662,7 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
     }
     reservation.estado = 'completada';
     if (observaciones) reservation.observaciones = observaciones;
+    if (justificacionKm) reservation.justificacionKm = justificacionKm;
     await reservation.save();
 
     const vehiculoActualizado = await Vehicle.findByIdAndUpdate(
@@ -662,6 +675,10 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
     );
 
     // ── Lógica de Asignación Automática de Banderas ──
+    // IMPORTANTE: La bandera se asigna al conductor que FINALIZÓ el viaje (req.userId),
+    // no necesariamente al que lo inició (reservation.usuario). Esto es correcto porque
+    // en casos de relevo, el responsable de la entrega es el último conductor.
+    const conductorQueEntrego = req.userId!;
     let assignedColor: 'verde' | 'amarilla' | 'naranja' | 'roja' | null = null;
     let assignedMotivo = '';
     
@@ -682,21 +699,27 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
     if (isVeryLate || noGas || hasDamage) {
       assignedColor = 'roja';
       assignedMotivo = 'Llegó muy tarde, vehículo chocado, sin gasolina, o rueda pinchada.';
-    } else if (faltanRetornoCount >= 5 || (isLate && missingPhotosCount > 0)) {
-      // faltanRetornoCount >= 5 significa "Solo 1 foto tomada" (de las 6 del retorno)
+    } else if (faltanSalidaCount >= 5 || (isLate && missingPhotosCount > 0)) {
       assignedColor = 'naranja';
-      assignedMotivo = 'Solo 1 foto tomada o vehículo entregado tarde sin avisar.';
+      assignedMotivo = 'Faltan casi todas las fotos obligatorias de inicio, o entregado tarde sin avisar.';
     } else if ((missingPhotosCount >= 1 && missingPhotosCount <= 4) || lowGas) {
       assignedColor = 'amarilla';
-      assignedMotivo = 'Faltó 1–2 fotos, o nivel de bencina bajo al devolver.';
+      assignedMotivo = 'Faltaron fotos al iniciar el viaje, o nivel de bencina bajo al devolver.';
     } else {
       // Revisar si califica para Verde (2 entregas perfectas seguidas)
-      const last2 = await Reservation.find({ usuario: reservation.usuario, estado: 'completada' }).sort({ updatedAt: -1 }).limit(2);
+      // Busca reservas donde el conductor que entregó fue el creador O participó en un tramo
+      const last2 = await Reservation.find({
+        $or: [
+          { usuario: conductorQueEntrego },
+          { 'tramos.conductor': conductorQueEntrego }
+        ],
+        estado: 'completada'
+      }).sort({ updatedAt: -1 }).limit(2);
+
       if (last2.length === 2) {
         let perfect = true;
         for (const r of last2) {
-          const mCount = requiredFotos.filter(pos => !(r.fotosSalida as any)?.[pos]).length + 
-                         requiredFotos.filter(pos => !(r.fotosRetorno as any)?.[pos]).length;
+          const mCount = requiredFotos.filter(pos => !(r.fotosSalida as any)?.[pos]).length;
           const lGas = (r.nivelBencinaRetorno !== undefined && r.nivelBencinaRetorno < 100);
           const rLate = r.fechaFin && (new Date(r.updatedAt).getTime() - new Date(r.fechaFin).getTime() > 0);
           if (mCount > 0 || lGas || rLate) perfect = false;
@@ -709,8 +732,9 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
     }
 
     if (assignedColor) {
+      // ✅ FIX: Se asigna al conductor que entregó (finalizó), no al que inició
       await Flag.create({
-        usuario: reservation.usuario,
+        usuario: conductorQueEntrego,
         reserva: reservation._id,
         tipo: assignedColor,
         motivo: assignedMotivo,
@@ -720,10 +744,10 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
 
       // Si es naranja, validar regla: 3 naranjas = 1 roja
       if (assignedColor === 'naranja') {
-        const naranjasCount = await Flag.countDocuments({ usuario: reservation.usuario, tipo: 'naranja' });
+        const naranjasCount = await Flag.countDocuments({ usuario: conductorQueEntrego, tipo: 'naranja' });
         if (naranjasCount >= 3) {
           await Flag.create({
-            usuario: reservation.usuario,
+            usuario: conductorQueEntrego,
             tipo: 'roja',
             motivo: 'Acumulación de 3 banderas naranjas.',
             asignadoPor: 'sistema'
@@ -731,6 +755,8 @@ export const completeReservation = async (req: AuthRequest, res: Response): Prom
           await updateUserPoints(reservation.usuario.toString(), 'roja');
         }
       }
+
+      await User.findByIdAndUpdate(conductorQueEntrego, { banderaActual: finalColorToAssign });
     }
     // ──────────────────────────────────────────────────
 
@@ -764,8 +790,8 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
-    if (!['salida', 'retorno', 'tramo'].includes(tipo)) {
-      res.status(400).json({ message: 'El tipo debe ser "salida", "retorno" o "tramo"' });
+    if (!['salida', 'retorno', 'tramo', 'relevo'].includes(tipo)) {
+      res.status(400).json({ message: 'El tipo debe ser "salida", "retorno", "tramo" o "relevo"' });
       return;
     }
 
@@ -795,6 +821,11 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
       if (!reservation.fotosSalida) reservation.fotosSalida = {};
     } else if (tipo === 'retorno') {
       if (!reservation.fotosRetorno) reservation.fotosRetorno = {};
+    } else if (tipo === 'relevo') {
+      // Initialize fotosRelevo as an array if needed
+      if (!reservation.fotosRelevo) reservation.fotosRelevo = [];
+      if (!reservation.fotosRelevoAt) reservation.fotosRelevoAt = [];
+      reservation.fotosRelevo.push({});
     } else if (tipo === 'tramo') {
       if (reservation.tramos && reservation.tramos.length > 0) {
         const lastTramo = reservation.tramos[reservation.tramos.length - 1];
@@ -810,6 +841,10 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
           (reservation.fotosSalida as any)[pos] = file.path;
         } else if (tipo === 'retorno') {
           (reservation.fotosRetorno as any)[pos] = file.path;
+        } else if (tipo === 'relevo') {
+          // Write to the last entry in the relevo array
+          const lastRelevo = reservation.fotosRelevo![reservation.fotosRelevo!.length - 1];
+          (lastRelevo as any)[pos] = file.path;
         } else if (tipo === 'tramo') {
           const lastTramo = reservation.tramos?.[reservation.tramos.length - 1];
           if (lastTramo && lastTramo.fotosInicio) {
@@ -828,6 +863,27 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
 
     if (tipo === 'salida') {
       reservation.fotosSalidaAt = new Date();
+    } else if (tipo === 'relevo') {
+      // Record relay timestamp and activate GPS for the new driver's tramo
+      reservation.fotosRelevoAt!.push(new Date());
+
+      // Mark the last tramo as GPS active (the relay driver's tramo)
+      if (reservation.tramos && reservation.tramos.length > 0) {
+        const lastTramo = reservation.tramos[reservation.tramos.length - 1];
+        lastTramo.gpsActivo = true;
+        lastTramo.requiereFotosInicio = false;
+      }
+
+      // Notify origin conductor that relay is complete and GPS was deactivated
+      const conductorOrigenId = reservation.solicitudTraspaso?.conductorOrigen?.toString();
+      if (conductorOrigenId) {
+        await sendPushNotification(
+          conductorOrigenId,
+          'Relevo Completado',
+          'El conductor de relevo tomó sus fotos. Tu tramo ha finalizado definitivamente.',
+          { type: 'RELAY_COMPLETE', reservaId: reservation._id }
+        );
+      }
     }
 
     await reservation.save();
@@ -896,8 +952,12 @@ export const uploadFotoTablero = async (req: AuthRequest, res: Response): Promis
           console.warn("IA no pudo leer el odómetro. Devolvió:", kmText);
           kmDetectado = -1; // Bandera de fallo
         }
-      } catch (aiError) {
-        console.error("Error en Gemini:", aiError);
+      } catch (aiError: any) {
+        if (aiError?.status === 503) {
+          console.warn("⚠️ Servidores de Gemini sobrecargados (503). Activando modo manual de odómetro.");
+        } else {
+          console.error("Error en Gemini al procesar odómetro:", aiError.message || aiError);
+        }
         kmDetectado = -1;
       }
     } else {
@@ -987,11 +1047,15 @@ export const handleDelayResponse = async (req: AuthRequest, res: Response): Prom
       res.json({ message: 'Reserva atrasada 15 minutos exitosamente.', reservation });
     } else {
       reservation.estado = 'cancelada';
-      reservation.motivo = motivoCancelacion || 'Cancelada por retraso del conductor anterior.';
+      // BUG FIX: usar motivoCancelacion (no motivo, que es el propósito del viaje)
+      reservation.motivoCancelacion = motivoCancelacion || 'Cancelada por retraso del conductor anterior.';
       await reservation.save();
-      
+
+      // BUG FIX: marcar el vehículo como disponible al cancelar
+      await Vehicle.findByIdAndUpdate(reservation.vehiculo, { estado: 'disponible' });
+
       await notifyAdmins('Reserva Cancelada', `El usuario ha cancelado su reserva porque no podía esperar el retraso de 15 mins.`);
-      
+
       res.json({ message: 'Reserva cancelada exitosamente.', reservation });
     }
   } catch (error) {
